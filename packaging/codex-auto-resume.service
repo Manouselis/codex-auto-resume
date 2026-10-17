@@ -1,0 +1,13 @@
+[Unit]
+Description=Codex Auto-Resume read-only companion
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/codex-auto-resume run
+Restart=on-failure
+RestartSec=30
+UMask=0077
+
+[Install]
+WantedBy=default.target
