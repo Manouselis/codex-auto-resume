@@ -1,5 +1,5 @@
 [Unit]
-Description=Codex Auto-Resume read-only companion
+Description=Codex Auto-Resume continuation controller
 After=graphical-session.target
 
 [Service]

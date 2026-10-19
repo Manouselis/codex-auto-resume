@@ -1,90 +1,79 @@
-# Installation and operation
+# Installation and use
 
 ## Ubuntu 22.04
 
-1. Install Python 3.10+ and Tk if missing: `sudo apt install python3 python3-tk`. The project installer itself never uses sudo.
-2. From the project folder, run:
+Requirements: Python 3.10+, `python3-tk`, and an installed official Codex CLI or desktop runtime signed in to ChatGPT Plus.
 
-   ```sh
-   python3 scripts/install.py
-   ~/.local/bin/codex-auto-resume ui
-   ```
+```sh
+cd codex-auto-resume
+python3 scripts/install.py
+~/.local/bin/codex-auto-resume ui
+```
 
-3. Use **Check usage** for read-only usage information. The switch defaults OFF. Turning it ON enables observation, not live continuation. Closing the window disables/disarms automation.
-4. To exercise the working continuation engine without connecting to Codex:
+1. Turn the switch ON. The companion starts/connects to the official local App Server daemon and verifies the account. It does not change login, enable remote control or start inference by itself.
+2. Click **Choose…**, select the original running task, then **Arm conversation**. A task already stopped by a structured usage-limit failure can also be armed while the five-hour window remains exhausted.
+3. Leave the control window running. It waits through a five-hour interruption and sends one continuation in the same context once fresh included usage is available.
+4. OFF immediately disarms scheduled work. Weekly exhaustion, completion or cancellation also stops automatic continuation. Re-enable/rearm is always explicit.
 
-   ```sh
-   ~/.local/bin/codex-auto-resume demo
-   ~/.local/bin/codex-auto-resume --simulation ui
-   ```
+The installer creates its own application, launcher, manifest and Applications-menu entry under `~/.local`. It never modifies unrelated Codex settings. Default-OFF applies to fresh state. Existing explicit preference/task state is preserved during updates. A custom prefix is supported with `--prefix /private/path`.
 
-The installer creates only its own zipapp, a launcher, a manifest, and an Applications-menu entry under `~/.local`. The menu's **Toggle Auto-Resume observation** action also changes the switch with one action. Reinstallation preserves application state and does not touch Codex configuration.
-
-Choose a custom location with `python3 scripts/install.py --prefix /your/private/prefix`. The installed launcher uses the same Python interpreter used for installation. Keep that interpreter available. A standalone zipapp can also run directly with Python; build using `python3 scripts/build.py`.
+Closing the control window turns Auto-Resume OFF and disarms tasks. An already acknowledged daemon turn keeps running. For long waits without an open window, use a user service.
 
 ## Optional user service
 
-The default window owns scheduling. For observation without an open window, use the supplied systemd user-service template after a default-prefix installation:
+After the default installation:
 
 ```sh
 mkdir -p ~/.config/systemd/user
 cp packaging/codex-auto-resume.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now codex-auto-resume.service
+~/.local/bin/codex-auto-resume ui
 ```
 
-This is opt-in and is not run by the installer. It stays OFF until explicitly enabled. Opening the control window while the service owns the controller connects to the same state instead of starting a competing scheduler. State changes cancel scheduled work immediately; a newly armed task is observed on the service's next wake, within 30 seconds.
+The service owns scheduling; the window controls the same state. Closing the window still switches OFF. To keep background operation enabled after closing the control window, explicitly run `~/.local/bin/codex-auto-resume enable` afterward. Then use `status` or reopen the window to inspect the task. Disarmed tasks must be explicitly rearmed.
+
+Stopping the service normally disarms tasks. A process crash preserves waiting state, while uncertain submissions pause instead of retrying. Normal shutdown/SIGTERM currently disarms conservatively, so automatic rearming after a normal reboot is unsupported.
 
 ```sh
 systemctl --user disable --now codex-auto-resume.service
 ```
 
-A normal service stop disables and disarms tasks. System shutdown can also send SIGTERM, so unattended rearming after a normal reboot is intentionally unsupported. A process crash preserves waiting tasks and revalidates them after restart. No user lingering, system-wide service, privileged daemon or automatic login is configured.
+No service/startup item is enabled automatically by installation. The official App Server daemon is a separate supported Codex component; the companion starts it on explicit enable, and does not stop it on disable or uninstall.
+
+## CLI
+
+```sh
+python3 -m auto_resume enable
+python3 -m auto_resume threads
+python3 -m auto_resume arm THREAD_ID
+python3 -m auto_resume run
+```
+
+Leave `run` running. Use another terminal for `status`, `disable`, or `disarm THREAD_ID`. `doctor --connect` reads account/quota and reports compatibility without inference. Place global flags such as `--state /private/task.sqlite3` before the subcommand.
+
+Default state is `$XDG_STATE_HOME/codex-auto-resume/state.sqlite3`, or `~/.local/state/codex-auto-resume/state.sqlite3`. Simulation has separate state. Do not point this option at a Codex database.
 
 ## Windows
 
-The core, Tk UI, process transport, OS-lock branch and `.cmd` installer are implemented. **Windows execution and installation have not been tested on a Windows host.** A CI matrix is supplied for later verification; no successful Windows run is claimed.
-
-With Python 3.10+ including Tk installed:
-
-```powershell
-py -m auto_resume demo
-py -m auto_resume --simulation ui
-py scripts/install.py
-```
-
-The default launcher is `%LOCALAPPDATA%\Programs\CodexAutoResume\bin\codex-auto-resume.cmd`. It is not added to PATH. Use `"<launcher path>" ui` in cmd, or `& '<launcher path>' ui` in PowerShell. No startup task, registry setting or tray icon is installed. Windows ACL hardening remains unverified. Live automatic continuation remains blocked.
-
-## Local CLI
-
-```sh
-python3 -m auto_resume doctor --connect
-python3 -m auto_resume status
-python3 -m auto_resume enable
-python3 -m auto_resume disable
-python3 -m auto_resume arm THREAD_ID
-python3 -m auto_resume disarm THREAD_ID
-```
-
-`arm` accepts only known running tasks or structured usage-limit failures. Live registration can be refused because a read-only process cannot prove original runtime ownership and configuration. It cannot make a live thread execute.
-
-Default state: `$XDG_STATE_HOME/codex-auto-resume/state.sqlite3`, or `~/.local/state/codex-auto-resume/state.sqlite3`. Windows uses `%LOCALAPPDATA%\codex-auto-resume\state.sqlite3`. Simulation uses a different file. For a clean test, place `--state /private/new-file.sqlite3` **before** the subcommand. Do not point it at any Codex file.
+The core and `.cmd` installer remain portable, but **real continuation on Windows is not verified**. It currently needs the official local Unix-socket-compatible daemon transport; unsupported socket behavior fails closed. No Windows release is claimed. `py -m auto_resume demo` can exercise the core without a daemon. Windows transport and ACL validation remain work for an appropriate host.
 
 ## Uninstall
 
-Stop the window/service first, then run `python3 scripts/uninstall.py`. For a custom prefix, pass the same `--prefix` used at installation. Remove the optional service file manually if installed. The uninstaller removes only paths in its allowlisted manifest, preserves application history, and never deletes Codex files.
+Stop the controller/window/service first:
+
+```sh
+python3 scripts/uninstall.py
+```
+
+Use the same `--prefix` for custom installations. Remove the optional user-service file if installed. Local task history is preserved. The official Codex daemon and settings are left untouched.
 
 ## Troubleshooting
 
-| Problem | Action |
-| --- | --- |
-| Missing Codex CLI | Install Codex; run `doctor` again. The desktop's bundled runtime is preferred on this Ubuntu installation. |
-| Invalid authentication | Sign in through Codex itself. This companion cannot change authentication. |
-| Unable to read usage | Check network and login, then run `doctor --connect`. Null/missing fields stay unavailable. |
-| App Server will not initialize | Check user-directory permissions. The runtime may need to write its own logs; do not grant broad filesystem privileges as a workaround. |
-| Unsupported version/schema | Preserve state and record the redacted doctor output. Execution stays blocked. |
-| UI unavailable | Install `python3-tk` and open a graphical session. Headless `status`, `disable`, and `demo` do not need Tk. |
-| X11 versus Wayland | No keyboard or coordinate automation is used. X11 GUI was tested; Wayland was not. Tk's Wayland/XWayland availability depends on the OS. |
-| Background failure | Use `systemctl --user status codex-auto-resume` and `journalctl --user -u codex-auto-resume`. Do not publish private runtime logs. |
-| Uncertain continuation | Inspect the original conversation manually. Do not delete reservations to force a retry. This release has no live submissions to reconcile. |
-| Native toggle absent | This is a separate companion window. No supported native Settings injection surface was established. |
+- Missing CLI: install Codex; the Ubuntu desktop-bundled runtime is preferred when present.
+- Failed daemon/socket connection: turn OFF, verify login in Codex, then enable again. `codex app-server daemon version` shows the official daemon's status. No remote control is required.
+- Missing/null permission, unknown credits, unsupported quota bucket or stale history: the task pauses; inspect the reason and rearm only after resolving it.
+- An approval is outstanding: automation does not answer it. Inspect the original work manually; cross-client approval routing is not verified.
+- GUI unavailable: install Tk/use a graphical session, or use the CLI/user service.
+- Wayland: no keyboard automation is used, but the Tk/XWayland experience has not been tested.
+- Uncertain submission: inspect the original conversation; do not clear a reservation to force a retry.

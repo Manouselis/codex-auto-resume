@@ -25,7 +25,8 @@ def main():
               "failures": len(result.failures), "errors": len(result.errors), "skipped": len(result.skipped),
               "skip_reasons": [{"test": str(test), "reason": reason} for test, reason in result.skipped],
               "python": platform.python_version(), "platform": platform.system(), "gui_requested": args.gui,
-              "live_model_requests": 0, "live_continuation": "BLOCKED", "windows_host_test": "NOT TESTED"}
+              "live_model_requests": 0, "live_continuation": "IMPLEMENTED; see live-continuation.json",
+              "windows_host_test": "NOT TESTED"}
     (root / "docs/evidence/test-results.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report, indent=2))
     return 0 if result.wasSuccessful() else 1

@@ -1,29 +1,25 @@
-# Engineering decisions and review cycles
+# Decisions and engineering review
 
-## Decisions
+## 0.2.0 correction
 
-1. **Fail closed before convenience.** `ordinaryUsageAllowed` and percentages are necessary read-time signals, not an atomic billing reservation. The shipped live adapter cannot execute.
-2. **Standalone companion, no cosmetic plugin.** A plugin manifest would not add the missing execution contract or persistent host toggle. Do not imply this is an official native feature.
-3. **Python standard library and native Tk.** Available on Ubuntu 22.04, small dependency surface, testable core, no web server, browser extension, cloud account or model API key. Windows code remains unverified.
-4. **Separate observation from execution.** Protocol reads are allowlisted. The simulator implements stronger hypothetical backend guarantees; its capability flags are not evidence that Codex provides them.
-5. **Conservative quota interpretation.** Require explicit account/model/bucket identity, both window durations, no paid credits, fresh ordinary permission and a weekly reserve. Do not infer recovery from time.
-6. **Durable at-most-once dispatch.** Commit a reservation before transmission; never retry an ambiguous send. Ambiguity blocks the automatic queue. Some safe opportunities can be missed after a crash.
-7. **Explicit task arming.** Global OFF disarms tasks; ON does not sweep conversations or rearm weekly exhaustion. Registration changes invalidate stale work by a generation number.
-8. **User interruption takes precedence.** Normal window/process close disarms automation; no forced interruption of ordinary Codex work. Normal shutdown may therefore need manual opt-in afterward.
-9. **No installation side effects on Codex.** Installer owns a separate prefix and manifest. Startup is manual opt-in. GitHub publication is deferred until the owner requests it.
+The 0.1.0 prototype interpreted the financial invariant as requiring a new atomic backend operation and therefore never executed. That was overly restrictive for the brief's requirement to verify included, non-chargeable usage before intentionally continuing. The current adapter performs those checks and submits a real same-thread continuation, while explicitly documenting the remaining external-change/concurrency race.
 
-## Review cycle 1 — finance, persistence and concurrency
+No safety preference simply bypasses the policy. Live execution requires authoritative ordinary permission, both available windows, Plus authentication, matching account/thread/model, zero/known credits, a standard provider/tier and unchanged failed work. Banked resets and paid paths remain forbidden.
 
-Reviewed policy and initial 54 tests. Hardened global serialization to include uncertain submissions, added OS controller locking, moved recovery after lock acquisition, and invalidated prior observations when a task is rearmed. Added regressions for concurrent controllers, disarming/rearming during reads, no polling during idle waits, attempt limits and uncertainty blocking other tasks.
+## Integration cycle
 
-A new test exposed an unrealistic simulator reset: recovered five-hour windows expired after 20 seconds. The fixture now reports a future five-hour window after recovery while retaining a short initial demonstration wait. This was a simulator defect, not a live backend result.
+Re-inspected installed runtime 0.163.0-alpha.10.2 and current official docs. A stale socket was diagnosed and the official local daemon started through its supported CLI. Initial proxy-based JSON-lines initialization failed because the socket transport is WebSocket. Replaced it with a masked RFC6455 client over the local socket. Metadata reads then passed. The backend's official `https://chatgpt.com/backend-api/` configuration was distinguished from custom endpoints rather than incorrectly rejecting a default URL.
 
-## Review cycle 2 — real protocol boundary and crash behavior
+## Genuine model verification
 
-Added a subprocess-based mock App Server and tested initialization, reconnects, timeout, malformed data, unexpected approval requests, sensitive backend error redaction, forbidden execution/billing/auth methods, and OS lock release after process death. Re-ran all tests. The installed bundled runtime then passed the real account/quota read-only probe. No model turn or billing request was submitted.
+Ran two tiny real included-usage turns in one dedicated non-destructive thread. The second request used the production same-thread dispatch path with an explicit manual-test trigger and correctly recalled the first turn's context token. No backend quota was mocked. No live quota was exhausted. The automatic failure/reset trigger is separately covered by controlled tests; this distinction is preserved in the report.
 
-## Review cycle 3 — UI and distribution
+## Safety and regression cycle
 
-Ran the native control-window tests on Ubuntu X11 and inspected dark/light screenshots. Visual inspection found clipped lower controls despite passing interaction tests. Increased minimum/default window dimensions, reduced initial table height, and added a widget-bounds regression. Added isolated installation/update/uninstallation and reproducible-build checks. A control window can now share state with an existing background controller without running crash recovery against a healthy process. Removed unused imports found by pyflakes.
+Added live protocol-level regressions for ordinary permission false/null, weekly exhaustion, paid balances, API auth, provider/endpoint/tier changes, account changes, task changes after resume, disabled state, pending approvals and all reported model buckets. Added WebSocket framing/fragmentation/ping, size-limit and no-retry tests. Delayed backend recovery after reset receives bounded read-only retries.
 
-Final results and remaining untested items are recorded in [TESTING.md](TESTING.md). No review cycle is a claim that live continuation works.
+The production transport disconnects without killing daemon work. Default operation now uses the real adapter; the simulator is retained only for normal testing. Added a native conversation chooser, current documentation and a versioned 0.2.0 distribution. Tests, real evidence and release hashes are recorded separately.
+
+## Unchanged principles
+
+Explicit per-thread arming; global OFF disarms; weekly exhaustion requires fresh user action; no prompt replay; durable reservation before dispatch; uncertainty pauses; no automatic approvals; no private app patches; no automatic GitHub publication. SQLite/runtime credentials remain separate. MIT license and reproducible packaging remain in place.

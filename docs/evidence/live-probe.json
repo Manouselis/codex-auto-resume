@@ -1,13 +1,11 @@
 {
-  "date": "2026-10-17",
-  "command": "python3 -m auto_resume doctor --connect",
-  "runtime": "codex-cli 0.162.0-alpha.17.2",
+  "date": "2026-10-19",
+  "runtime": "codex-cli 0.163.0-alpha.10.2",
+  "daemon": "0.163.0",
   "read_only_connection": "PASS",
   "ordinary_usage_allowed": true,
   "account_identity_available": true,
   "bucket_count": 1,
-  "usage_permission_field": true,
-  "live_execution": false,
-  "live_model_requests": 0,
-  "notes": "Account and quota reads succeeded. Identifiers, balances, reset-credit IDs and conversation contents are omitted."
+  "live_execution": true,
+  "transport": "WebSocket over local App Server Unix socket"
 }

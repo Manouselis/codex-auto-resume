@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "backend": "real authenticated Codex App Server",
+  "model_turns": 2,
+  "same_thread": true,
+  "original_context_preserved": true,
+  "ordinary_usage_authorized": true,
+  "paid_credits_available": false,
+  "automatic_quota_reset_test": "NOT TESTED: no real quota was exhausted"
+}

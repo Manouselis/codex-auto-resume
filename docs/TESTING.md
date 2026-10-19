@@ -1,29 +1,29 @@
-# Testing and verification
+# Testing and real verification — 0.2.0
 
-Verified on Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 17 October 2026. Test cases use invented account/thread IDs, fake clocks, mock App Server processes and simulated task state. No live model turn, quota exhaustion, reset redemption or billing operation is used.
+Verified on Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 19 October 2026.
 
 ## Results
 
-| Check | Classification | Evidence |
+| Check | Result | Evidence |
 | --- | --- | --- |
-| Automated policy/engine/protocol/storage/packaging suite | PASS | `tests/`, [machine-readable results](evidence/test-results.json) |
-| Native Tk interactions, keyboard entry, toggles, close and minimum size | PASS on Ubuntu X11 | `tests/test_ui.py` |
-| Dark/light render and visual inspection | PASS after fixing clipping | [Dark](evidence/ui-dark.png), [light](evidence/ui-light.png) |
-| Real bundled App Server account and quota reads | PASS | [Redacted live probe](evidence/live-probe.json) |
-| Finite reset-to-completion demonstration | PASS in simulation | `python3 -m auto_resume demo`: one simulated continuation, then `COMPLETED` |
-| Static import/name checks | PASS | `python3 -m pyflakes auto_resume scripts tests` |
-| Python compilation | PASS | `python3 -m compileall -q auto_resume scripts tests` |
-| Isolated user-prefix install, update, launch and uninstall | PASS on Ubuntu | `tests/test_packaging.py`; unrelated files preserved |
-| Reproducible zipapp and source archive | PASS | Build twice and compare `dist/SHA256SUMS` |
-| Runtime dependency surface | PASS | Standard library only; no third-party runtime packages |
-| Real automatic continuation and financial enforcement | BLOCKED | Missing installed backend execution contract; live adapter sends zero requests |
-| Actual systemd service/autostart on user's session | NOT TESTED | Template supplied; no service was installed or enabled |
-| Windows / Wayland / real OS suspend and reboot | NOT TESTED on those environments | Portable branches and simulated clock/restart tests are not platform verification |
-| Hosted GitHub Actions and public release | NOT TESTED | Workflow prepared; repository not published |
+| Full automated suite, including native GUI | PASS — 107 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
+| Genuine same-thread continuation | PASS — two real authenticated model turns; original context token recalled | [Redacted real-backend result](evidence/live-continuation.json) |
+| Real daemon account/quota connection | PASS — ordinary usage authorized; both quota windows; no paid balance | [Metadata probe](evidence/live-probe.json) |
+| Quota interruption → wait → fresh read → one real-protocol submission | PASS with controlled backend responses | `tests/test_live.py` |
+| Weekly exhausted after 5h reset | PASS — zero continuation requests | Engine, policy and live-adapter tests |
+| Real natural five-hour exhaustion/reset | NOT TESTED — no live quota was deliberately exhausted | Separate from real context/dispatch verification |
+| Actual task picker / live control-panel layout | PASS — real read-only list call and GUI layout test | `live.py`, `tests/test_ui.py` |
+| Dark/light and real-panel visual QA | PASS | [Real panel](evidence/ui-live.png), dark/light screenshots |
+| WebSocket framing, masking, fragmentation, ping/pong, size checks | PASS | `tests/test_websocket.py`; real daemon handshake also passed |
+| Crash, duplicate events, lost acknowledgements and cross-process reservation | PASS in controlled tests | Safety/protocol suites |
+| Isolated installation, update and uninstall | PASS on Ubuntu; unrelated files preserved | Packaging suite |
+| Static name/import checks and compilation | PASS | `pyflakes`, `compileall` |
+| Reproducible application and source package | PASS | Two builds produced identical SHA-256 values |
+| Windows, Wayland, OS suspend/reboot, user-service autostart | NOT TESTED on those hosts/scenarios | Portable core/fixtures are not host validation |
 
-The final full test run contains 83 tests, with all GUI tests included. Without `--gui`, six GUI tests intentionally skip. The 2500-case randomized policy invariant check is one test, not 2500 separately counted tests.
+The normal automated suite makes zero live model requests. The separately invoked live check made two genuine included-usage turns, in a dedicated harmless conversation, through the same production `_dispatch` method with an explicit manual-test trigger. It did not inject a fake quota or pretend that the real service had exhausted/reset. This confirms actual execution and context recovery, not an unperformed natural-reset test.
 
-There are no unresolved test failures in the final recorded run. Earlier failures included a simulator timestamp defect, clipped lower controls found visually, and a Tk timer/interpreter cleanup failure. Each was corrected before the final run. GUI cleanup now cancels its timer and joins work; tests collect Tk cycles on the main GUI thread.
+The final full run includes seven GUI tests; headless runs intentionally skip them. The 2500-case randomized quota check is counted as one test. Earlier 0.1.0 results remain in Git history and do not describe this release's execution capability.
 
 ## Required scenario coverage
 
@@ -65,7 +65,7 @@ PASS below means the corresponding local/mock scenario passed. It does not mean 
 | 40 clock changes | PASS — backwards/future-snapshot rejection and safe delay |
 | 41 daylight saving | PASS for epoch-based core scheduling; real timezone transition NOT TESTED |
 | 42 restart | PASS for persisted wait and OS lock release; actual reboot NOT TESTED |
-| 43 unsupported protocol | PASS — no execution capabilities, no submission |
+| 43 unsupported protocol | PASS — unsupported execution adapter, no submission |
 | 44 changed format | PASS — malformed/partial data rejected |
 | 45 weekly-only bucket | PASS — insufficient window information rejected |
 | 46 reversed windows | PASS — durations determine meaning |
@@ -80,8 +80,14 @@ Additional tests cover permissions changes, disabling/rearming during reads, no 
 python3 -m unittest discover -s tests -v
 python3 scripts/verify.py --gui
 python3 -m pyflakes auto_resume scripts tests
+python3 -m compileall -q auto_resume scripts tests
 python3 scripts/build.py
-python3 dist/codex-auto-resume-0.1.0.pyz demo
 ```
 
-The GUI command needs a graphical session and Tk; screenshot capture additionally uses Pillow only in the test, not in the application. `pyflakes` is an optional development tool. Headless runs work with standard Python alone. The public CI matrix is supplied for Ubuntu and Windows and intentionally skips GUI tests until a host display is configured.
+For an explicitly authorized real check using two tiny included-usage turns:
+
+```sh
+python3 scripts/live_check.py --run
+```
+
+GUI tests require Tk and a graphical session; screenshot capture uses Pillow only during tests. Application runtime remains standard-library only. The CI workflow has not yet run on hosted GitHub or a Windows host.

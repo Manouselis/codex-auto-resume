@@ -59,7 +59,7 @@ class Observation:
     user_work_active: bool = False
     cancelled: bool = False
     incomplete: bool | None = True
-    # A backend check must bind all these facts to submission, not just to a read.
+    # Dispatch rechecks these pinned facts; the public protocol is not atomic.
 
 
 @dataclass(frozen=True)

@@ -39,7 +39,7 @@ class ControlWindow:
         self.toggle.pack(anchor="w", pady=8)
         ttk.Label(frame, textvariable=self.status, style="Status.TLabel").pack(anchor="w", pady=(0, 14))
         banner = ("SIMULATION · Invented tasks and usage. No model requests are sent." if simulation else
-                  "Live continuation is unavailable in this release.\nThe installed API cannot guarantee included-only billing or an unchanged conversation.\nTurning this on enables observation only.")
+                  "Only armed conversations continue after a verified 5h reset.\nWeekly exhaustion, paid credits, unknown usage or changed work pauses automation.\nKeep the background controller running while waiting.")
         ttk.Label(frame, text=banner, wraplength=650, style="Notice.TLabel", padding=12).pack(fill="x", pady=(0, 16))
         row = ttk.Frame(frame)
         row.pack(fill="x")
@@ -54,6 +54,8 @@ class ControlWindow:
         self.thread_id.pack(side="left", fill="x", expand=True)
         self.thread_id.insert(0, "demo-task" if simulation else "")
         self.thread_id.bind("<Return>", lambda _: self.arm())
+        if not simulation:
+            ttk.Button(armrow, text="Choose…", command=self.choose).pack(side="left", padx=(8, 0))
         ttk.Button(armrow, text="Arm conversation", command=self.arm).pack(side="left", padx=(8, 0))
         self.tasks = ttk.Treeview(frame, columns=("state", "reset"), show="tree headings", height=4, selectmode="browse")
         self.tasks.heading("#0", text="Conversation ID")
@@ -107,8 +109,10 @@ class ControlWindow:
         self.engine.store.set_enabled(self.enabled.get(), self.engine.clock())
         self.status.set("Auto-Resume enabled" if self.enabled.get() else "Auto-Resume disabled")
         self.scheduler.wake.set()
+        if self.enabled.get() and not self.simulation:
+            self.work(self.engine.adapter.ensure_daemon)
 
-    def work(self, action):
+    def work(self, action, callback=None):
         if self.busy:
             self.notice.set("A check is already running")
             return
@@ -117,10 +121,10 @@ class ControlWindow:
         results = self.results
         def run():
             try:
-                results.put((True, action()))
+                results.put((True, action(), callback))
             except Exception as exc:
                 # UI exceptions are short local diagnostics; raw protocol errors are never passed through.
-                results.put((False, str(exc)[:180]))
+                results.put((False, str(exc)[:180], None))
         self.worker = threading.Thread(target=run, daemon=True)
         self.worker.start()
 
@@ -155,6 +159,29 @@ class ControlWindow:
         for tid in self.tasks.selection():
             self.engine.disarm(tid)
         self.notice.set("Selected conversation disarmed")
+
+    def choose(self):
+        self.work(self.engine.adapter.recent_threads, self.show_picker)
+
+    def show_picker(self, conversations):
+        import tkinter as tk
+        from tkinter import ttk
+        window = tk.Toplevel(self.root)
+        window.title("Choose a conversation")
+        window.geometry("660x360")
+        listing = tk.Listbox(window, font=("sans-serif", 11), exportselection=False)
+        listing.pack(fill="both", expand=True, padx=16, pady=16)
+        for item in conversations:
+            listing.insert("end", item["name"] + " · " + item["id"][-8:])
+        def select(*_):
+            selected = listing.curselection()
+            if selected:
+                self.thread_id.delete(0, "end")
+                self.thread_id.insert(0, conversations[selected[0]]["id"])
+                window.destroy()
+        listing.bind("<Return>", select)
+        listing.bind("<Double-Button-1>", select)
+        ttk.Button(window, text="Use this conversation", command=select).pack(pady=(0, 16))
 
     def show_reason(self, *_):
         chosen = self.tasks.selection()
@@ -192,15 +219,18 @@ class ControlWindow:
         if self.closed:
             return
         while not self.results.empty():
-            ok, message = self.results.get_nowait()
+            ok, message, callback = self.results.get_nowait()
             self.busy = False
+            if ok and callback is not None:
+                callback(message)
+                self.notice.set("Choose the original task, then explicitly arm it")
+                continue
             self.notice.set(message)
             if ok and "% used" in message:
                 self.usage_text.set(message)
         enabled = self.engine.store.enabled
         self.enabled.set(enabled)
-        self.status.set(("Auto-Resume enabled" if self.simulation else
-                         "Observation enabled · live continuation unavailable") if enabled else "Auto-Resume disabled")
+        self.status.set("Auto-Resume enabled" if enabled else "Auto-Resume disabled")
         for task in self.engine.store.tasks():
             reset = datetime.fromtimestamp(task["next_check"]).strftime("%d %b %H:%M") if task["next_check"] else "—"
             values = (task["state"].replace("_", " ").capitalize(), reset)

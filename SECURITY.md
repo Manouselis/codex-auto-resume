@@ -1,7 +1,9 @@
 # Security
 
-The live adapter in 0.1.0 cannot submit model turns. Preserve this property until all documented execution blockers are resolved.
+Version 0.2.0 sends real continuation requests only after explicit global opt-in, per-task arming and current included-usage checks. Preserve all refusal paths and the no-resend behavior for uncertain acknowledgements.
 
-For a vulnerability, contact the repository owner privately through the eventual GitHub repository's security reporting mechanism. Do not post tokens, account identifiers or conversation logs in public issues. Until a remote exists, report locally to the project owner.
+Never add billing purchases, API-key fallback, reset redemption, automatic approvals or implicit account changes. Changes to dispatch require tests for weekly exhaustion, missing ordinary permission, paid/unknown credits, concurrent work, cancellation and lost acknowledgements.
 
-No credentials or telemetry are collected by this project. The installed Codex runtime handles its own authentication and service connections. Local state includes private task identifiers and project metadata, and should remain in a private user directory.
+Report vulnerabilities privately to the project owner or, once published, through the repository's private security-reporting mechanism. Do not publish account IDs, private prompts, tokens or raw runtime logs. Public verification evidence is redacted.
+
+The local socket and task state are per-user resources, not a boundary against malicious code already running as that user. The financial checks are preflight checks; no claim of an atomic future billing reservation is made.

@@ -1,68 +1,41 @@
-# Architecture and integration evidence
+# Architecture
 
-Research performed 16–17 October 2026. These findings apply to the inspected versions; they do not establish that future versions have the same limitations.
+Version 0.2.0, verified 19 October 2026. Option C remains a standalone native Tk companion rather than an injected Codex Settings control.
 
-## Installed environment
+## Real integration
 
-| Component | Observed value |
-| --- | --- |
-| OS | Ubuntu 22.04.5 LTS, GNOME, X11 |
-| Desktop package | `chatgpt` 26.1007.71326, amd64 |
-| Package maintainer | OpenAI, according to dpkg metadata |
-| Build metadata | `codexAppBrand=chatgpt`, `codexBuildFlavor=prod` |
-| Bundled App Server | `codex-cli 0.162.0-alpha.17.2` |
-| PATH CLI | `codex-cli 0.156.1` |
-| Python | 3.10.12; Tk 8.6 |
+The desktop-bundled binary is `codex-cli 0.163.0-alpha.10.2`; the official managed daemon started locally reports 0.163.0. The earlier 0.1.0 implementation was observation-only. Its requirement for a new atomic billing-and-thread operation exceeded the requested read-time safety checks and prevented all useful execution. This version removes that blanket block and explicitly documents the remaining race instead of claiming an atomic guarantee.
 
-The package identifies itself as an OpenAI production distribution, rather than a community Linux repackaging. No independent package-signature attestation was performed. No proprietary application bundle was patched or reverse-engineered.
+The official daemon accepts a WebSocket HTTP upgrade on its local Unix control socket. `websocket.py` implements the small required RFC6455 client: handshake validation, client masking, fragmentation, ping/pong, bounded message sizes and serial request IDs. A socket must belong to the current user. No network listener or credentials are created. The CLI proxy is a raw transport, not a JSON-lines interface; treating it as JSON-lines was an integration bug corrected during live verification.
 
-Generated schema field inventories and SHA-256 fingerprints are in [evidence](evidence). They were produced by each installed binary's `app-server generate-json-schema --experimental` command. The desktop binary is selected first on this machine to avoid silently testing a different runtime.
+`live.py` uses supported methods: `account/read`, `account/rateLimits/read`, `config/read`, `thread/read`, `thread/turns/list`, `thread/list`, `thread/resume` and `turn/start`. Billing, reset redemption, account changes and approval replies remain forbidden. The production adapter cannot create a new thread. Only the separately invoked live-check script creates its harmless test conversation.
 
-## Options evaluated
+A fresh preflight checks the original account/model, every reported quota bucket, structured usage-limit failure and unchanged latest-turn fingerprint. `thread/resume` loads the original thread without model, sandbox or approval overrides. Its returned configuration is checked, and the preflight runs again. Exactly one `turn/start` carries the durable continuation ID and contextual continuation text. The original task prompt is never replayed.
 
-**A: Native plugin.** Documented plugin packages can contain skills, MCP servers, UI resources and lifecycle hooks. No documented persistent host Settings/task-control injection surface was established. The hook set does not document a quota-reset wake-up event. A `Stop` continuation would itself create another prompt; it cannot provide billing enforcement or survive as an independent reset scheduler. This does not meet the requirements.
+Disconnecting closes the companion's socket, not the daemon or its active Codex turn. The resumed task is not a fork or a separately summarized conversation. Its same-thread context was verified using a genuine model response.
 
-**B: Plugin plus companion.** A hook could help record cancellation, but needs explicit hook trust and still cannot supply atomic execution safety. Shipping a manifest would imply capabilities it does not add. No plugin is bundled in this release.
-
-**C: Independent companion — selected.** A small native Tk window and optional per-user service own local preferences and task metadata. The App Server is used only for supported metadata reads. This is a separate companion, not a native in-app toggle or a tray integration.
-
-## Execution blocker
-
-Both generated `TurnStartParams` schemas have `threadId`, `input`, configurable model/permissions and `clientUserMessageId`. Neither has a documented atomic included-only billing constraint, account/quota precondition, or expected-thread-revision precondition. `turn/start` can steer an existing active turn. A preceding metadata read cannot prevent another client from starting work between the read and submission. `clientUserMessageId` is not documented as a server-side idempotency guarantee.
-
-The ordinary-usage permission is useful authorization at read time, not a reservation of quota for a future long-running turn. Credit absence at read time also cannot prove that a future fallback path is impossible. Consequently the live adapter's four execution capabilities are permanently false in this release. Its `submit` method raises an error, and its transport rejects model, billing, auth-change and approval methods.
-
-## Modules
+## Core modules
 
 | Module | Responsibility |
 | --- | --- |
-| `domain.py` | Types and explicit legal state transitions |
-| `policy.py` | Pure quota interpretation, freshness and weekly protection |
-| `engine.py` | Task validation, scheduling decisions, reservation and once-only dispatch |
-| `store.py` | Private SQLite state, transactional changes, history, crash recovery |
-| `lifecycle.py` | OS controller lock, independent of desktop environment |
-| `protocol.py` | Bounded JSON-lines read-only App Server transport |
-| `adapters.py` | Live observer and isolated simulator |
-| `ui.py` / `cli.py` | Desktop control, diagnostics and local commands |
+| `policy.py` | Quota interpretation, freshness, ordinary permission and weekly reserve |
+| `engine.py` | Explicit task registration, state transitions, reset scheduling and durable dispatch |
+| `store.py` | Private SQLite state, history and cross-process reservations |
+| `lifecycle.py` | One scheduler per state file using OS locks |
+| `websocket.py` | Persistent local App Server transport |
+| `live.py` | Real account/thread observation and continuation |
+| `ui.py`, `cli.py` | Native control, task chooser and local commands |
+| `adapters.py`, `protocol.py` | Optional isolated simulator and read-only JSON-lines observer |
 
-The core has no GNOME, systemd, X11, Windows, Tk, or keyboard-automation dependency. Only the UI and lifecycle adapters interact with platform facilities. One idle scheduler thread waits on a local event; waiting tasks do not poll quota before their reported reset. Registered running tasks are inspected at most every 30 seconds. Weekly event handling accepts a complete authoritative snapshot; sparse updates never grant authorization. The live observer has no subscription to the desktop runtime, so it cannot promise immediate detection of a weekly change during a wait.
+Running tasks are checked every 30 seconds. Reset waits use official epoch timestamps; the scheduler wakes locally without model calls. Waiting tasks get a lightweight quota audit at most every five minutes, then a fresh read at reset. Delayed backend recovery gets bounded read-only retries. Every automatic submission requires fresh checks again.
 
-## Original context and persistence
+SQLite commits a unique reservation before dispatch. A lost acknowledgement or crash after reservation pauses the queue, with no automatic retransmission. `clientUserMessageId` is an attribution/deduplication marker, not a claimed server idempotency contract.
 
-Explicit arming pins thread, account, model, quota identities, project, permissions fingerprint and latest turn identity/revision. The core permits only a structured `usageLimitExceeded` failure with exhausted 300-minute windows to become a scheduled reset. Weekly windows are identified by 10080 minutes, regardless of primary/secondary position.
+## Supported-surface evidence
 
-Before simulated execution the engine checks the current task, quota and feature generation, then durably records a unique continuation ID. The simulator enforces account, model, revision and included-only preconditions at submission and deduplicates that ID. It receives a contextual continuation instruction, never a replay of the original prompt.
+- [Official App Server documentation](https://learn.chatgpt.com/docs/app-server): thread resume, turn start, history pagination and usage reads.
+- [Official configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference): providers and authentication restrictions.
+- Installed generated schemas, recorded under `docs/evidence/`.
+- [Plugin packaging](https://developers.openai.com/plugins/build/plugins) and [hooks](https://learn.chatgpt.com/docs/hooks): no native persistent Settings injection established; hooks do not replace reset scheduling.
 
-The actual App Server can read persisted threads, but a separate process does not own the desktop's active thread runtime. `thread/resume` would load an independent execution context; this release never calls it. Thread storage paths are explicitly unstable in the generated schema. Codex's private databases and transcripts are not read or edited. Paginated history and unverified model bindings are rejected rather than reconstructed.
-
-Only this application's SQLite file is written. It contains identifiers and safety metadata, not prompts, messages or tokens. Waiting tasks survive a process crash. Uncertain transmissions or prior active continuations require manual inspection and block further automatic execution. Explicit UI close or normal service stop disables and disarms automation.
-
-## Sources
-
-- [Plugin packaging](https://developers.openai.com/plugins/build/plugins): package components, manual desktop hooks and trust requirements.
-- [Hooks](https://learn.chatgpt.com/docs/hooks): lifecycle events and stop/interrupt behavior.
-- [App Server protocol](https://learn.chatgpt.com/docs/app-server): read/resume/start distinctions, turn status and quota field definitions.
-- [Codex as a platform](https://developers.openai.com/blog/codex-as-a-platform): the supported harness/client architecture.
-- [App Server with ChatGPT plan usage](https://developers.openai.com/siwc/token-sharing-open-source/codex-app-server): model catalogs are not entitlement checks.
-
-The installed generated schemas are the primary evidence for version-specific field availability. Documentation may describe a newer release.
+No proprietary bundle, native Codex settings, authentication file or billing preference is patched. The initial research/83-test evidence remains in Git history; the current implementation and current verification reports take precedence.

@@ -1,38 +1,17 @@
-# Limitations and blocked acceptance criteria
+# Remaining limitations
 
-Version 0.1.0 is not ready to provide unattended real-task continuation. It is an executable, tested companion and policy engine with live read-only integration.
+Real same-thread continuation is implemented in 0.2.0 and was verified against the authenticated Codex backend. The 0.1.0 blanket execution block is removed.
 
-| Requested behavior | Status |
-| --- | --- |
-| Default-OFF one-click desktop control | Implemented; Ubuntu GUI tested |
-| Native Codex Settings/task toggle | BLOCKED: no supported persistent host-control extension established |
-| Live quota inspection | PASS against installed bundled App Server |
-| 5h reset scheduling and exact task identity | PASS in simulated structured events and persisted state |
-| Zero continuation when weekly usage is exhausted | PASS in automated simulation; live adapter always sends zero |
-| Real included-only, unchanged-thread continuation | BLOCKED: required atomic backend operation absent from inspected schemas |
-| Real exactly-once submission/ack reconciliation | BLOCKED: no verified remote idempotency contract |
-| Completion/cancellation/approval protection | PASS in simulation; live metadata cannot prove original active runtime ownership |
-| Immediate live weekly/cancel event detection | BLOCKED: no connection to desktop lifecycle stream |
-| Working while the desktop app is closed | Metadata reads only; no real continuation |
-| Crash/reconnect recovery | PASS for local state and mocked transport; ambiguous requests pause |
-| Normal reboot automatically restores eligibility | Unsupported: normal stop/shutdown disarms conservatively |
-| Ubuntu user installation and removal | Tested in an isolated user prefix |
-| Windows support | Code paths provided; NOT TESTED on Windows |
-| Wayland | NOT TESTED; no OS input automation dependency |
-| System tray, notifications, auto-start UI preferences | Not implemented; manual systemd template supplied |
-| Public GitHub repository or release | Not created or published |
+- A real natural five-hour quota exhaustion/reset has not been forced. The reset scheduler, structured interruption handling and weekly hard stop are tested with controlled protocol responses. The actual submission/context path uses real Codex and passed a two-turn check.
+- The public API has no atomic expected-thread-revision parameter. The adapter rechecks immediately before sending, but a concurrent external client can still race that final read. Avoid using the same armed conversation in another client during automatic dispatch.
+- Included-usage checks are fresh preflight checks, not a reservation of future quota or protection against external billing/account changes after the check. Paid/unknown credits, API authentication and custom/fast billing paths are refused.
+- All reported quota buckets are checked. An irrelevant exhausted/unknown model bucket can conservatively pause a task.
+- Approval/input requests are never answered automatically. Approval routing between a daemon-owned continuation and an independently connected desktop UI is unverified.
+- Only an explicitly armed task with a structured `usageLimitExceeded` failure and observed five-hour exhaustion can resume automatically. A completed turn or unrelated failure never triggers it.
+- Lost acknowledgements and uncertain crash recovery pause the queue. No automatic resend or recovery from an uncertain remote outcome is claimed.
+- Normal process stop/UI close disarms; normal reboot may require manual opt-in. The controller must remain running during the wait.
+- The control is a separate desktop companion, not a native Settings injection, tray icon or official OpenAI feature.
+- Ubuntu X11 is the verified platform. Windows, Wayland and real suspend/reboot scenarios remain untested.
+- No GitHub repository/public release is created automatically.
 
-Only ChatGPT Plus snapshots with both reported quota windows are accepted. Unknown, partial, stale or model-specific quota semantics pause eligibility. The live response inspected on this account did not establish a model binding (`normalModelSlug` was null); no general-bucket assumption is made.
-
-The state machine cannot infer whether a failed task is semantically unfinished from a conversation summary. It requires trusted structured observation and does not reconstruct missing history. Paginated live history is rejected in this release.
-
-## Work needed before enabling live execution
-
-1. Obtain a documented backend operation that atomically enforces included-only, non-chargeable execution and rejects account/model/quota changes for the continuation's lifetime.
-2. Bind the request to the original runtime, permissions and latest thread revision, rejecting active user work and outstanding approvals.
-3. Verify durable remote idempotency and reconciliation after lost acknowledgements.
-4. Implement a new audited adapter with real lifecycle subscriptions and explicit model/quota bindings.
-5. Test the complete flow in an isolated non-destructive real conversation, including billing rejection and concurrent user input. Do not exhaust the user's live quota for routine tests.
-6. Verify Windows, Wayland and normal reboot behavior on appropriate hosts before claiming those capabilities.
-
-A configuration flag, credit balance check, UI automation, private app-bundle patch or repeated Continue prompt does not resolve these blockers.
+The daemon-based continuation reopens the original persisted thread, preserves its history and restores saved sandbox/approval configuration. It does not attach to the desktop app's private internal transport. A context token was successfully recovered by the real model after same-thread resumption.

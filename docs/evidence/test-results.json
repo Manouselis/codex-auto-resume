@@ -1,7 +1,7 @@
 {
   "status": "PASS",
-  "tests_run": 83,
-  "passed": 83,
+  "tests_run": 107,
+  "passed": 107,
   "failures": 0,
   "errors": 0,
   "skipped": 0,
@@ -10,6 +10,6 @@
   "platform": "Linux",
   "gui_requested": true,
   "live_model_requests": 0,
-  "live_continuation": "BLOCKED",
+  "live_continuation": "IMPLEMENTED; see live-continuation.json",
   "windows_host_test": "NOT TESTED"
 }

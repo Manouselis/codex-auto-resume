@@ -23,7 +23,7 @@ def evaluate(usage: Usage, account_id: str, bucket_ids: tuple[str, ...], now: fl
 
     This intentionally accepts fewer accounts than Codex: Plus, exactly the two
     documented windows, no credit balance, no unknown spend control. An adapter
-    must additionally enforce included-only billing atomically at execution.
+    must additionally revalidate the actual execution route before submission.
     """
     pause = lambda message: Decision("pause", message)
     if not number(reserve, 0, 99) or not number(max_age, 1, 300):

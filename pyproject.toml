@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "codex-auto-resume"
-version = "0.1.0"
-description = "Fail-closed Codex continuation research companion; live execution unavailable"
+version = "0.2.0"
+description = "Real included-usage reset continuation for explicitly armed Codex tasks"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 dependencies = []

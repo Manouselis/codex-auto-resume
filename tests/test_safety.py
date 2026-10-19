@@ -455,7 +455,7 @@ class EngineTests(unittest.TestCase):
         with self.assertRaises(ValueError), self.store.transaction():
             self.store.update("demo-task", State.RESUMING, "Invalid", self.clock())
 
-    def test_live_adapter_has_no_execution_path(self):
+    def test_optional_read_only_observer_has_no_execution_path(self):
         self.assertFalse(CodexObserver.capabilities.safe)
         with self.assertRaises(UnsafeError):
             CodexObserver().submit(None)

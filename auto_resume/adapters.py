@@ -1,4 +1,4 @@
-"""The shipped live adapter reads metadata only. The fake adapter is explicitly a simulation."""
+"""Optional read-only observer and isolated test simulator. See live.py for real continuation."""
 import hashlib
 import json
 import time
@@ -56,7 +56,7 @@ class CodexObserver:
                            incomplete=latest.get("status") in ("inProgress", "failed"))
 
     def submit(self, request: Request):
-        raise UnsafeError("Live continuation is intentionally unavailable: no included-only atomic API")
+        raise UnsafeError("This observer is read-only; use LiveAdapter for real continuation")
 
     def close(self):
         self.rpc.close()

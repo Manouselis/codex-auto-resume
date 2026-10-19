@@ -72,7 +72,7 @@ def main(argv=None):
         desktop_text = f"""[Desktop Entry]
 Type=Application
 Name=Codex Auto-Resume
-Comment=Local companion; live continuation unavailable
+Comment=Continue armed Codex tasks after included-usage reset
 Exec={cmd} ui
 Icon=view-refresh
 Terminal=false
@@ -80,7 +80,7 @@ Categories=Development;Utility;
 Actions=Toggle;Simulation;
 
 [Desktop Action Toggle]
-Name=Toggle Auto-Resume observation
+Name=Toggle Auto-Resume
 Exec={cmd} toggle
 
 [Desktop Action Simulation]
@@ -91,12 +91,12 @@ Exec={cmd} --simulation ui
     atomic_write(launcher, script.encode(), 0o755)
     if desktop_text:
         atomic_write(desktop, desktop_text.encode())
-    metadata = {"application": "codex-auto-resume", "version": "0.1.0", "prefix": str(prefix),
+    metadata = {"application": "codex-auto-resume", "version": "0.2.0", "prefix": str(prefix),
                 "files": [str(p.relative_to(prefix)) for p in files]}
     atomic_write(marker, (json.dumps(metadata, indent=2) + "\n").encode())
     print("Installed:", launcher)
     print("Open the companion:", launcher, "ui")
-    print("Live automatic execution remains unavailable. No service or startup item was enabled.")
+    print("Real continuation is available after explicit arming. No startup item was enabled.")
 
 
 if __name__ == "__main__":

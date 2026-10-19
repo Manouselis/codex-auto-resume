@@ -27,7 +27,8 @@ class ReadOnlyRpc:
     def __init__(self, command=None, *, timeout=10):
         self.command = command
         self.timeout = timeout
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
+        self.events = None
         self.process = None
         self.responses = queue.Queue()
         self.sequence = 0
@@ -43,15 +44,15 @@ class ReadOnlyRpc:
             raise UnsafeError("Unable to start the installed Codex App Server") from exc
         self.responses = queue.Queue()
         proc, responses = self.process, self.responses
-        self.reader = threading.Thread(target=self._read, args=(proc, responses), daemon=True)
+        self.reader = threading.Thread(target=self._read, args=(proc, responses, self.events), daemon=True)
         self.reader.start()
         self._call("initialize", {"clientInfo": {"name": "codex_auto_resume", "title": "Codex Auto-Resume",
-                                                "version": "0.1.0"},
+                                                "version": "0.2.0"},
                                   "capabilities": {"experimentalApi": True}})
         self._write({"method": "initialized"})
 
     @staticmethod
-    def _read(proc, responses):
+    def _read(proc, responses, events=None):
         try:
             while True:
                 line = proc.stdout.readline(16 * 1024 * 1024 + 1)
@@ -63,7 +64,14 @@ class ReadOnlyRpc:
                 message = json.loads(line)
                 if not isinstance(message, dict):
                     raise ValueError("Invalid protocol message")
-                if "id" in message:
+                if "method" in message and events is not None:
+                    method = message["method"]
+                    if "id" in message or method in {
+                        "turn/completed", "thread/status/changed", "serverRequest/resolved",
+                        "thread/closed", "account/rateLimits/updated", "error"
+                    }:
+                        events.put(message)
+                elif "id" in message:
                     if "method" in message:
                         # A read-only client cannot answer approvals or auth requests.
                         responses.put(UnsafeError("Server requested interactive permission; inspect Codex"))

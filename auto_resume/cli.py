@@ -1,4 +1,4 @@
-"""Small local CLI. There is deliberately no live execution command."""
+"""Real usage-limit continuation with explicit task arming."""
 import argparse
 import json
 import os
@@ -10,11 +10,12 @@ import time
 from pathlib import Path
 
 from . import __version__
-from .adapters import CodexObserver, SimulationAdapter
+from .adapters import SimulationAdapter
 from .domain import TransientError, UnsafeError
 from .engine import Engine, Scheduler
 from .protocol import find_codex
 from .store import Store
+from .live import LiveAdapter
 
 
 def state_path(simulation=False):
@@ -26,8 +27,8 @@ def state_path(simulation=False):
 
 
 def doctor(connect=False):
-    result = {"version": __version__, "live_execution": False,
-              "reason": "Installed protocols lack an atomic included-only conditional continuation operation",
+    result = {"version": __version__, "live_execution": True,
+              "reason": "Same-thread continuation with fresh backend usage and context checks",
               "session_type": os.environ.get("XDG_SESSION_TYPE", "unknown")}
     try:
         binary = find_codex()
@@ -41,7 +42,7 @@ def doctor(connect=False):
             result["turn_start_fields"] = sorted(p.get("properties", {}))
             result["usage_permission_field"] = "ordinaryUsageAllowed" in q.get("properties", {})
         if connect:
-            observer = CodexObserver()
+            observer = LiveAdapter()
             try:
                 usage = observer.usage()
                 result["read_only_connection"] = "PASS"
@@ -81,17 +82,18 @@ def demo(folder):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Codex Auto-Resume: safe local companion; live execution unavailable")
+    parser = argparse.ArgumentParser(description="Codex Auto-Resume: continue armed tasks after included-usage reset")
     parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument("--state", type=Path, help="Private application state file (never a Codex file)")
     parser.add_argument("--simulation", action="store_true", help="Use invented tasks and quotas; no Codex connection")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("ui", help="Open the companion control window")
-    sub.add_parser("run", help="Run the local background observer")
+    sub.add_parser("run", help="Run the local continuation controller")
+    sub.add_parser("threads", help="List recent local conversations for explicit arming")
     sub.add_parser("status", help="Show local registered tasks")
-    sub.add_parser("enable", help="Enable observation; individual tasks still require explicit arming")
+    sub.add_parser("enable", help="Enable Auto-Resume; individual tasks still require explicit arming")
     sub.add_parser("disable", help="Cancel scheduled continuations without interrupting Codex")
-    sub.add_parser("toggle", help="Toggle observation on/off (never enables live execution)")
+    sub.add_parser("toggle", help="Toggle Auto-Resume on/off")
     arm = sub.add_parser("arm", help="Explicitly register an eligible conversation")
     arm.add_argument("thread_id")
     disarm = sub.add_parser("disarm", help="Disarm one registered conversation")
@@ -108,10 +110,15 @@ def main(argv=None):
             print(json.dumps(demo(folder), indent=2))
         return 0
     store = Store(args.state or state_path(args.simulation))
-    adapter = SimulationAdapter() if args.simulation else CodexObserver()
+    adapter = SimulationAdapter() if args.simulation else LiveAdapter()
     engine = Engine(store, adapter)
     try:
-        if args.command == "enable":
+        if args.command == "threads":
+            print(json.dumps(adapter.recent_threads(), indent=2))
+            return 0
+        elif args.command == "enable":
+            if not args.simulation:
+                adapter.ensure_daemon()
             store.set_enabled(True, time.time())
         elif args.command == "disable":
             store.set_enabled(False, time.time())
@@ -125,6 +132,8 @@ def main(argv=None):
             from .ui import launch
             launch(engine, args.simulation)
         elif args.command == "run":
+            if not args.simulation:
+                adapter.ensure_daemon()
             scheduler = Scheduler(engine)
             stop = threading.Event()
             for sig in (signal.SIGINT, signal.SIGTERM):
@@ -134,7 +143,7 @@ def main(argv=None):
             scheduler.stop()
             # An explicit process stop requires a fresh opt-in. A crash uses recovery.
             store.set_enabled(False, time.time())
-        print(json.dumps({"enabled": store.enabled, "live_execution": False,
+        print(json.dumps({"enabled": store.enabled, "live_execution": not args.simulation,
                           "tasks": [{k: t[k] for k in ("thread_id", "state", "reason", "next_check")}
                                     for t in store.tasks()]}, indent=2))
         return 0

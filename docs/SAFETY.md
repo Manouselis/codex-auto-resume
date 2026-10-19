@@ -1,41 +1,36 @@
 # Safety contract
 
-## Shipped release
+The production adapter now sends real model turns. Its safety contract is explicit preflight and conservative refusal, not an impossible promise of atomic remote execution.
 
-**Zero automatic model submissions are possible through the live adapter.** This is the enforceable financial guarantee of 0.1.0. It intentionally blocks useful automation while the required backend operation is unavailable. No UI option enables a hidden unsafe mode.
+## Included-usage checks
 
-The read-only transport allowlists initialization, account/usage reads, thread metadata/history reads, and model catalog reads. It cannot create or resume threads, start/steer turns, execute tools, approve permissions, change authentication, buy credits, redeem resets, upgrade a plan, or switch accounts. Credentials remain with the installed Codex runtime; this project does not open token files.
+Before every automatic continuation:
 
-## Quota policy
+- Authentication must be ChatGPT Plus, not API-key or another paid provider.
+- Backend `accountId` must match the armed task, and `ordinaryUsageAllowed` must be literally true.
+- A complete authoritative snapshot must be fresh. Time passing alone never authorizes execution.
+- Every reported quota bucket is checked. The adapter does not guess a model mapping when `normalModelSlug` is null. Unknown window shapes pause instead of silently ignoring a bucket.
+- Both the 300-minute and 10080-minute windows must have usage available, regardless of primary/secondary order.
+- Weekly remaining usage must exceed the default 5% reserve. Weekly exhaustion disarms the task and requires fresh user action even after reset.
+- Credits must explicitly report no balance, no unlimited credits and `hasCredits=false`. Nonzero or unknown balances refuse continuation.
+- Spend control must be available and clear. Custom endpoints/providers and non-default speed tiers refuse continuation.
 
-All required buckets must come from an explicit, trusted model binding. No fallback to the legacy single bucket is allowed when identity is ambiguous. Each bucket must report the supported Plus plan and exactly the 300-minute and 10080-minute windows, with valid usage percentages and official Unix reset timestamps. Reversed primary/secondary positions are supported.
+The official default ChatGPT endpoint is accepted. The original OpenAI provider, model, sandbox and approval configuration are restored rather than changed. No API key, billing purchase, paid fallback, account switch, upgrade or reset redemption is performed by the companion. Backend service limits remain authoritative throughout execution.
 
-Before a continuation can be eligible:
+These checks establish the current included-usage path. They cannot reserve future quota or protect against a concurrent external account/configuration/billing change after the final read. A user who changes those settings while a continuation is being dispatched can create a race; no stronger guarantee is claimed.
 
-- The full snapshot is at most 30 seconds old; future timestamps and clock ambiguity fail closed.
-- ChatGPT authentication, original account identity and original quota identities match.
-- `ordinaryUsageAllowed` is literally `true`; missing, null, numeric or textual equivalents never authorize execution.
-- Both windows have available usage and current reset timestamps.
-- Weekly remaining usage exceeds the configured reserve (default 5%). Exhaustion is a sticky hard stop, including when ordinary permission is false.
-- Credits explicitly report `hasCredits=false`, `unlimited=false`, and a finite zero string balance. Missing or nonzero balances fail closed.
-- Spend controls are explicitly available and clear. Workspace/credit-related limits are rejected.
+## Task and concurrency checks
 
-A reset timestamp can schedule a read; it can never authorize execution. Available banked resets are ignored and never redeemed. Credit-free snapshots alone are not sufficient: the execution adapter must also enforce included-only billing atomically for the whole continuation. The live protocol does not provide that contract.
+Each task is explicitly armed. A new turn, completion, cancellation, changed original identity/context, missing project/history or pending approval pauses automation. Completed work is never automatically restarted. Global OFF disarms waiting work; ON does not rearm old tasks.
 
-## Thread and once-only protection
+The controller checks state again after `thread/resume`, then sends one contextual continuation. There is a short remaining cross-client read/submission race because the API has no conditional revision argument. Do not use the same armed conversation concurrently in another client. If user activity is observed, automatic continuation stops. Different projects/conversations remain usable normally.
 
-Arming is explicit for each task. Completion, user cancellation, other turns, changed context, unknown history, pending approvals, missing projects, account/model/configuration changes, and unknown unfinished state pause automation. An unchanged original thread and approval/sandbox configuration must be enforced at dispatch by any future adapter.
+SQLite uses full durability, atomic transactions and a unique outstanding-submission reservation. A crash/lost acknowledgement never causes a submission retry. Uncertain outcomes block further automatic dispatch until inspected. This trades availability for avoiding duplicated operations; it is not a claim of remote exactly-once delivery.
 
-Global disable disarms scheduled work. Re-enable does not rearm it. Weekly exhaustion requires a fresh manual arm even after the weekly reset. Disabling does not interrupt ordinary Codex work already running.
+## Approvals and local data
 
-SQLite uses transactional updates and `synchronous=FULL`. One OS lock owns the scheduler. An atomic unique reservation serializes automatic tasks across controllers. The reservation is committed before dispatch. An uncertain acknowledgement is never retried; an uncertain reservation also blocks other automatic tasks. A crash before dispatch can therefore lose an automatic opportunity. This is an intentional availability tradeoff, not a claim of exactly-once remote delivery.
+The companion never approves sensitive actions. A server approval or input request pauses the registered task and remains unanswered. Approval routing from an independently connected desktop client to the daemon-owned turn is not verified; manually inspect Codex before continuing.
 
-The simulator demonstrates one successful submission at most per interruption when its stronger backend contract holds. Real remote exactly-once delivery, billing guarantees, desktop ownership and user activity cannot be established by this simulation.
+On Ubuntu state files use mode 0600 and newly created state directories 0700. An application ID prevents overwriting unrelated databases. State contains account/thread/project identifiers and safety metadata, but no conversation text or credentials. Logs do not include raw backend error messages. Public live evidence omits the test thread ID.
 
-## Local security and privacy
-
-On Ubuntu state files are mode 0600 and newly created private state directories are 0700. Existing parent permissions and Windows ACLs are not tightened. Symlink state destinations are refused. SQLite history is bounded to 1000 entries. No account IDs or original project paths are included in public evidence; fixture identities are invented.
-
-This is a local application, not a security boundary against malicious code running as the same user. Use a private per-user state location. Uninstallation preserves history; delete it separately only after stopping controllers. Operating-system logs or the Codex child process can write their own diagnostics under their own policies.
-
-No sensitive action approval is automated. There is no network listener or cloud backend. The live runtime may contact its normal authenticated quota service during an explicit or scheduled metadata read.
+The socket is restricted to the current user's official daemon. Closing the window/connection does not kill an acknowledged running daemon turn. Uninstall preserves task history and never modifies Codex's files. Windows ACLs and transport behavior remain unverified.

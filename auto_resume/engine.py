@@ -1,4 +1,4 @@
-"""Deterministic controller. Only a proven, conditional included-only adapter may execute."""
+"""Deterministic continuation controller with fresh included-usage preflight."""
 import json
 import threading
 import time
@@ -22,6 +22,7 @@ class Engine:
         self.reserve, self.delay = reserve, verification_delay
         self.max_attempts, self.max_retries = max_attempts, max_retries
         self.lock = threading.Lock()
+        self.last_quota_audit = 0
 
     def register(self, thread_id: str):
         # No context or private messages are copied from the original conversation.
@@ -86,6 +87,14 @@ class Engine:
         try:
             if not self.store.enabled:
                 return
+            if (getattr(self.adapter, "live_execution", False)
+                    and self.clock() - self.last_quota_audit >= 300
+                    and any(t["eligible"] for t in self.store.tasks())):
+                try:
+                    self.usage_changed(self.adapter.usage())
+                    self.last_quota_audit = self.clock()
+                except (TransientError, UnsafeError):
+                    pass
             for task in self.store.tasks():
                 if not self.store.enabled:
                     return
@@ -148,6 +157,11 @@ class Engine:
                 self._finish_reservation(task)
                 return
             if decision.kind == "pause":
+                if state == State.WAITING_FOR_RESET and decision.reason.startswith((
+                        "Usage still reports exhaustion after reset", "Quota windows have expired",
+                        "Unable to verify usage: ordinary included usage")):
+                    self._retry(task)
+                    return
                 self._pause(tid, decision.reason)
                 self._finish_reservation(task)
                 return
@@ -171,8 +185,8 @@ class Engine:
                 self._change(tid, State.WAITING_FOR_RESET, decision.reason,
                              next_check=decision.reset_at + self.delay, retries=0)
                 return
-            if not self.adapter.capabilities.safe:
-                self._pause(tid, "Live continuation unavailable: included-only billing and conditional submission are not supported")
+            if not (self.adapter.capabilities.safe or getattr(self.adapter, "live_execution", False)):
+                self._pause(tid, "This adapter does not support continuation execution")
                 return
             if task["attempts"] >= self.max_attempts:
                 self._pause(tid, "Maximum automatic continuations reached")
@@ -221,6 +235,11 @@ class Engine:
         try:
             if not self.store.enabled or not self.store.get(tid)["eligible"] or self.store.generation != generation:
                 raise UnsafeError("Disarmed before dispatch")
+            if getattr(self.adapter, "live_execution", False):
+                self.adapter.check_enabled = lambda: (
+                    self.store.enabled and self.store.generation == generation
+                    and bool(self.store.get(tid)["eligible"])
+                    and self.store.get(tid)["continuation_id"] == cid)
             turn_id = self.adapter.submit(request)
             if not isinstance(turn_id, str) or not turn_id:
                 raise UnsafeError("Missing continuation acknowledgement")

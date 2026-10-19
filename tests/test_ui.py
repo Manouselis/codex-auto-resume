@@ -106,3 +106,32 @@ class UiTests(unittest.TestCase):
                     self.assertLessEqual(child.winfo_rooty() + child.winfo_height(), bottom)
                     check(child)
         check(self.root)
+
+    def test_real_control_panel_fits_and_renders(self):
+        import tkinter as tk
+        from auto_resume.ui import ControlWindow
+        from auto_resume.live import LiveAdapter
+        from test_live import Backend
+        store = Store(Path(self.tmp.name) / "real-panel.sqlite3")
+        window_root = tk.Toplevel(self.root)
+        window = ControlWindow(window_root, Engine(store, LiveAdapter(Backend(self.tmp.name))), simulation=False)
+        try:
+            window_root.geometry("720x720")
+            self.root.update()
+            bottom = window_root.winfo_rooty() + window_root.winfo_height()
+            for child in window_root.winfo_children()[0].winfo_children():
+                if child.winfo_ismapped():
+                    self.assertLessEqual(child.winfo_rooty() + child.winfo_height(), bottom)
+            output = os.environ.get("AUTO_RESUME_SCREENSHOTS")
+            if output:
+                from PIL import ImageGrab
+                window_root.geometry("760x760")
+                window_root.lift()
+                self.root.update()
+                time.sleep(0.2)
+                x, y = window_root.winfo_rootx(), window_root.winfo_rooty()
+                ImageGrab.grab(bbox=(x, y, x + window_root.winfo_width(), y + window_root.winfo_height())).save(
+                    Path(output) / "ui-live.png")
+        finally:
+            window.close()
+            store.close()
