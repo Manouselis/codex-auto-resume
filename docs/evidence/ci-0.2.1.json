@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-22",
+  "source_commit": "8fe287ebc93c0907516b94318f5ac34d540bf146",
+  "run_url": "https://github.com/Manouselis/codex-auto-resume/actions/runs/39858070583",
+  "status": "PASS",
+  "jobs": [
+    {
+      "job_id": 120101349821,
+      "name": "tests (windows-latest, 3.10)",
+      "conclusion": "success",
+      "tests_run": 120,
+      "skipped": 11,
+      "passed": 109
+    },
+    {
+      "job_id": 120101350036,
+      "name": "tests (ubuntu-latest, 3.13)",
+      "conclusion": "success",
+      "tests_run": 120,
+      "skipped": 8,
+      "passed": 112
+    },
+    {
+      "job_id": 120101350173,
+      "name": "tests (ubuntu-latest, 3.10)",
+      "conclusion": "success",
+      "tests_run": 120,
+      "skipped": 8,
+      "passed": 112
+    },
+    {
+      "job_id": 120101350348,
+      "name": "tests (windows-latest, 3.13)",
+      "conclusion": "success",
+      "tests_run": 120,
+      "skipped": 11,
+      "passed": 109
+    }
+  ],
+  "scope": "Headless core, packaging, installation/update/uninstall, build and simulation; GUI and platform-specific cases are skipped where appropriate.",
+  "live_model_requests": 0,
+  "windows_live_codex_integration": "NOT TESTED",
+  "natural_quota_reset": "NOT TESTED"
+}

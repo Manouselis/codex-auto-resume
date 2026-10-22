@@ -1,10 +1,10 @@
 # Architecture
 
-Version 0.2.1, regression checks on 22 October 2026. The genuine model verification below is from 19 October 2026. Option C remains a standalone native Tk companion rather than an injected Codex Settings control.
+Version 0.2.1, regression checks on 22 October 2026. The genuine model verification below is from 19 October 2026. The implementation is a standalone native Tk companion with a shared CLI/background controller. It does not inject a control into Codex Settings.
 
 ## Real integration
 
-The desktop-bundled binary is `codex-cli 0.163.0-alpha.10.2`; the official managed daemon started locally reports 0.163.0. The earlier 0.1.0 implementation was observation-only. Its requirement for a new atomic billing-and-thread operation exceeded the requested read-time safety checks and prevented all useful execution. This version removes that blanket block and explicitly documents the remaining race instead of claiming an atomic guarantee.
+The recorded 19 October model check used the desktop-bundled `codex-cli 0.163.0-alpha.10.2` and an official managed daemon reporting 0.163.0. These are verification snapshots, not a promise of compatibility with every future runtime. `doctor --connect` checks the installed schema and read-only connection. Historical schema captures are kept in `docs/evidence/`.
 
 The official daemon accepts a WebSocket HTTP upgrade on its local Unix control socket. `websocket.py` implements the small required RFC6455 client: handshake validation, client masking, fragmentation, ping/pong, bounded message sizes and serial request IDs. A socket must belong to the current user. No network listener or credentials are created. The CLI proxy is a raw transport, not a JSON-lines interface; treating it as JSON-lines was an integration bug corrected during live verification.
 
@@ -30,6 +30,12 @@ Disconnecting closes the companion's socket, not the daemon or its active Codex 
 Running tasks are checked every 30 seconds. A `notLoaded` reader can reconstruct an open external turn as interrupted without an error or completion timestamp. That case is marked unresolved and may be explicitly armed for monitoring; only a confirmed later result changes it to completion, cancellation or usage-limit recovery. It cannot pass dispatch preflight. Reset waits use official epoch timestamps; the scheduler wakes locally without model calls. Waiting tasks get a lightweight quota audit at most every five minutes, then a fresh read at reset. Delayed backend recovery gets bounded read-only retries. Every automatic submission requires fresh checks again.
 
 SQLite commits a unique reservation before dispatch. A lost acknowledgement or crash after reservation pauses the queue, with no automatic retransmission. `clientUserMessageId` is an attribution/deduplication marker, not a claimed server idempotency contract.
+
+## Controller ownership and background operation
+
+The native window and `run` command use the same engine and private state file. An OS lock permits one scheduler to own that state, while separate CLI commands and a control window can inspect or change it. A user service can own scheduling without an open window. Closing the control window still disables and disarms the shared state.
+
+The default engine limit is three continuation attempts per arming. Transient reads receive at most three bounded retries, and reset verification has a five-second buffer. The service template can restart a failed process, but that does not override conservative recovery of an uncertain submission or rearm a task after normal shutdown. See [Installation and operation](INSTALL.md) and [Safety](SAFETY.md).
 
 ## Supported-surface evidence
 

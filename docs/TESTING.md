@@ -7,6 +7,7 @@ Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 22 October
 | Check | Result | Evidence |
 | --- | --- | --- |
 | Full automated suite, including native GUI | PASS — 120 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
+| Hosted Ubuntu/Windows core and packaging CI, Python 3.10/3.13 | PASS — all four jobs at code commit `8fe287e`; exact pass/skip counts below | [Recorded CI evidence](evidence/ci-0.2.1.json), [GitHub run](https://github.com/Manouselis/codex-auto-resume/actions/runs/39858070583) |
 | Open turn owned by another runtime can be armed | PASS — monitors without loading the thread or sending inference; confirmed later failure/reset still continues once | 12 live-adapter regressions and one native control-panel regression |
 | Read-only reproduction against an active desktop conversation | PASS — external open turn arms and remains monitored, with zero thread mutations | [Sanitized arming probe](evidence/external-arm.json) |
 | Genuine same-thread continuation | PASS — two real authenticated model turns; original context token recalled | [Redacted real-backend result](evidence/live-continuation.json) |
@@ -18,14 +19,27 @@ Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 22 October
 | Dark/light and real-panel visual QA | PASS | [Real panel](evidence/ui-live.png), dark/light screenshots |
 | WebSocket framing, masking, fragmentation, ping/pong, size checks | PASS | `tests/test_websocket.py`; real daemon handshake also passed |
 | Crash, duplicate events, lost acknowledgements and cross-process reservation | PASS in controlled tests | Safety/protocol suites |
-| Isolated installation, update and uninstall | PASS on Ubuntu; unrelated files preserved | Packaging suite |
+| Isolated installation, update and uninstall | PASS locally on Ubuntu and in hosted Ubuntu/Windows CI; unrelated files preserved | Packaging suite and CI evidence |
 | Static name/import checks and compilation | PASS | `pyflakes`, `compileall` |
 | Reproducible application and source package | PASS | Two builds produced identical SHA-256 values |
-| Windows, Wayland, OS suspend/reboot, user-service autostart | NOT TESTED on those hosts/scenarios | Portable core/fixtures are not host validation |
+| Live Windows Codex integration, Wayland, OS suspend/reboot, user-service autostart | NOT TESTED in these scenarios | Hosted core/packaging CI does not validate live desktop integration |
 
 The normal automated suite makes zero live model requests. The separately invoked live check made two genuine included-usage turns, in a dedicated harmless conversation, through the same production `_dispatch` method with an explicit manual-test trigger. It did not inject a fake quota or pretend that the real service had exhausted/reset. This confirms actual execution and context recovery, not an unperformed natural-reset test.
 
 The final full run includes eight GUI tests; headless runs intentionally skip them. The 2500-case randomized quota check is counted as one test. Earlier 0.1.0 results remain in Git history and do not describe this release's execution capability.
+
+## Hosted CI results
+
+The [22 October 2026 run](https://github.com/Manouselis/codex-auto-resume/actions/runs/39858070583) verified code commit `8fe287e` after the Windows cleanup and manifest-path fixes. Each job discovers 120 tests; the total includes skipped tests.
+
+| Runner | Python | Passed | Skipped | Build and simulation |
+| --- | --- | --- | --- | --- |
+| Ubuntu | 3.10 | 112 | 8 | PASS |
+| Ubuntu | 3.13 | 112 | 8 | PASS |
+| Windows | 3.10 | 109 | 11 | PASS |
+| Windows | 3.13 | 109 | 11 | PASS |
+
+Ubuntu skips the eight opt-in native GUI tests in headless CI. Windows also skips the state-file symlink test, the POSIX installer symlink-escape test and the POSIX state-file mode test. Windows packaging is exercised on a real hosted Windows runner; real Codex authentication, desktop interaction and continuation are not. The local GUI run and hosted CI have separate evidence records.
 
 ## Required scenario coverage
 

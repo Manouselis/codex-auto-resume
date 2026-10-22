@@ -8,4 +8,6 @@ Changes to quota interpretation or dispatch need regression tests for weekly exh
 
 When creating diagrams or figures, use the diagram-design skill, simplify before drawing, prefer editable Figma when available, otherwise SVG/D2, and render and visually inspect the result. Keep text minimal, typography clean, whitespace generous and colors restrained.
 
-This repository is prepared for the owner's personal GitHub but is not published automatically. Confirm the intended GitHub account, repository visibility, license and release description before a public release.
+For documentation changes, verify relative links, heading anchors and shell examples. Match CLI instructions to the implemented commands. Keep test counts and verification dates tied to evidence; distinguish headless Windows CI from live Windows Codex integration, and controlled reset tests from a natural reset observed live.
+
+Source is published at [Manouselis/codex-auto-resume](https://github.com/Manouselis/codex-auto-resume). Release notes should describe the final behavior and its tested scope. Private runtime state and credentials must stay outside the repository and source packages.

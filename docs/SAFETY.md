@@ -23,9 +23,15 @@ These checks establish the current included-usage path. They cannot reserve futu
 
 Each task is explicitly armed. A new turn, completion, cancellation, changed original identity/context, missing project/history or pending approval pauses automation. Completed work is never automatically restarted. Global OFF disarms waiting work; ON does not rearm old tasks.
 
+An open turn owned by another runtime is a separate monitoring case. When a `notLoaded` reader reports `interrupted` or `inProgress` with no error or completion time, the adapter records an unresolved observation. It may be explicitly armed and watched for a confirmed result, but it cannot enter dispatch preflight. A confirmed cancellation still stops the task. If an already confirmed usage-limit failure becomes unresolved while waiting, the task pauses instead of using the older failure to continue.
+
 The controller checks state again after `thread/resume`, then sends one contextual continuation. There is a short remaining cross-client read/submission race because the API has no conditional revision argument. Do not use the same armed conversation concurrently in another client. If user activity is observed, automatic continuation stops. Different projects/conversations remain usable normally.
 
 SQLite uses full durability, atomic transactions and a unique outstanding-submission reservation. A crash/lost acknowledgement never causes a submission retry. Uncertain outcomes block further automatic dispatch until inspected. This trades availability for avoiding duplicated operations; it is not a claim of remote exactly-once delivery.
+
+## Operational defaults
+
+The engine allows up to three automatic continuation attempts per arming. Transient read failures receive up to three bounded retries; a submission is never retried automatically. The scheduler wakes every 30 seconds and schedules reset verification with a five-second buffer. These are engine defaults, not exposed GUI settings. Closing the control window or normally stopping the controller disarms tasks, including when a service owns scheduling. The companion does not prevent suspend or provide verified automatic rearming after reboot.
 
 ## Approvals and local data
 
