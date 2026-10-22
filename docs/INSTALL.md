@@ -12,6 +12,7 @@ python3 scripts/install.py
 
 1. Turn the switch ON. The companion starts/connects to the official local App Server daemon and verifies the account. It does not change login, enable remote control or start inference by itself.
 2. Click **Choose…**, select the original running task, then **Arm conversation**. A task already stopped by a structured usage-limit failure can also be armed while the five-hour window remains exhausted.
+   When another Codex runtime owns the running turn, the companion can show **Armed — waiting for a confirmed turn result**. It keeps monitoring; this status does not send a continuation or interrupt the original turn.
 3. Leave the control window running. It waits through a five-hour interruption and sends one continuation in the same context once fresh included usage is available.
 4. OFF immediately disarms scheduled work. Weekly exhaustion, completion or cancellation also stops automatic continuation. Re-enable/rearm is always explicit.
 
@@ -74,6 +75,7 @@ Use the same `--prefix` for custom installations. Remove the optional user-servi
 - Failed daemon/socket connection: turn OFF, verify login in Codex, then enable again. `codex app-server daemon version` shows the official daemon's status. No remote control is required.
 - Missing/null permission, unknown credits, unsupported quota bucket or stale history: the task pauses; inspect the reason and rearm only after resolving it.
 - An approval is outstanding: automation does not answer it. Inspect the original work manually; cross-client approval routing is not verified.
+- A running task incorrectly reports user cancellation when arming: update to 0.2.1 or later. Older readers confuse an unfinished external-history marker with a confirmed interruption. A genuine cancellation still requires manual inspection and does not resume automatically.
 - GUI unavailable: install Tk/use a graphical session, or use the CLI/user service.
 - Wayland: no keyboard automation is used, but the Tk/XWayland experience has not been tested.
 - Uncertain submission: inspect the original conversation; do not clear a reservation to force a retry.

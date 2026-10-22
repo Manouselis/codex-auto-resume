@@ -59,6 +59,9 @@ class Observation:
     user_work_active: bool = False
     cancelled: bool = False
     incomplete: bool | None = True
+    # Stored history from another runtime can contain a synthetic interruption
+    # for a still-open turn. It permits monitoring, never continuation dispatch.
+    external_unresolved: bool = False
     # Dispatch rechecks these pinned facts; the public protocol is not atomic.
 
 

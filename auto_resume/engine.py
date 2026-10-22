@@ -33,8 +33,8 @@ class Engine:
         reason = self._valid_observation(obs)
         if reason:
             raise UnsafeError(reason)
-        if obs.turn_status not in ("inProgress", "failed") or (
-                obs.turn_status == "failed" and obs.error_code != "usageLimitExceeded"):
+        if not obs.external_unresolved and (obs.turn_status not in ("inProgress", "failed") or (
+                obs.turn_status == "failed" and obs.error_code != "usageLimitExceeded")):
             raise UnsafeError("Only running tasks or structured usage-limit failures can be armed")
         self.store.register(obs, self.clock())
 
@@ -55,6 +55,9 @@ class Engine:
             return "Account or model identity is unavailable"
         if not obs.history_available or not obs.project_exists:
             return "Original conversation history or project is unavailable"
+        if obs.external_unresolved and (obs.turn_status != "unresolved" or obs.incomplete is not None
+                                        or obs.error_code is not None):
+            return "Unresolved conversation state is inconsistent"
         if obs.cancelled or obs.turn_status == "interrupted":
             return "Task was cancelled or interrupted by the user"
         if obs.approval_pending or obs.user_work_active:
@@ -127,6 +130,12 @@ class Engine:
             expected_turn = task["ack_turn"] or context["turn_id"]
             if obs.turn_id != expected_turn:
                 self._pause(tid, "A different turn started; the task may have been superseded")
+                return
+            if obs.external_unresolved:
+                if state == State.WAITING_FOR_RESET:
+                    self._pause(tid, "Unable to confirm the usage-limit failure; inspect the conversation")
+                else:
+                    self._change(tid, state, "Armed — waiting for a confirmed turn result", next_check=now + 30)
                 return
             if obs.turn_status == "completed" or obs.incomplete is False:
                 self._change(tid, State.COMPLETED, "Task completed", eligible=False, next_check=None)

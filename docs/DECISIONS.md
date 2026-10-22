@@ -1,5 +1,13 @@
 # Decisions and engineering review
 
+## 0.2.1: monitoring work owned by another runtime
+
+The desktop can report a turn as active while a separate App Server reader reports `notLoaded` and reconstructs the same unfinished turn as `interrupted`, with no error or completion time. Treating that stored marker as an explicit user cancellation prevented arming a normally running conversation.
+
+The adapter now marks precisely this open external-history case as unresolved. Explicit arming permits monitoring it without loading the thread or sending a model request. The engine waits for a confirmed result for that same turn. Only a later structured usage-limit failure can enter reset recovery; unresolved history cannot replace a previously confirmed failure or pass dispatch preflight. Completed cancellations and interruptions observed in the loaded runtime still stop automation. Identity changes, approvals and superseding turns retain their existing safeguards.
+
+Regression coverage includes the real control-panel arm action, unresolved monitoring with zero mutations, rejection of automatic and manual dispatch, subsequent completion/cancellation/supersession, and a later confirmed five-hour failure followed by one continuation. Diagnosis used read-only metadata against a running desktop conversation; no model request or interruption was sent to it.
+
 ## 0.2.0 correction
 
 The 0.1.0 prototype interpreted the financial invariant as requiring a new atomic backend operation and therefore never executed. That was overly restrictive for the brief's requirement to verify included, non-chargeable usage before intentionally continuing. The current adapter performs those checks and submits a real same-thread continuation, while explicitly documenting the remaining external-change/concurrency race.

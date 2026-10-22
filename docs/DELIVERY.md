@@ -1,4 +1,4 @@
-# Delivery summary — 0.2.0
+# Delivery summary — 0.2.1
 
 1. Built a real local Codex continuation adapter, reset scheduler, state store, native control window, tests and installer.
 2. Integration is a standalone companion connected to the official persistent App Server over its local WebSocket socket.
@@ -13,5 +13,6 @@
 11. Install: `python3 scripts/install.py` from this directory.
 12. Use: `~/.local/bin/codex-auto-resume ui`; enable, choose the original task, arm it and leave the controller running. Optional user-service instructions are in INSTALL.md.
 13. Remaining validation: a naturally encountered live quota reset, real user approval routing, Windows/Wayland and OS reboot tests. No live quota was deliberately exhausted.
+14. Fixed false cancellation when a separate reader reconstructs an externally running turn as interrupted. Monitoring may be armed while the result remains unresolved; execution still requires a confirmed usage-limit failure. All 120 automated checks pass, including eight native GUI checks.
 
-Real evidence is in `docs/evidence/live-continuation.json`. GitHub publication is deferred until the owner requests it.
+Real model execution evidence is in `docs/evidence/live-continuation.json`; the current automated results are in `docs/evidence/test-results.json`.

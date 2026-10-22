@@ -1,12 +1,14 @@
-# Testing and real verification — 0.2.0
+# Testing and real verification — 0.2.1
 
-Verified on Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 19 October 2026.
+Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 22 October 2026. The separate genuine model execution evidence remains from 19 October 2026.
 
 ## Results
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Full automated suite, including native GUI | PASS — 107 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
+| Full automated suite, including native GUI | PASS — 120 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
+| Open turn owned by another runtime can be armed | PASS — monitors without loading the thread or sending inference; confirmed later failure/reset still continues once | 12 live-adapter regressions and one native control-panel regression |
+| Read-only reproduction against an active desktop conversation | PASS — external open turn arms and remains monitored, with zero thread mutations | [Sanitized arming probe](evidence/external-arm.json) |
 | Genuine same-thread continuation | PASS — two real authenticated model turns; original context token recalled | [Redacted real-backend result](evidence/live-continuation.json) |
 | Real daemon account/quota connection | PASS — ordinary usage authorized; both quota windows; no paid balance | [Metadata probe](evidence/live-probe.json) |
 | Quota interruption → wait → fresh read → one real-protocol submission | PASS with controlled backend responses | `tests/test_live.py` |
@@ -23,7 +25,7 @@ Verified on Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 19 October 2026.
 
 The normal automated suite makes zero live model requests. The separately invoked live check made two genuine included-usage turns, in a dedicated harmless conversation, through the same production `_dispatch` method with an explicit manual-test trigger. It did not inject a fake quota or pretend that the real service had exhausted/reset. This confirms actual execution and context recovery, not an unperformed natural-reset test.
 
-The final full run includes seven GUI tests; headless runs intentionally skip them. The 2500-case randomized quota check is counted as one test. Earlier 0.1.0 results remain in Git history and do not describe this release's execution capability.
+The final full run includes eight GUI tests; headless runs intentionally skip them. The 2500-case randomized quota check is counted as one test. Earlier 0.1.0 results remain in Git history and do not describe this release's execution capability.
 
 ## Required scenario coverage
 

@@ -7,7 +7,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from auto_resume.adapters import fake_payload
-from auto_resume.domain import UnsafeError
+from auto_resume.domain import State, UnsafeError
 from auto_resume.engine import Engine
 from auto_resume.live import LiveAdapter, manual_request
 from auto_resume.store import Store
@@ -75,6 +75,132 @@ class LiveTests(unittest.TestCase):
 
     def writes(self):
         return [p for method, p in self.backend.calls if method == "turn/start"]
+
+    def external_open_turn(self, status="interrupted"):
+        self.backend.latest.update(status=status, completedAt=None, error=None)
+        self.backend.thread["status"] = {"type": "notLoaded"}
+
+    def armed_store(self):
+        store = Store(Path(self.tmp.name) / "external.sqlite3")
+        self.addCleanup(store.close)
+        store.set_enabled(True, self.clock())
+        engine = Engine(store, self.adapter, self.clock)
+        engine.register("live-test")
+        return store, engine
+
+    def test_external_open_history_is_unresolved_not_user_cancellation(self):
+        for status in ("interrupted", "inProgress"):
+            with self.subTest(status=status):
+                self.external_open_turn(status)
+                obs = self.adapter.observe("live-test")
+                self.assertEqual(obs.turn_status, "unresolved")
+                self.assertTrue(obs.external_unresolved)
+                self.assertFalse(obs.cancelled)
+                self.assertIsNone(obs.incomplete)
+
+    def test_external_open_history_can_be_armed_without_execution(self):
+        self.external_open_turn()
+        store, engine = self.armed_store()
+        for _ in range(3):
+            engine.tick()
+            self.clock_value[0] += 31
+        task = store.get("live-test")
+        self.assertEqual(task["state"], State.ARMED)
+        self.assertTrue(task["eligible"])
+        self.assertIn("confirmed turn result", task["reason"])
+        self.assertFalse(any(m in ("thread/resume", "turn/start") for m, _ in self.backend.calls))
+
+    def test_external_open_history_refuses_automatic_and_manual_dispatch(self):
+        self.external_open_turn()
+        request = self.request()
+        for automatic in (True, False):
+            with self.subTest(automatic=automatic):
+                with self.assertRaisesRegex(UnsafeError, "no confirmed result"):
+                    self.adapter._dispatch(request, automatic=automatic)
+        self.assertFalse(any(m in ("thread/resume", "turn/start") for m, _ in self.backend.calls))
+
+    def test_external_turn_later_fails_then_reset_continues_once(self):
+        self.external_open_turn()
+        store, engine = self.armed_store()
+        engine.tick()
+        self.clock_value[0] += 31
+        self.backend.latest.update(status="failed", completedAt=int(self.clock()),
+                                   error={"codexErrorInfo": "usageLimitExceeded"})
+        self.backend.payload = fake_payload(self.clock())
+        engine.tick()
+        self.assertEqual(store.get("live-test")["state"], State.WAITING_FOR_RESET)
+        self.assertEqual(self.writes(), [])
+        self.clock_value[0] += 26
+        self.backend.payload = fake_payload(self.clock(), five=5, ordinary=True)
+        engine.tick()
+        engine.tick()
+        self.assertEqual(store.get("live-test")["state"], State.RUNNING)
+        self.assertEqual(len(self.writes()), 1)
+
+    def test_external_turn_later_completes_without_continuation(self):
+        self.external_open_turn()
+        store, engine = self.armed_store()
+        self.backend.latest.update(status="completed", completedAt=int(self.clock()))
+        engine.tick()
+        self.assertEqual(store.get("live-test")["state"], State.COMPLETED)
+        self.assertEqual(self.writes(), [])
+
+    def test_confirmed_external_cancellation_still_rejects_arming(self):
+        self.external_open_turn()
+        self.backend.latest["completedAt"] = int(self.clock())
+        self.assertTrue(self.adapter.observe("live-test").cancelled)
+        with self.assertRaisesRegex(UnsafeError, "cancelled"):
+            self.armed_store()
+        self.assertEqual(self.writes(), [])
+
+    def test_loaded_runtime_interruption_still_rejects_arming(self):
+        self.external_open_turn()
+        self.backend.thread["status"] = {"type": "idle"}
+        self.assertTrue(self.adapter.observe("live-test").cancelled)
+        with self.assertRaisesRegex(UnsafeError, "cancelled"):
+            self.armed_store()
+
+    def test_external_turn_later_cancelled_disarms(self):
+        self.external_open_turn()
+        store, engine = self.armed_store()
+        self.backend.latest["completedAt"] = int(self.clock())
+        engine.tick()
+        self.assertEqual(store.get("live-test")["state"], State.PAUSED_FOR_USER)
+        self.assertFalse(store.get("live-test")["eligible"])
+        self.assertEqual(self.writes(), [])
+
+    def test_external_turn_superseded_disarms(self):
+        self.external_open_turn()
+        store, engine = self.armed_store()
+        self.backend.latest["id"] = "different-turn"
+        engine.tick()
+        self.assertEqual(store.get("live-test")["state"], State.PAUSED_FOR_USER)
+        self.assertFalse(store.get("live-test")["eligible"])
+        self.assertEqual(self.writes(), [])
+
+    def test_unresolved_history_cannot_replace_confirmed_limit_failure(self):
+        self.backend.payload = fake_payload(self.clock())
+        store, engine = self.armed_store()
+        engine.tick()
+        self.assertEqual(store.get("live-test")["state"], State.WAITING_FOR_RESET)
+        self.clock_value[0] += 26
+        self.external_open_turn()
+        engine.tick()
+        self.assertEqual(store.get("live-test")["state"], State.PAUSED_FOR_USER)
+        self.assertEqual(self.writes(), [])
+
+    def test_unknown_history_is_not_accepted_as_external_open_turn(self):
+        self.external_open_turn(status="unknown")
+        self.assertFalse(self.adapter.observe("live-test").external_unresolved)
+        with self.assertRaises(UnsafeError):
+            self.armed_store()
+
+    def test_external_open_history_with_pending_approval_still_rejected(self):
+        self.external_open_turn()
+        self.backend.events.put({"id": 42, "method": "item/permissions/requestApproval",
+                                 "params": {"threadId": "live-test"}})
+        with self.assertRaisesRegex(UnsafeError, "approval"):
+            self.armed_store()
 
     def test_real_dispatch_method_no_longer_unconditionally_refuses(self):
         request = self.request()

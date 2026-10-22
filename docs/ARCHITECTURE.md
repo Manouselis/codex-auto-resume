@@ -1,6 +1,6 @@
 # Architecture
 
-Version 0.2.0, verified 19 October 2026. Option C remains a standalone native Tk companion rather than an injected Codex Settings control.
+Version 0.2.1, regression checks on 22 October 2026. The genuine model verification below is from 19 October 2026. Option C remains a standalone native Tk companion rather than an injected Codex Settings control.
 
 ## Real integration
 
@@ -27,7 +27,7 @@ Disconnecting closes the companion's socket, not the daemon or its active Codex 
 | `ui.py`, `cli.py` | Native control, task chooser and local commands |
 | `adapters.py`, `protocol.py` | Optional isolated simulator and read-only JSON-lines observer |
 
-Running tasks are checked every 30 seconds. Reset waits use official epoch timestamps; the scheduler wakes locally without model calls. Waiting tasks get a lightweight quota audit at most every five minutes, then a fresh read at reset. Delayed backend recovery gets bounded read-only retries. Every automatic submission requires fresh checks again.
+Running tasks are checked every 30 seconds. A `notLoaded` reader can reconstruct an open external turn as interrupted without an error or completion timestamp. That case is marked unresolved and may be explicitly armed for monitoring; only a confirmed later result changes it to completion, cancellation or usage-limit recovery. It cannot pass dispatch preflight. Reset waits use official epoch timestamps; the scheduler wakes locally without model calls. Waiting tasks get a lightweight quota audit at most every five minutes, then a fresh read at reset. Delayed backend recovery gets bounded read-only retries. Every automatic submission requires fresh checks again.
 
 SQLite commits a unique reservation before dispatch. A lost acknowledgement or crash after reservation pauses the queue, with no automatic retransmission. `clientUserMessageId` is an attribution/deduplication marker, not a claimed server idempotency contract.
 

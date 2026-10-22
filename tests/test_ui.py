@@ -135,3 +135,28 @@ class UiTests(unittest.TestCase):
         finally:
             window.close()
             store.close()
+
+    def test_arm_external_open_turn_through_real_control_panel(self):
+        import tkinter as tk
+        from auto_resume.ui import ControlWindow
+        from auto_resume.live import LiveAdapter
+        from test_live import Backend
+        backend = Backend(self.tmp.name)
+        backend.latest.update(status="interrupted", completedAt=None, error=None)
+        store = Store(Path(self.tmp.name) / "external-panel.sqlite3")
+        store.set_enabled(True, time.time())
+        window = ControlWindow(tk.Toplevel(self.root), Engine(store, LiveAdapter(backend)), simulation=False)
+        try:
+            window.thread_id.insert(0, "live-test")
+            window.arm()
+            deadline = time.monotonic() + 3
+            while window.busy and time.monotonic() < deadline:
+                self.root.update()
+                time.sleep(0.01)
+            self.root.update()
+            self.assertTrue(store.get("live-test")["eligible"])
+            self.assertIn("armed", window.notice.get())
+            self.assertFalse(any(m in ("thread/resume", "turn/start") for m, _ in backend.calls))
+        finally:
+            window.close()
+            store.close()

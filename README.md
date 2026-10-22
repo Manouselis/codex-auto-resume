@@ -1,6 +1,6 @@
 # Codex Auto-Resume
 
-A local desktop companion that **actually continues an explicitly armed Codex conversation after its five-hour included-usage limit resets**. Version 0.2.0 replaces the read-only 0.1.0 prototype with a real App Server continuation adapter.
+A local desktop companion that **actually continues an explicitly armed Codex conversation after its five-hour included-usage limit resets**. Version 0.2.1 fixes arming conversations that are still running in another Codex runtime. Real same-thread continuation has been implemented since 0.2.0.
 
 It uses the existing ChatGPT Plus login and original thread context. It checks fresh backend ordinary-usage permission, both quota windows, account identity, paid-credit state, provider configuration and the latest turn before sending one contextual continuation. Weekly exhaustion pauses and disarms the task until manually rearmed.
 

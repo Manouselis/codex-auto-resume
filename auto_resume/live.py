@@ -120,13 +120,22 @@ class LiveAdapter:
             error = latest.get("error") or {}
             revision_data = {k: latest.get(k) for k in ("id", "status", "error", "completedAt")}
             revision = hashlib.sha256(json.dumps(revision_data, sort_keys=True).encode()).hexdigest()
+            # notLoaded describes this reader's runtime, not the desktop's.
+            # Its stored-history reconstruction can label an open external turn
+            # interrupted, even while the desktop is still executing it.
+            unresolved = (status.get("type") == "notLoaded"
+                          and latest.get("status") in ("interrupted", "inProgress")
+                          and latest.get("completedAt") is None
+                          and latest.get("error") is None)
             return Observation(thread_id, usage.payload["accountId"], model, self.bucket_ids(usage), cwd or "",
-                               self._config(thread), latest["id"], latest.get("status", "unknown"),
+                               self._config(thread), latest["id"],
+                               "unresolved" if unresolved else latest.get("status", "unknown"),
                                error.get("codexErrorInfo"), revision, self.clock(),
                                project_exists=bool(cwd and Path(cwd).is_dir()),
                                approval_pending=bool(status.get("activeFlags")) or thread_id in self.pending.values(),
-                               cancelled=latest.get("status") == "interrupted",
-                               incomplete=latest.get("status") in ("inProgress", "failed"))
+                               cancelled=latest.get("status") == "interrupted" and not unresolved,
+                               incomplete=None if unresolved else latest.get("status") in ("inProgress", "failed"),
+                               external_unresolved=unresolved)
 
     def _financial_config(self, cwd):
         config = self.rpc.call("config/read", {"cwd": cwd, "includeLayers": False}).get("config")
@@ -153,6 +162,8 @@ class LiveAdapter:
         expected = (request.expected_revision, request.expected_account_id, request.expected_model,
                     request.expected_config_hash, request.bucket_ids)
         actual = (obs.revision, obs.account_id, obs.model, obs.config_hash, obs.bucket_ids)
+        if obs.external_unresolved:
+            raise UnsafeError("The current turn has no confirmed result; no continuation will be sent")
         if expected != actual or obs.approval_pending or not obs.project_exists or obs.cancelled:
             raise UnsafeError("The account, model, task, project, or original context changed")
         if obs.turn_status == "inProgress":

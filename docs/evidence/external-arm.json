@@ -1,0 +1,16 @@
+{
+  "date": "2026-10-22",
+  "check": "read-only arming of an externally running desktop turn",
+  "reader_thread_status": "notLoaded",
+  "stored_turn_status": "interrupted",
+  "stored_completed_at": null,
+  "observed_turn_status": "unresolved",
+  "cancelled": false,
+  "external_unresolved": true,
+  "armed": true,
+  "controller_state": "ARMED",
+  "reason": "Armed \u2014 waiting for a confirmed turn result",
+  "live_model_requests": 0,
+  "thread_mutations": 0,
+  "natural_quota_reset": "NOT TESTED"
+}
