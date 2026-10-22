@@ -31,6 +31,12 @@ class PackagingTests(unittest.TestCase):
         sentinel.write_text("preserve me")
         self.run_script("install.py", "--prefix", self.prefix)
         app = self.prefix / "share/codex-auto-resume/codex-auto-resume.pyz"
+        metadata = json.loads((app.parent / "installation.json").read_text())
+        expected = ["share/codex-auto-resume/codex-auto-resume.pyz",
+                    "bin/codex-auto-resume.cmd" if os.name == "nt" else "bin/codex-auto-resume"]
+        if os.name != "nt":
+            expected.append("share/applications/codex-auto-resume.desktop")
+        self.assertEqual(metadata["files"], expected)
         result = subprocess.run([sys.executable, str(app), "demo"], capture_output=True, text=True, check=True)
         self.assertEqual(json.loads(result.stdout)["automatic_continuations"], 1)
         self.run_script("install.py", "--prefix", self.prefix)

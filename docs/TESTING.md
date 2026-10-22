@@ -92,4 +92,4 @@ For an explicitly authorized real check using two tiny included-usage turns:
 python3 scripts/live_check.py --run
 ```
 
-GUI tests require Tk and a graphical session; screenshot capture uses Pillow only during tests. Application runtime remains standard-library only. The CI workflow has not yet run on hosted GitHub or a Windows host.
+GUI tests require Tk and a graphical session; screenshot capture uses Pillow only during tests. Application runtime remains standard-library only. Hosted GitHub CI runs the headless core and packaging checks on Ubuntu and Windows with Python 3.10 and 3.13. These checks do not validate real Windows Codex transport or GUI integration.

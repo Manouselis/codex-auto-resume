@@ -61,14 +61,14 @@ class Backend:
 class LiveTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
+        # Cleanups run in reverse registration order, after tearDown. Close any
+        # SQLite handles registered below before removing their directory.
+        self.addCleanup(self.tmp.cleanup)
         self.clock_value = [1_800_000_000.0]
         self.clock = lambda: self.clock_value[0]
         self.backend = Backend(self.tmp.name, self.clock)
         self.adapter = LiveAdapter(self.backend, self.clock)
         self.adapter.check_enabled = lambda: True
-
-    def tearDown(self):
-        self.tmp.cleanup()
 
     def request(self):
         return manual_request(self.adapter.observe("live-test"), "Continue only unfinished work")

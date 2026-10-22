@@ -92,7 +92,7 @@ Exec={cmd} --simulation ui
     if desktop_text:
         atomic_write(desktop, desktop_text.encode())
     metadata = {"application": "codex-auto-resume", "version": "0.2.1", "prefix": str(prefix),
-                "files": [str(p.relative_to(prefix)) for p in files]}
+                "files": [p.relative_to(prefix).as_posix() for p in files]}
     atomic_write(marker, (json.dumps(metadata, indent=2) + "\n").encode())
     print("Installed:", launcher)
     print("Open the companion:", launcher, "ui")
