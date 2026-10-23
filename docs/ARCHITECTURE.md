@@ -1,6 +1,6 @@
 # Architecture
 
-Version 0.3.0, regression checks on 23 October 2026. The genuine model verification below is from 19 October 2026. The implementation is a standalone native Tk companion with a shared CLI/background controller. It does not inject a control into Codex Settings.
+Version 0.3.0, regression checks on 23 October 2026. The daemon-owned model verification is from 19 October 2026; the first native scheduled desktop continuation passed on 23 October 2026. The implementation is a standalone native Tk companion with a shared CLI/background controller. It does not inject a control into Codex Settings.
 
 ## Real integration
 
@@ -66,4 +66,4 @@ A native heartbeat runs in the original desktop writer. Its stored prompt calls 
 
 `native-finish` records a checkpoint, objective completion or block. Only checkpoints remain armed; the native prompt pauses its heartbeat on completion, cancellation, OFF, approvals or other blocked work. A restarted companion leaves acknowledged native slots for a subsequent terminal-history check; it never retransmits a native turn. A manual intervening turn stops automatic research.
 
-The guard does not start or prevent the initial native model turn. Each heartbeat wake consumes normal usage under Codex’s current account settings. Its fresh financial checks govern subsequent substantive work, not scheduler admission. A heartbeat can still wake once to notice OFF and pause itself. Disarming the companion and pausing the native heartbeat are separate operations. A real native wake-up with this guard remains unverified.
+The guard does not start or prevent the initial native model turn. Each heartbeat wake consumes normal usage under Codex’s current account settings. Its fresh financial checks govern subsequent substantive work, not scheduler admission. A heartbeat can still wake once to notice OFF and pause itself. Disarming the companion and pausing the native heartbeat are separate operations. The first real scheduled wake-up passed on 23 October 2026: its exact heartbeat prompt ran the guard, a matching durable reservation was recorded, and the original chat resumed saved research. Repeated checkpoint cycles and natural quota-reset recovery remain unverified. See the [redacted live evidence](evidence/native-scheduled-recovery.json).

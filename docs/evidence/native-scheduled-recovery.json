@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-23",
+  "platform": "Ubuntu X11",
+  "source_commit": "701b65463ba8a0dc076938357baff18e17e07395",
+  "status": "PASS",
+  "check": "First real native heartbeat resumed an explicitly armed desktop conversation after a saved context checkpoint",
+  "scheduled_wakeup_at": "2026-10-23T08:02:41+02:00",
+  "schedule_minutes": 5,
+  "original_conversation_preserved": true,
+  "native_heartbeat_message_observed": true,
+  "guard": {
+    "action": "continue",
+    "reason": "Fresh included usage and native checkpoint guard passed",
+    "attempt": 1,
+    "maximum": 10
+  },
+  "durable_reservation_matches_native_turn": true,
+  "original_research_state_read": true,
+  "previous_remote_checkpoint_verified": true,
+  "research_commands_after_admission": true,
+  "research_web_searches_after_admission": true,
+  "manual_continuation_messages_sent": 0,
+  "external_model_dispatches": 0,
+  "native_turn_completed": false,
+  "second_context_checkpoint_recovery_verified": false,
+  "natural_usage_exhaustion_and_reset_verified": false,
+  "other_platforms_verified": false
+}

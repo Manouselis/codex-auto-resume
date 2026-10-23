@@ -56,7 +56,7 @@ The original desktop can retain its writer even while a chat is idle. A separate
 
 ## Native desktop recovery (experimental)
 
-Native heartbeat recovery is a separate opt-in setup for a desktop-owned chat. The GUI context checkbox only enables checkpoint recognition; it does not create a native heartbeat. The native integration has automated guard tests but no verified real scheduled wake-up yet.
+Native heartbeat recovery is a separate opt-in setup for a desktop-owned chat. The GUI context checkbox only enables checkpoint recognition; it does not create a native heartbeat. The first native scheduled wake-up passed on Ubuntu on 23 October 2026: the guard admitted work in the original chat and it resumed the saved research checkpoint. This is [one observed wake-up](evidence/native-scheduled-recovery.json); repeated context-checkpoint cycles and natural quota-reset recovery remain unverified.
 
 1. Explicitly choose native scheduled recovery, understanding that each wake-up is a normal model turn. Use Codex’s native automation management tool to create a **paused heartbeat** attached to the original conversation, for example with a five-minute interval. Do not create a separate task or cron job.
 2. Obtain its automation ID and generate the guarded prompt with the command below. Update the paused heartbeat through the native tool with that exact prompt while preserving its other fields.

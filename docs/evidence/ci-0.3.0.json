@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-23",
+  "source_commit": "701b65463ba8a0dc076938357baff18e17e07395",
+  "run_url": "https://github.com/Manouselis/codex-auto-resume/actions/runs/39905443617",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "runner": "ubuntu-latest",
+      "python": "3.10",
+      "job_id": 120256220339,
+      "tests_run": 167,
+      "passed": 157,
+      "skipped": 10,
+      "conclusion": "success"
+    },
+    {
+      "runner": "ubuntu-latest",
+      "python": "3.13",
+      "job_id": 120256220543,
+      "tests_run": 167,
+      "passed": 157,
+      "skipped": 10,
+      "conclusion": "success"
+    },
+    {
+      "runner": "windows-latest",
+      "python": "3.13",
+      "job_id": 120256220778,
+      "tests_run": 167,
+      "passed": 154,
+      "skipped": 13,
+      "conclusion": "success"
+    },
+    {
+      "runner": "windows-latest",
+      "python": "3.10",
+      "job_id": 120256220779,
+      "tests_run": 167,
+      "passed": 154,
+      "skipped": 13,
+      "conclusion": "success"
+    }
+  ],
+  "live_model_requests": 0,
+  "scope": "Headless core, packaging and simulation; not live Windows desktop recovery"
+}

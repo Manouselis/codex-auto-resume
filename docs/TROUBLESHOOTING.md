@@ -71,6 +71,6 @@ Keep the computer awake, connected and logged in for an overnight wait. The comp
 
 ## Desktop writer is already active
 
-The desktop can retain its exclusive writer while the chat is idle. The external controller cannot restore this chat, and queue APIs cannot bypass the restore requirement. This is a definite pre-dispatch refusal, recorded as `not_sent`; it is not a successful continuation. Do not restart Codex or send duplicate requests to work around it. The experimental [native heartbeat setup](RECOVERY.md#native-desktop-recovery-experimental) uses the existing writer, but still needs real wake-up validation.
+The desktop can retain its exclusive writer while the chat is idle. The external controller cannot restore this chat, and queue APIs cannot bypass the restore requirement. This is a definite pre-dispatch refusal, recorded as `not_sent`; it is not a successful continuation. Do not restart Codex or send duplicate requests to work around it. The experimental [native heartbeat setup](RECOVERY.md#native-desktop-recovery-experimental) uses the existing writer. Its first real native wake-up resumed saved research on Ubuntu; repeated checkpoint and natural quota-reset cycles remain unverified.
 
 A native-bound task is skipped by the external scheduler. Check `status` for `native_heartbeat` and attempts, and inspect the native heartbeat’s own active/paused state in Codex. OFF prevents substantive work but does not itself pause the native scheduler; pause the heartbeat to stop model wake-ups.

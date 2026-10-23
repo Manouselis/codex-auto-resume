@@ -1,18 +1,18 @@
 # Testing and real verification — 0.3.0
 
-Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 23 October 2026. The separate genuine model execution evidence remains from 19 October 2026.
+Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 23 October 2026. The daemon-owned model execution evidence is from 19 October 2026. The first native scheduled desktop continuation passed on 23 October 2026.
 
 ## Results
 
 | Check | Result | Evidence |
 | --- | --- | --- |
 | Full automated suite, including native GUI | PASS — 167 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
-| Hosted Ubuntu/Windows core and packaging CI, Python 3.10/3.13 | PASS — all four jobs at code commit `8fe287e`; exact pass/skip counts below | [Recorded CI evidence](evidence/ci-0.2.1.json), [GitHub run](https://github.com/Manouselis/codex-auto-resume/actions/runs/39858070583) |
+| Hosted Ubuntu/Windows core and packaging CI, Python 3.10/3.13 | PASS — all four jobs at code commit `701b654`; exact pass/skip counts below | [Recorded CI evidence](evidence/ci-0.3.0.json), [GitHub run](https://github.com/Manouselis/codex-auto-resume/actions/runs/39905443617) |
 | Open turn owned by another runtime can be armed | PASS — monitors without loading the thread or sending inference; controlled later failure/reset submits once on a resumable daemon-owned fixture | 12 live-adapter regressions and one native control-panel regression |
 | Read-only reproduction against an active desktop conversation | PASS — external open turn arms and remains monitored, with zero thread mutations | [Sanitized arming probe](evidence/external-arm.json) |
 | Genuine same-thread continuation in a daemon-owned chat | PASS — two real authenticated model turns; original context token recalled | [Redacted real-backend result](evidence/live-continuation.json) |
 | Real desktop writer ownership | Reproduced refusal; external restoration and queue start cannot take over the writer | [Redacted refusal](evidence/desktop-writer-conflict.json) |
-| Native scheduled desktop recovery | NOT VERIFIED LIVE — local guard tests pass, but no actual native wake-up has been admitted | `tests/test_native.py` |
+| Native scheduled desktop recovery | PASS for one real wake-up — native guard admitted work, durable reservation matched, saved checkpoint read and research resumed | [Redacted live evidence](evidence/native-scheduled-recovery.json) |
 | Real daemon account/quota connection | PASS — ordinary usage authorized; both quota windows; no paid balance | [Metadata probe](evidence/live-probe.json) |
 | Quota interruption → wait → fresh read → one real-protocol submission | PASS with controlled backend responses | `tests/test_live.py` |
 | Weekly exhausted after 5h reset | PASS — zero continuation requests | Engine, policy and live-adapter tests |
@@ -29,6 +29,19 @@ Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 23 October
 The normal automated suite makes zero live model requests. The separately invoked live check made two genuine included-usage turns, in a dedicated harmless conversation, through the same production `_dispatch` method with an explicit manual-test trigger. It did not inject a fake quota or pretend that the real service had exhausted/reset. This confirms daemon-owned execution and context preservation. It did not test taking over the desktop writer, native scheduled recovery or a natural quota reset.
 
 The final full run includes ten GUI tests; headless runs intentionally skip them. The 2500-case randomized quota check is counted as one test. Earlier 0.1.0 results remain in Git history and do not describe this release's execution capability.
+
+## Recorded 0.3.0 hosted CI results
+
+The [23 October 2026 run](https://github.com/Manouselis/codex-auto-resume/actions/runs/39905443617) verified code commit `701b654`. Each job discovered 167 tests. Build and packaged simulation steps passed in all four jobs.
+
+| Runner | Python | Passed | Skipped |
+| --- | --- | --- | --- |
+| Ubuntu | 3.10 | 157 | 10 |
+| Ubuntu | 3.13 | 157 | 10 |
+| Windows | 3.10 | 154 | 13 |
+| Windows | 3.13 | 154 | 13 |
+
+Headless jobs skip the ten GUI tests; Windows also skips three POSIX-specific cases. See [recorded evidence](evidence/ci-0.3.0.json). This does not verify live Windows desktop recovery.
 
 ## Recorded 0.2.1 hosted CI results
 
@@ -49,7 +62,7 @@ The 0.3.0 suite adds context-marker recognition, rejection of explanations/quote
 
 ## Native guard regressions
 
-Eighteen tests cover external-scheduler exclusion, native heartbeat and thread identity, fresh allowance on repeated claims, idempotent reservation, checkpoint turnover, terminal-history reconciliation after companion restart, ordinary completion, cancellation, OFF, paid balances, weekly reserve, goal budgets, unknown external submissions, the native cap and intervening manual turns. They use controlled metadata; they do not establish that the native scheduler will execute the prompt in the installed desktop app.
+Eighteen tests cover external-scheduler exclusion, native heartbeat and thread identity, fresh allowance on repeated claims, idempotent reservation, checkpoint turnover, terminal-history reconciliation after companion restart, ordinary completion, cancellation, OFF, paid balances, weekly reserve, goal budgets, unknown external submissions, the native cap and intervening manual turns. They use controlled metadata. Separately, the [23 October live check](evidence/native-scheduled-recovery.json) observed the actual scheduled heartbeat, its successful guard command, a matching reservation and subsequent research commands in the original desktop chat. The turn was still running when recorded. A second checkpoint recovery and a natural quota reset have not yet been verified.
 
 ## Required scenario coverage
 

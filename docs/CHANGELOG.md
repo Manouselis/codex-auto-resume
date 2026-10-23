@@ -9,7 +9,7 @@
 - Corrected the misleading **Task completed** reason: a completed turn does not prove the wider objective is finished.
 - Goal state and configured token budgets are checked without modifying them. Checkpoint text is pinned across dispatch preflight.
 - Closing a service-owned control panel now keeps armed background work active; OFF still disarms.
-- Added an experimental admission guard and prompt for native scheduled desktop recovery. External restoration and queue start cannot bypass the desktop writer; this now reports `not_sent` and pauses. A real native wake-up remains unverified.
+- Added an experimental admission guard and prompt for native scheduled desktop recovery. External restoration and queue start cannot bypass the desktop writer; this now reports `not_sent` and pauses. The first real native scheduled wake-up passed on Ubuntu on 23 October: fresh guards admitted work in the original chat, which resumed saved research. Repeated checkpoint cycles and natural quota-reset recovery remain unverified.
 - Native mode admits at most ten work turns, checks prior checkpoints and fresh usage, and is skipped by the external scheduler. Each native wake-up is a normal model turn.
 - The local suite passes 167 tests, including ten native GUI checks. See [Recovery modes](RECOVERY.md) for recognition boundaries.
 

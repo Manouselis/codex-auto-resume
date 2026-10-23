@@ -35,7 +35,7 @@ Context recovery is disabled by default and recorded per arming. It permits a ne
 
 ## Native admission boundary
 
-Native scheduling is explicitly configured for a desktop-owned chat. The scheduler starts a normal model turn before the local guard can run. Codex’s account settings govern that admission; the companion cannot reserve included usage or guarantee a pre-inference billing check for it. The prompt authorizes no research, file changes, experiments or publishing unless `native-claim` returns `action=continue`. Automated tests cover this guard; a real native scheduler wake-up has not yet been verified.
+Native scheduling is explicitly configured for a desktop-owned chat. The scheduler starts a normal model turn before the local guard can run. Codex’s account settings govern that admission; the companion cannot reserve included usage or guarantee a pre-inference billing check for it. The prompt authorizes no research, file changes, experiments or publishing unless `native-claim` returns `action=continue`. Automated tests cover this guard. A real scheduled native wake-up passed the guard and resumed saved research on 23 October 2026; this does not validate repeated checkpoint cycles or a natural quota reset.
 
 The guard pins the heartbeat identity and original task configuration, checks the prior checkpoint and intervening turns, and reserves an admitted work turn durably. `native-finish` closes that reservation and reports checkpoint/completion/block. The external scheduler never dispatches native-bound tasks. OFF blocks further substantive work; pausing the heartbeat also stops future model wake-ups. No automatic approval or credit purchase is permitted.
 

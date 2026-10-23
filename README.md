@@ -2,7 +2,7 @@
 
 Resume an explicitly armed Codex conversation after its five-hour included-usage limit resets, or opt in to recovery when a run ends at a context-budget checkpoint. The local controller can continue daemon-owned conversations. Desktop-owned conversations require Codex’s native scheduler; the companion cannot take over the desktop’s exclusive writer. Both paths preserve the original conversation and check available included usage.
 
-**Current version: 0.3.0. Native desktop recovery is experimental and has not yet passed a real scheduled wake-up check.** Independent community software, licensed under MIT. The verified live setup is Ubuntu with X11 and an existing ChatGPT Plus login.
+**Current version: 0.3.0. The first real native scheduled wake-up and research continuation passed on Ubuntu. Repeated checkpoint cycles and natural quota-reset recovery remain unverified.** Independent community software, licensed under MIT. The verified live setup is Ubuntu with X11 and an existing ChatGPT Plus login.
 
 ## Install and arm a conversation
 
@@ -47,10 +47,10 @@ These are current-state checks, not a reservation of future usage. The public AP
 | Check | Result |
 | --- | --- |
 | Local Ubuntu suite, including ten native GUI tests | 167 passed; no skips |
-| Recorded 0.2.1 GitHub CI on Ubuntu and Windows, Python 3.10 and 3.13 | All four jobs passed; exact historical counts are in the test report |
+| Recorded 0.3.0 GitHub CI on Ubuntu and Windows, Python 3.10 and 3.13 | All four jobs passed at code commit `701b654`; headless platform skips apply |
 | Real same-thread continuation in a daemon-owned test chat | Two authenticated model turns preserved the original context; this did not test desktop writer ownership |
 | Desktop writer conflict | Reproduced live; separate-server restoration and queue start are refused |
-| Native desktop recovery | Guard tests pass; real scheduler wake-up and research continuation are not yet verified |
+| Native desktop recovery | First real scheduled wake-up passed: guard admitted work in the original chat, which read the saved checkpoint and resumed research |
 | Arming an externally running desktop turn | Read-only reproduction passed; no thread mutations or model requests |
 | Natural five-hour exhaustion followed by reset | Not yet verified live; covered with controlled backend responses |
 | Windows desktop continuation, Wayland, real suspend/reboot recovery | Not verified |
