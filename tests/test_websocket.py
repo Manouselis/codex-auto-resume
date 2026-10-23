@@ -5,7 +5,7 @@ import threading
 import unittest
 from unittest.mock import patch
 
-from auto_resume.domain import TransientError, UnsafeError
+from auto_resume.domain import NotSentError, TransientError, UnsafeError, WriterConflictError
 from auto_resume.live import LiveRpc
 from auto_resume.websocket import DaemonRpc, LocalWebSocket, MAX_MESSAGE
 
@@ -35,6 +35,24 @@ def frame(data, opcode=1, final=True):
 
 
 class WebSocketTests(unittest.TestCase):
+    def rejected(self, method, message, *, code=-32600):
+        rpc = DaemonRpc(timeout=1)
+        rpc._write = lambda payload: None
+        rpc.responses.put({"id": 1, "error": {"code": code, "message": message}})
+        return rpc._call(method, {"threadId": "invented-thread"})
+
+    def test_only_exact_writer_refusal_selects_queue_route(self):
+        with self.assertRaises(WriterConflictError):
+            self.rejected("thread/resume", "thread invented-thread already has an active writer")
+        with self.assertRaises(NotSentError) as captured:
+            self.rejected("thread/resume", "Unrelated server error")
+        self.assertNotIsInstance(captured.exception, WriterConflictError)
+
+    def test_model_start_rejection_is_never_classified_as_unsent_restore(self):
+        with self.assertRaises(UnsafeError) as captured:
+            self.rejected("turn/start", "thread invented-thread already has an active writer")
+        self.assertNotIsInstance(captured.exception, NotSentError)
+
     def client(self, incoming=b""):
         client = object.__new__(LocalWebSocket)
         client.sock = BytesSocket(incoming)

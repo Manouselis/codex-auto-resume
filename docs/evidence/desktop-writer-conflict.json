@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-23",
+  "check": "reconciliation of a rejected thread restoration",
+  "server_log_matched_to_submission": true,
+  "failure_stage": "thread persistence initialization",
+  "existing_desktop_writer": true,
+  "original_turn_unchanged": true,
+  "queued_messages": 0,
+  "model_requests_sent": 0,
+  "reservation_result": "not_sent",
+  "automatic_blind_retries": 0
+}

@@ -7,10 +7,11 @@ from dataclasses import replace
 from pathlib import Path
 
 from auto_resume.adapters import fake_payload
-from auto_resume.domain import State, UnsafeError
+from auto_resume.domain import State, TransientError, UnsafeError, WriterConflictError
 from auto_resume.engine import Engine
 from auto_resume.live import LiveAdapter, manual_request
 from auto_resume.store import Store
+from auto_resume.checkpoints import CHECKPOINT_MARKER, COMPLETE_MARKER
 
 
 class Backend:
@@ -28,6 +29,13 @@ class Backend:
         self.events = queue.Queue()
         self.calls = []
         self.after_resume = None
+        self.goal = None
+        self.history = []
+        self.writer_elsewhere = False
+        self.queued = []
+        self.queue_add_lost_ack = False
+        self.queue_start_error = False
+        self.after_queue_add = None
 
     def call(self, method, params=None):
         params = params or {}
@@ -38,11 +46,19 @@ class Backend:
             return self.payload
         if method == "config/read":
             return {"config": self.config}
+        if method == "thread/goal/get":
+            return {"goal": self.goal}
         if method == "thread/read":
             return {"thread": copy.deepcopy(self.thread)}
         if method == "thread/turns/list":
-            return {"data": [copy.deepcopy(self.latest)], "nextCursor": None}
+            return {"data": copy.deepcopy([self.latest, *self.history][:params.get("limit", 100)]), "nextCursor": None}
+        if method == "thread/items/list":
+            selected = next(t for t in [self.latest, *self.history] if t["id"] == params["turnId"])
+            return {"data": [{"turnId": selected["id"], "item": copy.deepcopy(item)}
+                             for item in reversed(selected.get("items", []))], "nextCursor": None}
         if method == "thread/resume":
+            if self.writer_elsewhere:
+                raise WriterConflictError("The original desktop owns the conversation writer")
             self.thread["status"] = {"type": "idle"}
             if self.after_resume:
                 self.after_resume()
@@ -52,6 +68,28 @@ class Backend:
             self.latest = {"id": "real-protocol-next-turn", "status": "inProgress", "error": None, "items": []}
             self.thread["status"] = {"type": "active", "activeFlags": []}
             return {"turn": self.latest}
+        if method == "thread/queue/list":
+            return {"data": copy.deepcopy(self.queued), "nextCursor": None}
+        if method == "thread/queue/add":
+            entry = {"id": "queued-submission", "clientUserMessageId": params["clientUserMessageId"],
+                     "input": params["input"]}
+            self.queued.append(entry)
+            if self.after_queue_add:
+                self.after_queue_add()
+            if self.queue_add_lost_ack:
+                raise TransientError("Queue acknowledgement lost")
+            return {"queuedSubmission": copy.deepcopy(entry)}
+        if method == "thread/queue/start":
+            if self.queue_start_error:
+                raise TransientError("Start acknowledgement lost")
+            entry = self.queued.pop(0)
+            self.latest = {"id": "queued-native-next-turn", "status": "inProgress", "error": None,
+                           "items": [{"type": "userMessage", "id": entry["clientUserMessageId"]}]}
+            return {"turn": self.latest}
+        if method == "thread/queue/delete":
+            old = len(self.queued)
+            self.queued = [item for item in self.queued if item["id"] != params["queuedSubmissionId"]]
+            return {"deleted": len(self.queued) != old}
         raise AssertionError(method)
 
     def close(self):
@@ -80,12 +118,12 @@ class LiveTests(unittest.TestCase):
         self.backend.latest.update(status=status, completedAt=None, error=None)
         self.backend.thread["status"] = {"type": "notLoaded"}
 
-    def armed_store(self):
+    def armed_store(self, *, recover_context=False):
         store = Store(Path(self.tmp.name) / "external.sqlite3")
         self.addCleanup(store.close)
         store.set_enabled(True, self.clock())
         engine = Engine(store, self.adapter, self.clock)
-        engine.register("live-test")
+        engine.register("live-test", recover_context=recover_context)
         return store, engine
 
     def test_external_open_history_is_unresolved_not_user_cancellation(self):
@@ -347,6 +385,151 @@ class LiveTests(unittest.TestCase):
         with self.assertRaises(UnsafeError):
             self.adapter.submit(request)
         self.assertEqual(self.writes(), [])
+
+    def context_stop(self, *, text=None):
+        self.backend.latest.update(status="completed", completedAt=int(self.clock()), error=None,
+                                   items=[{"type": "agentMessage", "phase": "final_answer",
+                                           "text": text if text is not None else "Checkpoint saved.\n" + CHECKPOINT_MARKER}])
+
+    def test_context_recovery_requires_per_arming_opt_in(self):
+        self.context_stop()
+        with self.assertRaises(UnsafeError):
+            self.armed_store()
+        self.assertEqual(self.writes(), [])
+
+    def test_context_checkpoint_continues_immediately_with_fresh_allowance_once(self):
+        self.context_stop()
+        store, engine = self.armed_store(recover_context=True)
+        engine.tick()
+        engine.tick()
+        self.assertEqual(store.get("live-test")["state"], State.RUNNING)
+        self.assertEqual(len(self.writes()), 1)
+        self.assertIn(CHECKPOINT_MARKER, self.writes()[0]["input"][0]["text"])
+
+    def test_context_stop_waits_for_quota_reset_without_losing_opt_in(self):
+        self.context_stop()
+        self.backend.payload = fake_payload(self.clock())
+        store, engine = self.armed_store(recover_context=True)
+        engine.tick()
+        self.assertEqual(store.get("live-test")["state"], State.WAITING_FOR_RESET)
+        self.assertEqual(self.writes(), [])
+        self.clock_value[0] += 26
+        self.backend.payload = fake_payload(self.clock(), five=5, ordinary=True)
+        engine.tick()
+        self.assertEqual(len(self.writes()), 1)
+
+    def test_quota_failure_preserves_context_recovery_for_next_turn(self):
+        self.backend.payload = fake_payload(self.clock())
+        store, engine = self.armed_store(recover_context=True)
+        engine.tick()
+        self.clock_value[0] += 26
+        self.backend.payload = fake_payload(self.clock(), five=5, ordinary=True)
+        engine.tick()
+        self.assertEqual(len(self.writes()), 1)
+        self.clock_value[0] += 31
+        self.context_stop()
+        engine.tick()
+        self.assertEqual(len(self.writes()), 2)
+
+    def test_context_recovery_does_not_restart_ordinary_completion(self):
+        self.backend.latest.update(status="inProgress", completedAt=None, error=None)
+        self.backend.thread["status"] = {"type": "active", "activeFlags": []}
+        store, engine = self.armed_store(recover_context=True)
+        self.context_stop(text="The objective is achieved.\n" + COMPLETE_MARKER)
+        engine.tick()
+        self.assertEqual(store.get("live-test")["state"], State.COMPLETED)
+        self.assertEqual(self.writes(), [])
+
+    def test_context_recovery_weekly_exhaustion_stays_disarmed_after_reset(self):
+        self.context_stop()
+        self.backend.payload = fake_payload(self.clock(), five=5, weekly=100, ordinary=True)
+        store, engine = self.armed_store(recover_context=True)
+        engine.tick()
+        self.assertEqual(store.get("live-test")["state"], State.WEEKLY_LIMIT_REACHED)
+        self.clock_value[0] += 31
+        self.backend.payload = fake_payload(self.clock(), five=5, weekly=5, ordinary=True)
+        engine.tick()
+        self.assertEqual(self.writes(), [])
+
+    def test_context_recovery_keeps_paid_credit_and_permission_guards(self):
+        self.context_stop()
+        request = replace(self.request(), trigger="context_budget")
+        for mutate in (
+            lambda: self.backend.payload.update(ordinaryUsageAllowed=False),
+            lambda: self.backend.payload["rateLimitsByLimitId"]["codex"].update(
+                credits={"hasCredits": True, "unlimited": False, "balance": "10"}),
+        ):
+            self.backend.payload = fake_payload(self.clock(), five=5, ordinary=True)
+            mutate()
+            with self.assertRaises(UnsafeError):
+                self.adapter.submit(request)
+        self.assertEqual(self.writes(), [])
+
+    def test_context_checkpoint_change_after_resume_never_submits(self):
+        self.context_stop()
+        request = replace(self.request(), trigger="context_budget")
+        self.backend.after_resume = lambda: self.context_stop(text="Different checkpoint.\n" + CHECKPOINT_MARKER)
+        with self.assertRaises(UnsafeError):
+            self.adapter.submit(request)
+        self.assertEqual(self.writes(), [])
+
+    def test_context_recovery_respects_goal_pause_and_goal_budget(self):
+        self.context_stop()
+        for goal in ({"status": "paused"}, {"status": "budgetLimited"},
+                     {"status": "active", "tokenBudget": 100, "tokensUsed": 100}):
+            with self.subTest(goal=goal):
+                self.backend.goal = goal
+                with self.assertRaises(UnsafeError):
+                    self.adapter.submit(replace(self.request(), trigger="context_budget"))
+        self.assertEqual(self.writes(), [])
+
+    def test_context_recovery_is_bounded_and_finishes_prior_reservations(self):
+        self.context_stop()
+        store, engine = self.armed_store(recover_context=True)
+        for _ in range(4):
+            engine.tick()
+            self.clock_value[0] += 31
+            self.context_stop()
+        self.assertEqual(len(self.writes()), 3)
+        self.assertEqual(store.get("live-test")["state"], State.PAUSED_FOR_USER)
+        self.assertIn("Maximum", store.get("live-test")["reason"])
+
+    def test_completed_checkpoint_can_be_explicitly_rearmed_with_new_mode(self):
+        self.backend.latest.update(status="inProgress", completedAt=None, error=None)
+        self.backend.thread["status"] = {"type": "active", "activeFlags": []}
+        store, engine = self.armed_store()
+        self.context_stop()
+        engine.tick()
+        self.assertEqual(store.get("live-test")["state"], State.COMPLETED)
+        engine.register("live-test", recover_context=True)
+        engine.tick()
+        self.assertEqual(len(self.writes()), 1)
+
+    def test_structured_context_window_failure_can_recover_with_opt_in(self):
+        self.backend.latest["error"] = {"codexErrorInfo": "contextWindowExceeded"}
+        store, engine = self.armed_store(recover_context=True)
+        engine.tick()
+        self.assertEqual(len(self.writes()), 1)
+
+    def test_unknown_dispatch_trigger_is_refused(self):
+        with self.assertRaises(UnsafeError):
+            self.adapter.submit(replace(self.request(), trigger="anything"))
+        self.assertEqual(self.writes(), [])
+
+
+
+
+
+
+    def test_confirmed_preflight_refusal_is_not_an_uncertain_submission(self):
+        self.context_stop()
+        store, engine = self.armed_store(recover_context=True)
+        self.backend.after_resume = lambda: self.backend.latest.update(id="superseding-turn")
+        engine.tick()
+        self.assertEqual(store.db.execute("SELECT status FROM submissions").fetchone()[0], "not_sent")
+        self.assertEqual(self.writes(), [])
+
+
 
 
 if __name__ == "__main__":

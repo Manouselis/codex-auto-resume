@@ -81,6 +81,21 @@ class UiTests(unittest.TestCase):
         finally:
             second.close()
 
+    def test_closing_service_control_window_keeps_armed_work_enabled(self):
+        import tkinter as tk
+        from auto_resume.ui import ControlWindow
+        self.store.set_enabled(True, time.time())
+        self.engine.register("demo-task")
+        second = ControlWindow(tk.Toplevel(self.root), self.engine, simulation=True)
+        try:
+            self.assertFalse(second.owns_controller)
+            second.close()
+            self.assertTrue(self.store.enabled)
+            self.assertTrue(self.store.get("demo-task")["eligible"])
+            self.assertTrue(self.window.scheduler.thread.is_alive())
+        finally:
+            second.close()
+
     def test_render_own_window(self):
         output = os.environ.get("AUTO_RESUME_SCREENSHOTS")
         if not output:
@@ -157,6 +172,35 @@ class UiTests(unittest.TestCase):
             self.assertTrue(store.get("live-test")["eligible"])
             self.assertIn("armed", window.notice.get())
             self.assertFalse(any(m in ("thread/resume", "turn/start") for m, _ in backend.calls))
+        finally:
+            window.close()
+            store.close()
+
+    def test_context_checkpoint_recovery_can_be_explicitly_armed_in_ui(self):
+        import json
+        import tkinter as tk
+        from auto_resume.checkpoints import CHECKPOINT_MARKER
+        from auto_resume.ui import ControlWindow
+        from auto_resume.live import LiveAdapter
+        from test_live import Backend
+        backend = Backend(self.tmp.name)
+        backend.latest.update(status="completed", completedAt=int(time.time()), error=None,
+                              items=[{"type": "agentMessage", "phase": "final_answer",
+                                      "text": "Saved next action.\n" + CHECKPOINT_MARKER}])
+        store = Store(Path(self.tmp.name) / "context-panel.sqlite3")
+        store.set_enabled(True, time.time())
+        window = ControlWindow(tk.Toplevel(self.root), Engine(store, LiveAdapter(backend)), simulation=False)
+        try:
+            window.thread_id.insert(0, "live-test")
+            window.recover_context.set(True)
+            window.arm()
+            deadline = time.monotonic() + 3
+            while window.busy and time.monotonic() < deadline:
+                self.root.update()
+                time.sleep(0.01)
+            self.root.update()
+            self.assertTrue(json.loads(store.get("live-test")["context"])["recover_context"])
+            self.assertIn("context-budget recovery", window.notice.get())
         finally:
             window.close()
             store.close()

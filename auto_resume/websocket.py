@@ -13,7 +13,7 @@ import struct
 import threading
 from pathlib import Path
 
-from .domain import TransientError, UnsafeError
+from .domain import NotSentError, TransientError, UnsafeError, WriterConflictError
 from .protocol import READ_METHODS
 
 MAX_MESSAGE = 16 * 1024 * 1024
@@ -143,7 +143,7 @@ class DaemonRpc:
         self.responses = queue.Queue()
         threading.Thread(target=self._read, args=(connection, self.responses), daemon=True).start()
         self._call("initialize", {"clientInfo": {"name": "codex_auto_resume", "title": "Codex Auto-Resume",
-                                                "version": "0.2.1"},
+                                                "version": "0.3.0"},
                                   "capabilities": {"experimentalApi": True}})
         self._write({"method": "initialized"})
 
@@ -185,6 +185,12 @@ class DaemonRpc:
             self.close()
             raise UnsafeError("Unexpected response identity; no write will be retried")
         if "error" in response:
+            error = response["error"]
+            if method == "thread/resume":
+                if (isinstance(error, dict) and error.get("code") == -32600
+                        and error.get("message") == f"thread {params.get('threadId')} already has an active writer"):
+                    raise WriterConflictError("The original desktop owns the conversation writer")
+                raise NotSentError("Conversation restoration was rejected before model dispatch")
             raise UnsafeError("App Server rejected " + method + "; inspect authentication and compatibility")
         result = response.get("result")
         if not isinstance(result, dict):

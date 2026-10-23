@@ -258,6 +258,18 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(self.task()["state"], State.COMPLETED)
         self.assertEqual(len(self.adapter.requests), 0)
 
+    def test_completed_turn_does_not_claim_objective_is_finished(self):
+        self.wait()
+        self.adapter.complete()
+        self.clock.advance(31)
+        self.engine.tick()
+        task = self.task()
+        self.assertEqual(task["state"], State.COMPLETED)
+        self.assertIn("turn ended", task["reason"])
+        self.assertIn("may still be unfinished", task["reason"])
+        self.assertFalse(task["eligible"])
+        self.assertEqual(len(self.adapter.requests), 0)
+
     def test_28_other_turn_or_manual_work(self):
         self.wait()
         self.reset()

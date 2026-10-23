@@ -26,15 +26,17 @@ A fresh installation starts OFF. Updating preserves the existing opt-in preferen
 3. Leave the controller running. It watches for a confirmed five-hour interruption, waits for the official reset time, and checks fresh included allowance before sending one continuation in the original conversation.
 4. Use **Disarm selected** for one task or switch OFF to disarm all tasks. Switching back ON does not rearm them.
 
+To also recover a recognized context-budget checkpoint, select **Also recover context-budget checkpoints for this arming**, or use `arm THREAD_ID --recover-context`. This is separate from quota recovery and starts unchecked. Read [Recovery modes](RECOVERY.md) for its scope.
+
 A task running in another Codex runtime may show **Armed — waiting for a confirmed turn result**. Its history is available, but the companion cannot yet verify a terminal result. It continues monitoring without loading or interrupting the thread. This status alone can never authorize continuation.
 
 The table's **Next check · local time** column is the next scheduled check. For running or unresolved work it is a polling time; during a reset wait it includes the reset verification delay. It is not a guarantee that a new turn will start at that moment.
 
-Closing the control window turns Auto-Resume OFF and disarms tasks, even if a service owns scheduling. An already acknowledged daemon turn keeps running. Use `status` from a terminal to inspect overnight operation without opening and later closing a control window.
+Closing a service-owned control panel leaves the background controller and armed tasks enabled. Use OFF or `disable` to stop them. Closing a window-owned controller still turns automation OFF and disarms tasks. An already acknowledged daemon turn keeps running. Use `status` from a terminal to inspect overnight operation without opening a control window.
 
 ## Overnight operation without a window
 
-Close any companion control window first. Then enable and arm the conversation explicitly. Replace `THREAD_ID` with the exact ID printed by `threads`.
+If the window is the only controller, close it before switching to a service. Enable and arm the conversation explicitly. Replace `THREAD_ID` with the exact ID printed by `threads`.
 
 ```sh
 ~/.local/bin/codex-auto-resume enable
@@ -62,7 +64,7 @@ systemctl --user status codex-auto-resume.service
 
 Keep the computer awake, online and logged in, and leave Codex open. The service runs independently of the launching terminal, but it does not prevent suspend or wake the computer. This transient unit does not install a startup item or provide automatic rearming after reboot.
 
-Completion, confirmed cancellation, a superseding turn, pending approval, exhausted weekly usage, or an unverifiable safety check stops automatic continuation. The default is at most three continuation attempts per arming. See [Safety](SAFETY.md) for the full conditions.
+Ordinary completion, confirmed cancellation, a superseding turn, pending approval, exhausted weekly usage, or an unverifiable safety check stops automatic continuation. A recognized context checkpoint is eligible only when that recovery mode was explicitly enabled. The default is at most three continuation attempts per arming. See [Safety](SAFETY.md) for the full conditions.
 
 To stop monitoring:
 

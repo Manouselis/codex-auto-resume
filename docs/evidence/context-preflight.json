@@ -1,0 +1,11 @@
+{
+  "date": "2026-10-23",
+  "status": "PASS",
+  "check": "real read-only context checkpoint and included-usage preflight",
+  "turn_status": "completed",
+  "stop_reason": "context_budget",
+  "goal_or_user_blocked": false,
+  "project_available": true,
+  "live_model_requests": 0,
+  "thread_mutations": 0
+}

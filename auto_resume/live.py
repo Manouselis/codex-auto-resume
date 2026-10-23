@@ -12,14 +12,16 @@ import time
 import uuid
 from pathlib import Path
 
-from .domain import Capabilities, Observation, Request, UnsafeError, Usage
+from .domain import Capabilities, NotSentError, Observation, Request, UnsafeError, Usage, WriterConflictError
 from .policy import evaluate
 from .protocol import READ_METHODS
 from .protocol import find_codex
 from .websocket import DaemonRpc
+from .checkpoints import context_checkpoint, final_text
 
 
-LIVE_METHODS = READ_METHODS | {"config/read", "thread/list", "thread/loaded/list", "thread/resume", "turn/start"}
+LIVE_METHODS = READ_METHODS | {"config/read", "thread/list", "thread/loaded/list", "thread/goal/get", "thread/resume", "turn/start",
+                             "thread/items/list"}
 
 
 class LiveRpc(DaemonRpc):
@@ -40,6 +42,7 @@ class LiveAdapter:
         self.pending = {}
         self.subscribed = set()
         self.check_enabled = lambda: False  # Bound by Engine; fail closed before binding.
+        self.on_dispatch_stage = lambda stage: None
 
     def _events(self):
         events = getattr(self.rpc, "events", None)
@@ -107,6 +110,19 @@ class LiveAdapter:
         values = {k: thread.get(k) for k in ("id", "model", "modelProvider", "cwd", "reasoningEffort")}
         return hashlib.sha256(json.dumps(values, sort_keys=True).encode()).hexdigest()
 
+    def goal_allows_continuation(self, thread_id):
+        response = self.rpc.call("thread/goal/get", {"threadId": thread_id})
+        if not isinstance(response, dict) or "goal" not in response:
+            raise UnsafeError("Cannot verify the conversation goal state")
+        goal = response["goal"]
+        if goal is None:
+            return True
+        if not isinstance(goal, dict):
+            raise UnsafeError("Cannot verify the conversation goal state")
+        budget, spent = goal.get("tokenBudget"), goal.get("tokensUsed")
+        return goal.get("status") == "active" and (budget is None or (
+            type(budget) is int and budget > 0 and type(spent) is int and 0 <= spent < budget))
+
     def observe(self, thread_id):
         with self.guard:
             self._events()
@@ -118,7 +134,15 @@ class LiveAdapter:
             if not model or thread.get("modelProvider") != "openai":
                 raise UnsafeError("Only the original OpenAI model with included ChatGPT authentication is supported")
             error = latest.get("error") or {}
+            if not isinstance(error, dict):
+                raise UnsafeError("Original turn error metadata is invalid")
+            checkpoint = context_checkpoint(latest)
+            goal_blocked = False
+            if checkpoint:
+                goal_blocked = not self.goal_allows_continuation(thread_id)
             revision_data = {k: latest.get(k) for k in ("id", "status", "error", "completedAt")}
+            if checkpoint:
+                revision_data["checkpoint"] = hashlib.sha256(final_text(latest).encode()).hexdigest()
             revision = hashlib.sha256(json.dumps(revision_data, sort_keys=True).encode()).hexdigest()
             # notLoaded describes this reader's runtime, not the desktop's.
             # Its stored-history reconstruction can label an open external turn
@@ -133,9 +157,11 @@ class LiveAdapter:
                                error.get("codexErrorInfo"), revision, self.clock(),
                                project_exists=bool(cwd and Path(cwd).is_dir()),
                                approval_pending=bool(status.get("activeFlags")) or thread_id in self.pending.values(),
+                               user_work_active=goal_blocked,
                                cancelled=latest.get("status") == "interrupted" and not unresolved,
                                incomplete=None if unresolved else latest.get("status") in ("inProgress", "failed"),
-                               external_unresolved=unresolved)
+                               external_unresolved=unresolved,
+                               stop_reason="context_budget" if checkpoint else None)
 
     def _financial_config(self, cwd):
         config = self.rpc.call("config/read", {"cwd": cwd, "includeLayers": False}).get("config")
@@ -164,12 +190,19 @@ class LiveAdapter:
         actual = (obs.revision, obs.account_id, obs.model, obs.config_hash, obs.bucket_ids)
         if obs.external_unresolved:
             raise UnsafeError("The current turn has no confirmed result; no continuation will be sent")
-        if expected != actual or obs.approval_pending or not obs.project_exists or obs.cancelled:
+        if expected != actual or obs.approval_pending or obs.user_work_active or not obs.project_exists or obs.cancelled:
             raise UnsafeError("The account, model, task, project, or original context changed")
         if obs.turn_status == "inProgress":
             raise UnsafeError("Another turn is active; no continuation will be sent")
-        if automatic and (obs.turn_status != "failed" or obs.error_code != "usageLimitExceeded"):
-            raise UnsafeError("Only a structured usage-limit interruption may automatically continue")
+        if automatic:
+            if request.trigger == "usage_limit":
+                if obs.turn_status != "failed" or obs.error_code != "usageLimitExceeded":
+                    raise UnsafeError("Only a structured usage-limit interruption may automatically continue")
+            elif request.trigger == "context_budget":
+                if obs.stop_reason != "context_budget" or obs.turn_status not in ("completed", "failed"):
+                    raise UnsafeError("The context-budget checkpoint is no longer confirmed")
+            else:
+                raise UnsafeError("Unsupported continuation trigger")
         usage = self.usage()
         decision = evaluate(usage, request.expected_account_id, request.bucket_ids, self.clock())
         if decision.kind != "ready":
@@ -180,20 +213,35 @@ class LiveAdapter:
     def _dispatch(self, request, *, automatic=True):
         """One real request; no replay of the original prompt and no submission retry."""
         with self.guard:
-            obs = self._preflight(request, automatic=automatic)
-            resumed = self.rpc.call("thread/resume", {"threadId": request.thread_id, "excludeTurns": True})
+            self.on_dispatch_stage("Checking continuation preflight")
+            try:
+                obs = self._preflight(request, automatic=automatic)
+            except Exception as exc:
+                reason = str(exc) if isinstance(exc, UnsafeError) else "Continuation preflight failed; no model request was sent"
+                raise NotSentError(reason) from exc
+            self.on_dispatch_stage("Restoring the original conversation")
+            try:
+                resumed = self.rpc.call("thread/resume", {"threadId": request.thread_id, "excludeTurns": True})
+            except WriterConflictError as exc:
+                raise NotSentError("The desktop owns this conversation. Use native scheduled recovery; no model request was sent") from exc
+            except Exception as exc:
+                raise NotSentError("Conversation restoration failed; no model request was sent") from exc
             if (resumed.get("model"), resumed.get("modelProvider"), resumed.get("cwd")) != (
                     obs.model, "openai", obs.cwd):
-                raise UnsafeError("Restored conversation identity/configuration changed")
+                raise NotSentError("Restored conversation identity/configuration changed; no model request was sent")
             if resumed.get("serviceTier") not in (None, "default"):
-                raise UnsafeError("The original conversation uses a non-default billing/speed tier")
+                raise NotSentError("The original conversation uses a non-default billing/speed tier")
             if not isinstance(resumed.get("sandbox"), dict) or "approvalPolicy" not in resumed:
-                raise UnsafeError("Cannot verify the restored sandbox and approval policy")
+                raise NotSentError("Cannot verify the restored sandbox and approval policy")
             self.subscribed.add(request.thread_id)
             # Re-read after loading. No model, sandbox or approval override is sent.
-            self._preflight(request, automatic=automatic)
+            try:
+                self._preflight(request, automatic=automatic)
+            except Exception as exc:
+                raise NotSentError("Restored preflight failed; no model request was sent") from exc
             if automatic and not self.check_enabled():
-                raise UnsafeError("Disarmed immediately before dispatch")
+                raise NotSentError("Disarmed immediately before dispatch")
+            self.on_dispatch_stage("Sending one continuation")
             result = self.rpc.call("turn/start", {
                 "threadId": request.thread_id, "clientUserMessageId": request.continuation_id,
                 "input": [{"type": "text", "text": request.text}],

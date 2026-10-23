@@ -1,6 +1,6 @@
 # PROJECT: Codex Auto-Resume — Intelligent Usage-Limit Continuation Plugin
 
-This is the original project brief, preserved as a requirements record. It includes requested behavior and platform goals that are not all implemented or verified. For the current 0.2.1 behavior, start with the [documentation index](README.md), [delivery summary](DELIVERY.md), and [verification report](TESTING.md).
+This is the original project brief, preserved as a requirements record. It includes requested behavior and platform goals that are not all implemented or verified. For the current behavior, start with the [documentation index](README.md), [delivery summary](DELIVERY.md), and [verification report](TESTING.md).
 
 ## YOUR ROLE
 

@@ -95,24 +95,35 @@ class Store:
                     if t["eligible"]:
                         self.update(t["thread_id"], State.DISABLED, "Auto-Resume disabled", now, eligible=False)
 
-    def register(self, obs: Observation, now: float):
+    def register(self, obs: Observation, now: float, *, recover_context=False,
+                 native_heartbeat=None, native_max_attempts=10):
         with self.transaction():
             if not self.enabled:
                 raise ValueError("Enable Auto-Resume before arming a task")
             old = self.get(obs.thread_id)
             if old and old["state"] == State.COMPLETED:
-                raise ValueError("A completed task cannot be rearmed; register a new conversation")
+                old_context = json.loads(old["context"])
+                same_turn = obs.turn_id == (old["ack_turn"] or old_context["turn_id"])
+                if same_turn and not (recover_context and obs.stop_reason == "context_budget"):
+                    raise ValueError("This Codex turn ended; only a new turn or an explicitly enabled context checkpoint can be armed")
             if self.db.execute("SELECT 1 FROM submissions WHERE thread_id=? AND status IN ('reserved','running','uncertain')",
                                (obs.thread_id,)).fetchone():
                 raise ValueError("Execution is outstanding or uncertain; inspect the original conversation")
             context = dict(obs.__dict__)
+            context["recover_context"] = recover_context
+            context["native_heartbeat"] = native_heartbeat
+            context["native_max_attempts"] = native_max_attempts
+            reason = ("Task armed for usage-limit and context-budget recovery" if recover_context
+                      else "Task explicitly armed")
+            if native_heartbeat:
+                reason = "Native scheduled recovery armed; waiting for a native wake-up"
             self.db.execute("UPDATE meta SET value=CAST(value AS INTEGER)+1 WHERE key='generation'")
             self.db.execute("""INSERT INTO tasks(thread_id,context,state,eligible,reason)
                 VALUES(?,?,?,1,?) ON CONFLICT(thread_id) DO UPDATE SET context=excluded.context,
                 state=excluded.state,eligible=1,next_check=NULL,retries=0,attempts=0,
                 continuation_id=NULL,ack_turn=NULL,reason=excluded.reason""",
-                (obs.thread_id, json.dumps(context), State.ARMED.value, "Task explicitly armed"))
-            self.log(obs.thread_id, State.ARMED, "Task explicitly armed", now)
+                (obs.thread_id, json.dumps(context), State.ARMED.value, reason))
+            self.log(obs.thread_id, State.ARMED, reason, now)
 
     def get(self, thread_id):
         with self.lock:
@@ -152,6 +163,12 @@ class Store:
             rows = self.db.execute("SELECT * FROM submissions WHERE status IN ('reserved','running')").fetchall()
             for r in rows:
                 t = self.get(r["thread_id"])
+                # The companion did not dispatch a native turn. Leave its
+                # acknowledged slot for the native guard's terminal-history
+                # check; the external scheduler always skips native bindings.
+                if (t and r["status"] == "running" and r["id"] == "native-" + (r["turn_id"] or "")
+                        and t["ack_turn"] == r["turn_id"] and json.loads(t["context"]).get("native_heartbeat")):
+                    continue
                 if t and t["state"] != State.COMPLETED:
                     self.update(r["thread_id"], State.PAUSED_FOR_USER,
                                 "Previous continuation may have been sent. Inspect the conversation; no retry.",

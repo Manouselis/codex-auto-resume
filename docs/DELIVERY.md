@@ -1,4 +1,4 @@
-# Delivery summary — 0.2.1
+# Delivery summary — 0.3.0
 
 [Documentation index](README.md) · [Release history](CHANGELOG.md)
 
@@ -10,13 +10,17 @@ Global ON and explicit per-conversation arming are required. The controller wait
 
 Version 0.2.1 fixes false cancellation when a separate reader reconstructs an unfinished external turn as interrupted. Such a turn can be armed for monitoring, while dispatch still requires a confirmed usage-limit failure. It also fixes Windows test cleanup and installation-manifest path portability.
 
+Desktop-owned chats cannot be restored by a separate App Server. The native heartbeat admission guard is implemented but remains experimental until a real wake-up passes. Each wake-up is a normal model turn.
+
+Version 0.3.0 adds explicitly enabled context-checkpoint recovery, goal-budget checks and a distinction between an ended turn and a completed objective. A service-owned control panel can be closed while monitoring continues. See [Recovery modes](RECOVERY.md).
+
 ## Verified
 
 | Evidence | Scope |
 | --- | --- |
-| [Local results](evidence/test-results.json) | 120 passing Ubuntu tests, including eight native GUI tests |
+| [Local results](evidence/test-results.json) | 167 passing Ubuntu tests, including ten native GUI tests |
 | [Hosted CI](evidence/ci-0.2.1.json) | All four Ubuntu/Windows and Python 3.10/3.13 jobs passed; headless skips are recorded |
-| [Real continuation](evidence/live-continuation.json) | Two authenticated model turns in the same thread preserved context |
+| [Real continuation](evidence/live-continuation.json) | Two authenticated model turns in a daemon-owned thread preserved context; desktop takeover was not tested |
 | [Read-only arming probe](evidence/external-arm.json) | An externally running desktop turn could be armed without inference or thread mutations |
 
 The full quota-interruption/reset flow passes with controlled backend responses. This is separate from the genuine model execution check. A natural five-hour exhaustion/reset has not yet been verified live.
@@ -29,4 +33,4 @@ Source and documentation are published at [Manouselis/codex-auto-resume](https:/
 
 ## Remaining validation
 
-Natural quota-reset recovery, cross-client approval routing, live Windows integration, Wayland and real suspend/reboot recovery remain unverified. The public API also leaves a short cross-client dispatch race and does not reserve future quota. See [Remaining limitations](LIMITATIONS.md).
+Real native scheduled recovery, natural quota-reset recovery, cross-client approval routing, live Windows integration, Wayland and real suspend/reboot recovery remain unverified. The public API also leaves a short cross-client dispatch race and does not reserve future quota. See [Remaining limitations](LIMITATIONS.md).

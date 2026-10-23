@@ -20,8 +20,8 @@ class State(str, Enum):
 
 TRANSITIONS = {
     State.DISABLED: {State.ARMED},
-    State.ARMED: {State.RUNNING, State.FIVE_HOUR_LIMIT_REACHED, State.COMPLETED},
-    State.RUNNING: {State.FIVE_HOUR_LIMIT_REACHED, State.COMPLETED},
+    State.ARMED: {State.RUNNING, State.FIVE_HOUR_LIMIT_REACHED, State.VERIFYING_ALLOWANCE, State.COMPLETED},
+    State.RUNNING: {State.ARMED, State.FIVE_HOUR_LIMIT_REACHED, State.VERIFYING_ALLOWANCE, State.COMPLETED},
     State.FIVE_HOUR_LIMIT_REACHED: {State.WAITING_FOR_RESET},
     State.WAITING_FOR_RESET: {State.VERIFYING_ALLOWANCE, State.COMPLETED},
     State.VERIFYING_ALLOWANCE: {State.WAITING_FOR_RESET, State.RESUMING, State.COMPLETED},
@@ -62,6 +62,7 @@ class Observation:
     # Stored history from another runtime can contain a synthetic interruption
     # for a still-open turn. It permits monitoring, never continuation dispatch.
     external_unresolved: bool = False
+    stop_reason: str | None = None
     # Dispatch rechecks these pinned facts; the public protocol is not atomic.
 
 
@@ -100,6 +101,7 @@ class Request:
         "progress, files, and test results. Do not redo completed work. Resume only the outstanding "
         "objectives, preserve the original requirements, and stop when the task is genuinely complete."
     )
+    trigger: str = "usage_limit"
 
 
 class TransientError(Exception):
@@ -108,6 +110,14 @@ class TransientError(Exception):
 
 class UnsafeError(Exception):
     """Authentication, protocol or safety information is unavailable."""
+
+
+class NotSentError(UnsafeError):
+    """A confirmed failure before any continuation could be delivered."""
+
+
+class WriterConflictError(NotSentError):
+    """The original desktop still owns the conversation writer."""
 
 
 class Adapter(Protocol):

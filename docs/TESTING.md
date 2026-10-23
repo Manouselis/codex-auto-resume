@@ -1,16 +1,18 @@
-# Testing and real verification — 0.2.1
+# Testing and real verification — 0.3.0
 
-Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 22 October 2026. The separate genuine model execution evidence remains from 19 October 2026.
+Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 23 October 2026. The separate genuine model execution evidence remains from 19 October 2026.
 
 ## Results
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Full automated suite, including native GUI | PASS — 120 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
+| Full automated suite, including native GUI | PASS — 167 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
 | Hosted Ubuntu/Windows core and packaging CI, Python 3.10/3.13 | PASS — all four jobs at code commit `8fe287e`; exact pass/skip counts below | [Recorded CI evidence](evidence/ci-0.2.1.json), [GitHub run](https://github.com/Manouselis/codex-auto-resume/actions/runs/39858070583) |
-| Open turn owned by another runtime can be armed | PASS — monitors without loading the thread or sending inference; confirmed later failure/reset still continues once | 12 live-adapter regressions and one native control-panel regression |
+| Open turn owned by another runtime can be armed | PASS — monitors without loading the thread or sending inference; controlled later failure/reset submits once on a resumable daemon-owned fixture | 12 live-adapter regressions and one native control-panel regression |
 | Read-only reproduction against an active desktop conversation | PASS — external open turn arms and remains monitored, with zero thread mutations | [Sanitized arming probe](evidence/external-arm.json) |
-| Genuine same-thread continuation | PASS — two real authenticated model turns; original context token recalled | [Redacted real-backend result](evidence/live-continuation.json) |
+| Genuine same-thread continuation in a daemon-owned chat | PASS — two real authenticated model turns; original context token recalled | [Redacted real-backend result](evidence/live-continuation.json) |
+| Real desktop writer ownership | Reproduced refusal; external restoration and queue start cannot take over the writer | [Redacted refusal](evidence/desktop-writer-conflict.json) |
+| Native scheduled desktop recovery | NOT VERIFIED LIVE — local guard tests pass, but no actual native wake-up has been admitted | `tests/test_native.py` |
 | Real daemon account/quota connection | PASS — ordinary usage authorized; both quota windows; no paid balance | [Metadata probe](evidence/live-probe.json) |
 | Quota interruption → wait → fresh read → one real-protocol submission | PASS with controlled backend responses | `tests/test_live.py` |
 | Weekly exhausted after 5h reset | PASS — zero continuation requests | Engine, policy and live-adapter tests |
@@ -24,11 +26,11 @@ Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 22 October
 | Reproducible application and source package | PASS | Two builds produced identical SHA-256 values |
 | Live Windows Codex integration, Wayland, OS suspend/reboot, user-service autostart | NOT TESTED in these scenarios | Hosted core/packaging CI does not validate live desktop integration |
 
-The normal automated suite makes zero live model requests. The separately invoked live check made two genuine included-usage turns, in a dedicated harmless conversation, through the same production `_dispatch` method with an explicit manual-test trigger. It did not inject a fake quota or pretend that the real service had exhausted/reset. This confirms actual execution and context recovery, not an unperformed natural-reset test.
+The normal automated suite makes zero live model requests. The separately invoked live check made two genuine included-usage turns, in a dedicated harmless conversation, through the same production `_dispatch` method with an explicit manual-test trigger. It did not inject a fake quota or pretend that the real service had exhausted/reset. This confirms daemon-owned execution and context preservation. It did not test taking over the desktop writer, native scheduled recovery or a natural quota reset.
 
-The final full run includes eight GUI tests; headless runs intentionally skip them. The 2500-case randomized quota check is counted as one test. Earlier 0.1.0 results remain in Git history and do not describe this release's execution capability.
+The final full run includes ten GUI tests; headless runs intentionally skip them. The 2500-case randomized quota check is counted as one test. Earlier 0.1.0 results remain in Git history and do not describe this release's execution capability.
 
-## Hosted CI results
+## Recorded 0.2.1 hosted CI results
 
 The [22 October 2026 run](https://github.com/Manouselis/codex-auto-resume/actions/runs/39858070583) verified code commit `8fe287e` after the Windows cleanup and manifest-path fixes. Each job discovers 120 tests; the total includes skipped tests.
 
@@ -40,6 +42,14 @@ The [22 October 2026 run](https://github.com/Manouselis/codex-auto-resume/action
 | Windows | 3.13 | 109 | 11 | PASS |
 
 Ubuntu skips the eight opt-in native GUI tests in headless CI. Windows also skips the state-file symlink test, the POSIX installer symlink-escape test and the POSIX state-file mode test. Windows packaging is exercised on a real hosted Windows runner; real Codex authentication, desktop interaction and continuation are not. The local GUI run and hosted CI have separate evidence records.
+
+## Context recovery regressions
+
+The 0.3.0 suite adds context-marker recognition, rejection of explanations/quoted examples/tool output, per-arming opt-in, immediate recovery with fresh usage, waiting through exhausted quota, persistence of the mode across quota recovery, ordinary completion, goal pause/budget limits, credit/permission guards, checkpoint changes during restoration, durable reservation turnover and the three-attempt cap. Native GUI tests cover the opt-in control and closing a service-owned panel without disabling work. The real read-only [context preflight](evidence/context-preflight.json) confirms recognition of the observed stopped conversation without model requests. The separate [native history-read probe](evidence/native-guard-readonly.json) also recognized its saved checkpoint through the native guard’s actual pagination APIs, with zero model requests or thread mutations.
+
+## Native guard regressions
+
+Eighteen tests cover external-scheduler exclusion, native heartbeat and thread identity, fresh allowance on repeated claims, idempotent reservation, checkpoint turnover, terminal-history reconciliation after companion restart, ordinary completion, cancellation, OFF, paid balances, weekly reserve, goal budgets, unknown external submissions, the native cap and intervening manual turns. They use controlled metadata; they do not establish that the native scheduler will execute the prompt in the installed desktop app.
 
 ## Required scenario coverage
 

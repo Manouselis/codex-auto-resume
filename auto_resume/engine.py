@@ -3,11 +3,13 @@ import json
 import threading
 import time
 import uuid
+from dataclasses import replace
 
-from .domain import Adapter, Observation, Request, State, TransientError, UnsafeError
+from .domain import Adapter, NotSentError, Observation, Request, State, TransientError, UnsafeError
 from .policy import evaluate
 from .store import Store
 from .lifecycle import ControllerLock
+from .checkpoints import CHECKPOINT_INSTRUCTIONS
 
 
 class Engine:
@@ -24,19 +26,28 @@ class Engine:
         self.lock = threading.Lock()
         self.last_quota_audit = 0
 
-    def register(self, thread_id: str):
+    def register(self, thread_id: str, *, recover_context=False, native_heartbeat=None, native_max_attempts=10):
         # No context or private messages are copied from the original conversation.
         if not isinstance(thread_id, str) or not 1 <= len(thread_id) <= 128 or any(
                 not (c.isalnum() or c in "-_") for c in thread_id):
             raise ValueError("Invalid conversation ID")
+        if type(recover_context) is not bool:
+            raise ValueError("Context-budget recovery must be explicitly enabled or disabled")
+        if native_heartbeat is not None and (not recover_context or not isinstance(native_heartbeat, str)
+                or not 1 <= len(native_heartbeat) <= 128 or any(not (c.isalnum() or c in "-_") for c in native_heartbeat)):
+            raise ValueError("A native heartbeat ID and explicit context recovery are required")
+        if type(native_max_attempts) is not int or not 1 <= native_max_attempts <= 10:
+            raise ValueError("Native recovery must be bounded to 1–10 work turns")
         obs = self.adapter.observe(thread_id)
         reason = self._valid_observation(obs)
         if reason:
             raise UnsafeError(reason)
-        if not obs.external_unresolved and (obs.turn_status not in ("inProgress", "failed") or (
+        context_stop = recover_context and obs.stop_reason == "context_budget" and obs.turn_status in ("completed", "failed")
+        if not context_stop and not obs.external_unresolved and (obs.turn_status not in ("inProgress", "failed") or (
                 obs.turn_status == "failed" and obs.error_code != "usageLimitExceeded")):
             raise UnsafeError("Only running tasks or structured usage-limit failures can be armed")
-        self.store.register(obs, self.clock())
+        self.store.register(obs, self.clock(), recover_context=recover_context,
+                            native_heartbeat=native_heartbeat, native_max_attempts=native_max_attempts)
 
     def disarm(self, thread_id, reason="Task disarmed by user"):
         with self.store.transaction():
@@ -107,6 +118,10 @@ class Engine:
             self.lock.release()
 
     def _tick_task(self, task):
+        # The desktop owns native scheduled turns. This controller only audits
+        # quota for them; it must never start a competing App Server writer.
+        if json.loads(task["context"]).get("native_heartbeat"):
+            return
         tid, now = task["thread_id"], self.clock()
         if task["next_check"] is not None and now < task["next_check"]:
             return
@@ -137,8 +152,13 @@ class Engine:
                 else:
                     self._change(tid, state, "Armed — waiting for a confirmed turn result", next_check=now + 30)
                 return
+            if context.get("recover_context") is True and obs.stop_reason == "context_budget":
+                self._recover_context(task, obs, context, generation)
+                return
             if obs.turn_status == "completed" or obs.incomplete is False:
-                self._change(tid, State.COMPLETED, "Task completed", eligible=False, next_check=None)
+                self._change(tid, State.COMPLETED,
+                             "Codex turn ended; usage-limit monitoring stopped. The task may still be unfinished.",
+                             eligible=False, next_check=None)
                 self._finish_reservation(task)
                 return
             if obs.incomplete is not True:
@@ -184,7 +204,7 @@ class Engine:
                     if not current["eligible"] or not self.store.enabled or self.store.generation != generation:
                         return
                     self.store.db.execute("UPDATE tasks SET context=?,ack_turn=NULL WHERE thread_id=?",
-                                          (json.dumps(obs.__dict__), tid))
+                                          (json.dumps({**obs.__dict__, "recover_context": context.get("recover_context", False)}), tid))
                     self.store.update(tid, State.FIVE_HOUR_LIMIT_REACHED, decision.reason, now)
                     self.store.update(tid, State.WAITING_FOR_RESET, decision.reason, now,
                                       next_check=decision.reset_at + self.delay, retries=0)
@@ -212,6 +232,51 @@ class Engine:
                 self.store.db.execute("UPDATE submissions SET status='finished' WHERE id=? AND status='running'",
                                       (task["continuation_id"],))
 
+    def _recover_context(self, task, obs, context, generation):
+        tid, now = task["thread_id"], self.clock()
+        state = State(task["state"])
+        if obs.turn_status not in ("completed", "failed"):
+            self._pause(tid, "Context checkpoint does not have a terminal turn result")
+            return
+        if state == State.WAITING_FOR_RESET and obs.revision != context["revision"]:
+            self._pause(tid, "Context checkpoint changed while waiting; inspect before rearming")
+            return
+        decision = evaluate(self.adapter.usage(), context["account_id"], tuple(context["bucket_ids"]),
+                            self.clock(), reserve=self.reserve)
+        if self.store.generation != generation:
+            return
+        self._finish_reservation(task)
+        if decision.kind in ("weekly", "pause"):
+            if (state == State.WAITING_FOR_RESET and decision.kind == "pause"
+                    and decision.reason.startswith(("Usage still reports exhaustion after reset",
+                                                    "Quota windows have expired",
+                                                    "Unable to verify usage: ordinary included usage"))):
+                self._retry(task)
+                return
+            self._pause(tid, decision.reason,
+                        State.WEEKLY_LIMIT_REACHED if decision.kind == "weekly" else State.PAUSED_FOR_USER)
+            return
+        if decision.kind == "wait":
+            with self.store.transaction():
+                current = self.store.get(tid)
+                if not current["eligible"] or not self.store.enabled or self.store.generation != generation:
+                    return
+                self.store.db.execute("UPDATE tasks SET context=?,ack_turn=NULL WHERE thread_id=?",
+                                      (json.dumps({**obs.__dict__, "recover_context": True}), tid))
+                if state != State.WAITING_FOR_RESET:
+                    self.store.update(tid, State.FIVE_HOUR_LIMIT_REACHED, decision.reason, now)
+                self.store.update(tid, State.WAITING_FOR_RESET, decision.reason, now,
+                                  next_check=decision.reset_at + self.delay, retries=0)
+            return
+        if not (self.adapter.capabilities.safe or getattr(self.adapter, "live_execution", False)):
+            self._pause(tid, "This adapter does not support continuation execution")
+            return
+        if task["attempts"] >= self.max_attempts:
+            self._pause(tid, "Maximum automatic continuations reached")
+            return
+        self._change(tid, State.VERIFYING_ALLOWANCE, "Verifying allowance for context-budget recovery")
+        self._submit(task, obs, generation, trigger="context_budget")
+
     def _retry(self, task):
         n = task["retries"] + 1
         if n > self.max_retries:
@@ -223,7 +288,7 @@ class Engine:
         self._change(task["thread_id"], state, "Connection unavailable; scheduled a limited retry",
                      next_check=self.clock() + min(300, 15 * 2 ** (n - 1)), retries=n)
 
-    def _submit(self, task, obs, generation):
+    def _submit(self, task, obs, generation, *, trigger="usage_limit"):
         tid, now = task["thread_id"], self.clock()
         cid = str(uuid.uuid4())
         with self.store.transaction():
@@ -241,6 +306,9 @@ class Engine:
         # The durable reservation precedes the only submission. No automatic retries,
         # even if the process crashes before the call, or acknowledgement is lost.
         request = Request(cid, tid, obs.revision, obs.account_id, obs.model, obs.config_hash, obs.bucket_ids)
+        if json.loads(task["context"]).get("recover_context") is True:
+            request = replace(request, text=request.text + CHECKPOINT_INSTRUCTIONS)
+        request = replace(request, trigger=trigger)
         try:
             if not self.store.enabled or not self.store.get(tid)["eligible"] or self.store.generation != generation:
                 raise UnsafeError("Disarmed before dispatch")
@@ -249,9 +317,17 @@ class Engine:
                     self.store.enabled and self.store.generation == generation
                     and bool(self.store.get(tid)["eligible"])
                     and self.store.get(tid)["continuation_id"] == cid)
+                self.adapter.on_dispatch_stage = lambda reason: self._change(tid, State.RESUMING, reason)
             turn_id = self.adapter.submit(request)
             if not isinstance(turn_id, str) or not turn_id:
                 raise UnsafeError("Missing continuation acknowledgement")
+        except NotSentError as exc:
+            with self.store.transaction():
+                self.store.db.execute("UPDATE submissions SET status='not_sent' WHERE id=?", (cid,))
+                current = self.store.get(tid)
+                if current["state"] != State.COMPLETED:
+                    self.store.update(tid, State.PAUSED_FOR_USER, str(exc), self.clock(), eligible=False, next_check=None)
+            return
         except Exception:
             with self.store.transaction():
                 self.store.db.execute("UPDATE submissions SET status='uncertain' WHERE id=?", (cid,))

@@ -4,7 +4,7 @@ The production adapter now sends real model turns. Its safety contract is explic
 
 ## Included-usage checks
 
-Before every automatic continuation:
+Before every external automatic continuation, and before substantive work inside an already-started native heartbeat:
 
 - Authentication must be ChatGPT Plus, not API-key or another paid provider.
 - Backend `accountId` must match the armed task, and `ordinaryUsageAllowed` must be literally true.
@@ -21,7 +21,7 @@ These checks establish the current included-usage path. They cannot reserve futu
 
 ## Task and concurrency checks
 
-Each task is explicitly armed. A new turn, completion, cancellation, changed original identity/context, missing project/history or pending approval pauses automation. Completed work is never automatically restarted. Global OFF disarms waiting work; ON does not rearm old tasks.
+Each task is explicitly armed. A new turn, ordinary completion, cancellation, changed original identity/context, missing project/history or pending approval pauses automation. Completed work is never automatically restarted. Global OFF disarms waiting work; ON does not rearm old tasks.
 
 An open turn owned by another runtime is a separate monitoring case. When a `notLoaded` reader reports `interrupted` or `inProgress` with no error or completion time, the adapter records an unresolved observation. It may be explicitly armed and watched for a confirmed result, but it cannot enter dispatch preflight. A confirmed cancellation still stops the task. If an already confirmed usage-limit failure becomes unresolved while waiting, the task pauses instead of using the older failure to continue.
 
@@ -29,9 +29,19 @@ The controller checks state again after `thread/resume`, then sends one contextu
 
 SQLite uses full durability, atomic transactions and a unique outstanding-submission reservation. A crash/lost acknowledgement never causes a submission retry. Uncertain outcomes block further automatic dispatch until inspected. This trades availability for avoiding duplicated operations; it is not a claim of remote exactly-once delivery.
 
+## Opt-in context checkpoint recovery
+
+Context recovery is disabled by default and recorded per arming. It permits a new turn only after a recognized context-budget checkpoint or structured context-window failure. The same fresh included-usage, identity, approval, reservation and attempt-limit checks still apply. A goal that is non-active or has an exhausted/unknown configured token budget blocks recovery. No goal or budget is changed. The model-reported checkpoint is evidence of a stop declaration, not proof of objective completion; unsupported or ambiguous final responses do not trigger recovery. See [Recovery modes](RECOVERY.md).
+
+## Native admission boundary
+
+Native scheduling is explicitly configured for a desktop-owned chat. The scheduler starts a normal model turn before the local guard can run. Codex’s account settings govern that admission; the companion cannot reserve included usage or guarantee a pre-inference billing check for it. The prompt authorizes no research, file changes, experiments or publishing unless `native-claim` returns `action=continue`. Automated tests cover this guard; a real native scheduler wake-up has not yet been verified.
+
+The guard pins the heartbeat identity and original task configuration, checks the prior checkpoint and intervening turns, and reserves an admitted work turn durably. `native-finish` closes that reservation and reports checkpoint/completion/block. The external scheduler never dispatches native-bound tasks. OFF blocks further substantive work; pausing the heartbeat also stops future model wake-ups. No automatic approval or credit purchase is permitted.
+
 ## Operational defaults
 
-The engine allows up to three automatic continuation attempts per arming. Transient read failures receive up to three bounded retries; a submission is never retried automatically. The scheduler wakes every 30 seconds and schedules reset verification with a five-second buffer. These are engine defaults, not exposed GUI settings. Closing the control window or normally stopping the controller disarms tasks, including when a service owns scheduling. The companion does not prevent suspend or provide verified automatic rearming after reboot.
+The external engine allows up to three automatic continuation attempts per arming. Native mode allows at most ten admitted work turns, configurable downward to one. Transient read failures receive up to three bounded retries; a submission is never retried automatically. The scheduler wakes every 30 seconds and schedules reset verification with a five-second buffer. These are engine defaults, not exposed GUI settings. Normally stopping the controller disarms tasks. Closing a window-owned controller also disarms; closing a service-owned control panel leaves background work enabled. OFF always disarms. The companion does not prevent suspend or provide verified automatic rearming after reboot.
 
 ## Approvals and local data
 

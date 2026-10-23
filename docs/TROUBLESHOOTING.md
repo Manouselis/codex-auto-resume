@@ -24,7 +24,7 @@ The service command applies when you selected background operation. For a window
 | `WAITING_FOR_RESET` | A structured usage-limit failure and exhausted five-hour window were confirmed. Wait for the scheduled fresh check. |
 | `VERIFYING_ALLOWANCE` | The controller is checking current included allowance and context before dispatch. |
 | `RESUMING` | A durable local reservation exists and dispatch is in progress. Do not force another submission. |
-| `COMPLETED` | The tracked work completed. It will not restart automatically. |
+| `COMPLETED` | The tracked Codex turn ended. This does not establish that the wider objective is finished. Usage-limit monitoring stops and does not restart the turn automatically. |
 | `WEEKLY_LIMIT_REACHED` | Weekly exhaustion disarmed the task. Inspect usage and rearm manually after recovery. |
 | `PAUSED_FOR_USER` or `ERROR` | Read the recorded reason, inspect the original conversation, and resolve the cause before rearming. |
 | `DISABLED` | Automation was switched OFF. Enable and explicitly rearm the task when desired. |
@@ -39,13 +39,19 @@ A real completed cancellation, or an interruption reported by a loaded runtime, 
 
 ## The service is running but the conversation is not armed
 
-Closing the control window, switching OFF, or normally stopping a controller disarms tasks. Switching ON again does not restore their eligibility. Resolve the task's recorded reason, then use `enable` and `arm THREAD_ID` or the control window to opt in again.
+Closing a window-owned controller, switching OFF, or normally stopping a controller disarms tasks. In 0.3.0, closing a service-owned panel keeps monitoring active. Switching ON again does not restore their eligibility. Resolve the task's recorded reason, then use `enable` and `arm THREAD_ID` or the control window to opt in again.
 
 ## The reset time passed but nothing continued
 
 The reset timestamp schedules a check; it does not authorize execution. The companion still needs a current structured usage-limit failure for the same turn, fresh included permission, valid quota windows, enough weekly allowance, known zero credits and unchanged context.
 
 Read-only recovery failures receive bounded retries, then pause for inspection. The default verification buffer is five seconds, with a scheduler wake every 30 seconds. Check the task's state and reason. If the task completed, was cancelled, or another turn started, it is intentionally no longer eligible.
+
+## The research is unfinished but the turn ended
+
+A turn can end normally after saving a checkpoint, reaching a context budget, or choosing to hand control back. The App Server can report that turn as `completed` even when the wider research objective remains unfinished. This is different from a structured `usageLimitExceeded` failure. The default quota-only mode stops monitoring that turn and cannot treat available quota as permission to restart it. Version 0.3.0 provides a separate explicit [context recovery option](RECOVERY.md) for recognized checkpoints.
+
+The original 0.2.1 reason text, **Task completed**, overstated what the controller could verify. Turn completion establishes that the current execution ended, not that the user's objective was achieved. Inspect the final response and checkpoint before choosing whether to continue the work.
 
 ## Connection, usage or approval problems
 
@@ -62,3 +68,9 @@ Read-only recovery failures receive bounded retries, then pause for inspection. 
 ## Suspend, logout and reboot
 
 Keep the computer awake, connected and logged in for an overnight wait. The companion cannot execute while the machine is suspended. A transient user service does not install boot startup. An installed user service still disarms work on a normal stop, and real reboot/logout recovery remains unverified.
+
+## Desktop writer is already active
+
+The desktop can retain its exclusive writer while the chat is idle. The external controller cannot restore this chat, and queue APIs cannot bypass the restore requirement. This is a definite pre-dispatch refusal, recorded as `not_sent`; it is not a successful continuation. Do not restart Codex or send duplicate requests to work around it. The experimental [native heartbeat setup](RECOVERY.md#native-desktop-recovery-experimental) uses the existing writer, but still needs real wake-up validation.
+
+A native-bound task is skipped by the external scheduler. Check `status` for `native_heartbeat` and attempts, and inspect the native heartbeat’s own active/paused state in Codex. OFF prevents substantive work but does not itself pause the native scheduler; pause the heartbeat to stop model wake-ups.

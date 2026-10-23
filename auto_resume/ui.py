@@ -19,6 +19,7 @@ class ControlWindow:
         self.refresh_id = None
         self.worker = None
         self.scheduler = Scheduler(engine)
+        self.owns_controller = False
 
         root.title("Codex Auto-Resume" + (" · Simulation" if simulation else ""))
         root.geometry("760x760")
@@ -27,6 +28,7 @@ class ControlWindow:
         self.style.theme_use("clam")
         self.dark = tk.BooleanVar(value=True)
         self.enabled = tk.BooleanVar(value=engine.store.enabled)
+        self.recover_context = tk.BooleanVar(value=False)
         self.status = tk.StringVar(value="Auto-Resume enabled" if self.enabled.get() else "Auto-Resume disabled")
         self.usage_text = tk.StringVar(value="Usage has not been checked")
         self.notice = tk.StringVar(value="")
@@ -39,7 +41,7 @@ class ControlWindow:
         self.toggle.pack(anchor="w", pady=8)
         ttk.Label(frame, textvariable=self.status, style="Status.TLabel").pack(anchor="w", pady=(0, 14))
         banner = ("SIMULATION · Invented tasks and usage. No model requests are sent." if simulation else
-                  "Only armed conversations continue after a verified 5h reset.\nWeekly exhaustion, paid credits, unknown usage or changed work pauses automation.\nKeep the background controller running while waiting.")
+                  "Armed conversations recover usage-limit stops and optional context checkpoints.\nWeekly exhaustion, paid credits, unknown usage or changed work pauses automation.\nKeep the background controller running while waiting.")
         ttk.Label(frame, text=banner, wraplength=650, style="Notice.TLabel", padding=12).pack(fill="x", pady=(0, 16))
         row = ttk.Frame(frame)
         row.pack(fill="x")
@@ -57,6 +59,8 @@ class ControlWindow:
         if not simulation:
             ttk.Button(armrow, text="Choose…", command=self.choose).pack(side="left", padx=(8, 0))
         ttk.Button(armrow, text="Arm conversation", command=self.arm).pack(side="left", padx=(8, 0))
+        ttk.Checkbutton(frame, text="Also recover context-budget checkpoints for this arming",
+                        variable=self.recover_context).pack(anchor="w", pady=(0, 8))
         self.tasks = ttk.Treeview(frame, columns=("state", "reset"), show="tree headings", height=4, selectmode="browse")
         self.tasks.heading("#0", text="Conversation ID")
         self.tasks.heading("state", text="Status")
@@ -83,10 +87,11 @@ class ControlWindow:
         self.theme()
         try:
             self.scheduler.start()
+            self.owns_controller = True
         except UnsafeError:
             # A user service may own scheduling. The window still controls the
             # same database; opening it must never recover a healthy controller.
-            self.notice.set("Background controller connected. Changes apply immediately.")
+            self.notice.set("Background controller connected. Closing this window keeps armed tasks active. Use OFF to stop.")
         self.refresh()
 
     def theme(self):
@@ -148,11 +153,13 @@ class ControlWindow:
 
     def arm(self):
         tid = self.thread_id.get().strip()
+        recover_context = self.recover_context.get()
         engine, wake = self.engine, self.scheduler.wake
         def arm():
-            engine.register(tid)
+            engine.register(tid, recover_context=recover_context)
             wake.set()
-            return "Conversation explicitly armed"
+            return ("Conversation armed for usage-limit and context-budget recovery" if recover_context
+                    else "Conversation explicitly armed")
         self.work(arm)
 
     def disarm(self):
@@ -250,7 +257,8 @@ class ControlWindow:
         if self.refresh_id is not None:
             self.root.after_cancel(self.refresh_id)
             self.refresh_id = None
-        self.engine.store.set_enabled(False, self.engine.clock())
+        if self.owns_controller:
+            self.engine.store.set_enabled(False, self.engine.clock())
         self.engine.adapter.close()
         self.scheduler.stop()
         if self.worker is not None and self.worker.is_alive():
