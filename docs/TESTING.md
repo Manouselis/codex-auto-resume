@@ -1,4 +1,4 @@
-# Testing and real verification — 0.3.2
+# Testing and real verification — 0.4.0
 
 Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 25 October 2026. The daemon-owned model execution evidence is from 19 October 2026. The first native scheduled desktop continuation passed on 23 October 2026.
 
@@ -6,7 +6,7 @@ Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 25 October
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Full automated suite, including native GUI | PASS — 178 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
+| Full automated suite, including native GUI | PASS — 189 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
 | Hosted Ubuntu/Windows core and packaging CI, Python 3.10/3.13 | PASS — all four jobs at code commit `701b654`; exact pass/skip counts below | [Recorded CI evidence](evidence/ci-0.3.0.json), [GitHub run](https://github.com/Manouselis/codex-auto-resume/actions/runs/39905443617) |
 | Open turn owned by another runtime can be armed | PASS — monitors without loading the thread or sending inference; controlled later failure/reset submits once on a resumable daemon-owned fixture | 12 live-adapter regressions and one native control-panel regression |
 | Read-only reproduction against an active desktop conversation | PASS — external open turn arms and remains monitored, with zero thread mutations | [Sanitized arming probe](evidence/external-arm.json) |
@@ -16,7 +16,8 @@ Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 25 October
 | Real daemon account/quota connection | PASS — ordinary usage authorized; both quota windows; no paid balance | [Metadata probe](evidence/live-probe.json) |
 | Quota interruption → wait → fresh read → one real-protocol submission | PASS with controlled backend responses | `tests/test_live.py` |
 | Weekly exhausted after 5h reset | PASS — zero continuation requests | Engine, policy and live-adapter tests |
-| Real natural five-hour exhaustion/reset | NOT TESTED — no live quota was deliberately exhausted | Separate from real context/dispatch verification |
+| Native restart after a genuine usage-limit failure | PASS — fresh included permission, scheduled native wake-up, first-action guard, matching reservation and preserved interrupted work | [25 October live evidence](evidence/limit-reset-recovery-0.4.0.json) |
+| Entire unattended exhaustion/wait/reset cycle and repeated resets | NOT VERIFIED — the observed chat was repaired after its failure and quota reset | One post-reset continuation does not establish repeated unattended reliability |
 | Actual task picker / live control-panel layout | PASS — real read-only list call and GUI layout test | `live.py`, `tests/test_ui.py` |
 | Dark/light and real-panel visual QA | PASS | [Real panel](evidence/ui-live.png), dark/light screenshots |
 | WebSocket framing, masking, fragmentation, ping/pong, size checks | PASS | `tests/test_websocket.py`; real daemon handshake also passed |
@@ -28,7 +29,7 @@ Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 25 October
 
 The normal automated suite makes zero live model requests. The separately invoked live check made two genuine included-usage turns, in a dedicated harmless conversation, through the same production `_dispatch` method with an explicit manual-test trigger. It did not inject a fake quota or pretend that the real service had exhausted/reset. This confirms daemon-owned execution and context preservation. It did not test taking over the desktop writer, native scheduled recovery or a natural quota reset.
 
-The final full run includes thirteen GUI tests; headless runs intentionally skip them. The 2500-case randomized quota check is counted as one test. Earlier 0.1.0 results remain in Git history and do not describe this release's execution capability.
+The final full run includes fifteen GUI tests; headless runs intentionally skip them. The 2500-case randomized quota check is counted as one test. Earlier 0.1.0 results remain in Git history and do not describe this release's execution capability.
 
 ## Recorded 0.3.0 hosted CI results
 
@@ -62,7 +63,7 @@ The 0.3.0 suite adds context-marker recognition, rejection of explanations/quote
 
 ## Native guard regressions
 
-Twenty-six tests cover external-scheduler exclusion, native heartbeat and thread identity, fresh allowance on repeated claims, idempotent reservation, checkpoint turnover, terminal-history reconciliation after companion restart, ordinary completion, cancellation, OFF, paid balances, weekly reserve, goal budgets, unknown external submissions, the native cap and intervening manual turns. They use controlled metadata. Separately, the [23 October live check](evidence/native-scheduled-recovery.json) observed the actual scheduled heartbeat, its successful guard command, a matching reservation and subsequent research commands in the original desktop chat. The turn was still running when recorded. A second checkpoint recovery and a natural quota reset have not yet been verified.
+Thirty-two tests cover external-scheduler exclusion, native heartbeat and thread identity, fresh allowance on repeated claims, idempotent reservation, checkpoint turnover, terminal-history reconciliation after companion restart, ordinary completion, cancellation, OFF, paid balances, weekly reserve, goal budgets, unknown external submissions, the native cap and intervening manual turns. They use controlled metadata. Separately, the [23 October live check](evidence/native-scheduled-recovery.json) observed the actual scheduled heartbeat, its successful guard command, a matching reservation and subsequent research commands in the original desktop chat. The turn was still running when recorded. The [25 October post-reset restart](evidence/limit-reset-recovery-0.4.0.json) separately passed after a genuine persisted usage-limit failure. Repeated checkpoint recoveries and uninterrupted unattended reset cycles remain unverified.
 
 ## Rearming regressions in 0.3.1
 
@@ -136,3 +137,15 @@ python3 scripts/live_check.py --run
 ```
 
 GUI tests require Tk and a graphical session; screenshot capture uses Pillow only during tests. Application runtime remains standard-library only. Hosted GitHub CI runs the headless core and packaging checks on Ubuntu and Windows with Python 3.10 and 3.13. These checks do not validate real Windows Codex transport or GUI integration.
+
+## Native recovery health and UI redesign in 0.4.0
+
+The controller now checks the saved native schedule identity, target chat and ACTIVE/PAUSED status using read-only metadata. Missing or invalid schedules disarm with a reason; paused schedules use `WAITING_FOR_SCHEDULE`, then return to `ARMED` after activation. Tests cover deletion, mismatched metadata, activation, zero-work paused admission, renewed arming timestamps, a quota failure followed by fresh permission, and checkpoint completion after schedule deletion. UI checks cover adjacent Arm/Disarm controls, disarming a chosen chat without a table selection, both themes and minimum-size visibility.
+
+The recovery prompt requires the guard as its first action, including before deciding whether an older cancellation applies. Successful admission reports the fresh arming time and monitored turn. This instruction is model-mediated; schedule health prevents silent false-ARMED status if an automation disappears. A new human cancellation still stops admission.
+
+## Observed post-reset continuation on 25 October
+
+The old heartbeat had deleted itself in response to an earlier cancellation, while the local row incorrectly remained ARMED. The repaired version recorded a fresh arming and a new schedule identity. At 15:13:51 CET its native scheduled turn ran `native-claim` as its first action; the guard returned `continue` with the current arming timestamp. The same original chat then read its interrupted working tree and saved next steps. The schedule remained ACTIVE and SQLite recorded the matching RUNNING reservation. No manual continuation or alternate external dispatch was sent.
+
+This verifies one scheduled continuation after a genuine persisted usage-limit failure and renewed included allowance. It does not verify an uninterrupted unattended exhaustion/wait/reset cycle or multiple resets. See [redacted evidence](evidence/limit-reset-recovery-0.4.0.json).

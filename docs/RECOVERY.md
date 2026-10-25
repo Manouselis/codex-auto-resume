@@ -56,7 +56,7 @@ The original desktop can retain its writer even while a chat is idle. A separate
 
 ## Native desktop recovery (experimental)
 
-Native heartbeat recovery is a separate opt-in setup for a desktop-owned chat. The GUI context checkbox only enables checkpoint recognition; it does not create a native heartbeat. The first native scheduled wake-up passed on Ubuntu on 23 October 2026: the guard admitted work in the original chat and it resumed the saved research checkpoint. This is [one observed wake-up](evidence/native-scheduled-recovery.json); repeated context-checkpoint cycles and natural quota-reset recovery remain unverified.
+Native heartbeat recovery is a separate opt-in setup for a desktop-owned chat. The GUI context checkbox only enables checkpoint recognition; it does not create a native heartbeat. The first native scheduled wake-up passed on Ubuntu on 23 October 2026: the guard admitted work in the original chat and it resumed the saved research checkpoint. A [post-reset native restart](evidence/limit-reset-recovery-0.4.0.json) also passed on 25 October after a genuine usage-limit failure. Repeated context-checkpoint cycles and uninterrupted unattended quota-reset cycles remain unverified.
 
 1. Explicitly choose native scheduled recovery, understanding that each wake-up is a normal model turn. Use Codex’s native automation management tool to create a **paused heartbeat** attached to the original conversation, for example with a five-minute interval. Do not create a separate task or cron job.
 2. Obtain its automation ID and generate the guarded prompt with the command below. Update the paused heartbeat through the native tool with that exact prompt while preserving its other fields.
@@ -77,3 +77,9 @@ The external controller skips native-bound chats. The native scheduler owns init
 ## Rearming a saved conversation
 
 Version 0.3.1 restores saved settings in both GUI selection paths and preserves the native heartbeat binding when rearming. Known terminal reservations are reconciled using the exact acknowledged turn's end metadata, without resending anything. A currently running native turn stays running with its original attempt count; unknown delivery still requires inspection. Explicit rearming of a newer manually continued turn establishes that new turn as the monitoring baseline. It does not restart an older cancelled turn. If a native schedule was deleted, restore it through Codex's native automation management tool.
+
+## Schedule health and renewed authorization
+
+Version 0.4.0 refuses a missing or mismatched native schedule. Arm a paused, correctly bound schedule to enter `WAITING_FOR_SCHEDULE`; activate it through the native automation tool to enable admission. The controller reads metadata only and never writes native automation files. A missing schedule disarms the task instead of leaving a misleading ARMED row.
+
+Explicit arming records its timestamp and monitored turn. The native prompt requires the guard before any other action, including interpreting historical timer cancellations. Its returned arming record distinguishes renewed authorization from an earlier cancelled schedule. Newer user activity, cancellations, approvals and exhausted budgets still stop admission. Use a fresh automation identity when restoring after a prior cancellation, and verify actual work in the original chat.

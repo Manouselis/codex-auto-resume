@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-25",
+  "version": "0.4.0",
+  "platform": "Ubuntu X11",
+  "status": "PASS",
+  "check": "Native scheduled continuation of the original desktop chat after a genuine persisted usage-limit failure and renewed included allowance",
+  "prior_failure": "usageLimitExceeded",
+  "prior_failure_verified_with_read_only_app_server": true,
+  "renewed_ordinary_usage_permission_verified": true,
+  "scheduled_start_utc": "2026-10-25T14:13:51Z",
+  "scheduled_start_local": "2026-10-25T15:13:51+01:00",
+  "original_conversation_preserved": true,
+  "manual_continuation_messages_sent": 0,
+  "external_model_dispatches": 0,
+  "first_model_action": "native-claim",
+  "guard": {
+    "action": "continue",
+    "attempt": 1,
+    "maximum": 10,
+    "current_explicit_arming_timestamp_reported": true,
+    "older_cancellations_distinguished": true
+  },
+  "matching_durable_reservation": true,
+  "schedule_still_active": true,
+  "research_commands_after_guard": true,
+  "interrupted_uncommitted_work_preserved": true,
+  "research_turn_still_running": true,
+  "entire_unattended_exhaustion_wait_reset_cycle_verified": false,
+  "repeated_reset_cycles_verified": false
+}

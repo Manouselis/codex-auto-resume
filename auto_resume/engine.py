@@ -10,11 +10,12 @@ from .policy import evaluate
 from .store import Store
 from .lifecycle import ControllerLock
 from .checkpoints import CHECKPOINT_INSTRUCTIONS
+from .native_schedule import schedule_status
 
 
 class Engine:
     def __init__(self, store: Store, adapter: Adapter, clock=time.time, *, reserve=5,
-                 verification_delay=5, max_attempts=3, max_retries=3):
+                 verification_delay=5, max_attempts=3, max_retries=3, native_schedule_check=schedule_status):
         if not (type(verification_delay) is int and 1 <= verification_delay <= 300
                 and type(max_attempts) is int and 1 <= max_attempts <= 10
                 and type(max_retries) is int and 0 <= max_retries <= 5
@@ -25,6 +26,7 @@ class Engine:
         self.max_attempts, self.max_retries = max_attempts, max_retries
         self.lock = threading.Lock()
         self.last_quota_audit = 0
+        self.native_schedule_check = native_schedule_check
 
     def register(self, thread_id: str, *, recover_context=None, native_heartbeat=None, native_max_attempts=None):
         # No context or private messages are copied from the original conversation.
@@ -47,6 +49,13 @@ class Engine:
             raise ValueError("A native heartbeat ID and explicit context recovery are required")
         if type(native_max_attempts) is not int or not 1 <= native_max_attempts <= 10:
             raise ValueError("Native recovery must be bounded to 1–10 work turns")
+        native_status = None
+        if native_heartbeat and getattr(self.adapter, "live_execution", False):
+            native_status, native_reason = self.native_schedule_check(native_heartbeat, thread_id)
+            if native_status not in ("ACTIVE", "PAUSED"):
+                if previous:
+                    self._pause(thread_id, native_reason)
+                raise UnsafeError(native_reason)
         obs = self.adapter.observe(thread_id)
         reason = self._valid_observation(obs)
         if reason:
@@ -68,7 +77,8 @@ class Engine:
                 finished.append((submission["id"], submission["turn_id"]))
         return self.store.register(obs, self.clock(), recover_context=recover_context,
                             native_heartbeat=native_heartbeat, native_max_attempts=native_max_attempts,
-                            finished_submissions=finished, expected_generation=generation)
+                            finished_submissions=finished, expected_generation=generation,
+                            native_schedule_status=native_status)
 
     def disarm(self, thread_id, reason="Task disarmed by user"):
         with self.store.transaction():
@@ -141,7 +151,16 @@ class Engine:
     def _tick_task(self, task):
         # The desktop owns native scheduled turns. This controller only audits
         # quota for them; it must never start a competing App Server writer.
-        if json.loads(task["context"]).get("native_heartbeat"):
+        native_id = json.loads(task["context"]).get("native_heartbeat")
+        if native_id:
+            if getattr(self.adapter, "live_execution", False):
+                status, reason = self.native_schedule_check(native_id, task["thread_id"])
+                if status not in ("ACTIVE", "PAUSED"):
+                    self._pause(task["thread_id"], reason)
+                elif status == "PAUSED":
+                    self._change(task["thread_id"], State.WAITING_FOR_SCHEDULE, reason, next_check=None)
+                elif task["state"] == State.WAITING_FOR_SCHEDULE:
+                    self._change(task["thread_id"], State.ARMED, "Native recovery schedule active; waiting for a native wake-up", next_check=None)
             return
         tid, now = task["thread_id"], self.clock()
         if task["next_check"] is not None and now < task["next_check"]:

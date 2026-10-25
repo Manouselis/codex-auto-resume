@@ -1,6 +1,6 @@
 # Architecture
 
-Version 0.3.2, regression checks on 25 October 2026. The daemon-owned model verification is from 19 October 2026; the first native scheduled desktop continuation passed on 23 October 2026. The implementation is a standalone native Tk companion with a shared CLI/background controller. It does not inject a control into Codex Settings.
+Version 0.4.0, regression checks on 25 October 2026. The daemon-owned model verification is from 19 October 2026; the first native scheduled desktop continuation passed on 23 October 2026. The implementation is a standalone native Tk companion with a shared CLI/background controller. It does not inject a control into Codex Settings.
 
 ## Real integration
 
@@ -66,4 +66,8 @@ A native heartbeat runs in the original desktop writer. Its stored prompt calls 
 
 `native-finish` records a checkpoint, objective completion or block. Only checkpoints remain armed; the native prompt pauses its heartbeat on completion, cancellation, OFF, approvals or other blocked work. A restarted companion leaves acknowledged native slots for a subsequent terminal-history check; it never retransmits a native turn. A manual intervening turn stops automatic research.
 
-The guard does not start or prevent the initial native model turn. Each heartbeat wake consumes normal usage under Codex’s current account settings. Its fresh financial checks govern subsequent substantive work, not scheduler admission. A heartbeat can still wake once to notice OFF and pause itself. Disarming the companion and pausing the native heartbeat are separate operations. The first real scheduled wake-up passed on 23 October 2026: its exact heartbeat prompt ran the guard, a matching durable reservation was recorded, and the original chat resumed saved research. Repeated checkpoint cycles and natural quota-reset recovery remain unverified. See the [redacted live evidence](evidence/native-scheduled-recovery.json).
+The guard does not start or prevent the initial native model turn. Each heartbeat wake consumes normal usage under Codex’s current account settings. Its fresh financial checks govern subsequent substantive work, not scheduler admission. A heartbeat can still wake once to notice OFF and pause itself. Disarming the companion and pausing the native heartbeat are separate operations. The first real scheduled wake-up passed on 23 October 2026: its exact heartbeat prompt ran the guard, a matching durable reservation was recorded, and the original chat resumed saved research. A [post-reset restart](evidence/limit-reset-recovery-0.4.0.json) also passed on 25 October. Repeated checkpoint cycles and uninterrupted unattended quota-reset cycles remain unverified. See the [first wake-up evidence](evidence/native-scheduled-recovery.json).
+
+## Native schedule health
+
+`native_schedule.py` reads only the app-generated ID, kind, target thread and status fields. It never edits native automations. Engine registration and native guards verify this metadata; the local scheduler checks it on each tick. PAUSED uses `WAITING_FOR_SCHEDULE`; missing/invalid metadata disarms. An explicit arm stores its timestamp, which admission returns with the monitored turn. Repeated Arm renews this authorization without resetting work attempts or sending another model turn.

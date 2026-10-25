@@ -182,7 +182,8 @@ class LiveAdapter:
                                cancelled=latest.get("status") == "interrupted" and not unresolved,
                                incomplete=None if unresolved else latest.get("status") in ("inProgress", "failed"),
                                external_unresolved=unresolved,
-                               stop_reason="context_budget" if checkpoint else None)
+                               stop_reason="context_budget" if checkpoint else None,
+                               name=thread.get("name") or "")
 
     def _financial_config(self, cwd):
         config = self.rpc.call("config/read", {"cwd": cwd, "includeLayers": False}).get("config")

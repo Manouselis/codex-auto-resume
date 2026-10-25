@@ -27,9 +27,11 @@ class NativeTests(unittest.TestCase):
         self.store = Store(Path(self.tmp.name) / "native.sqlite3")
         self.addCleanup(self.store.close)
         self.store.set_enabled(True, self.clock())
-        self.engine = Engine(self.store, self.adapter, self.clock)
+        self.schedule_state = "ACTIVE"
+        self.schedule_check = lambda *_: (self.schedule_state, "Test native schedule " + self.schedule_state)
+        self.engine = Engine(self.store, self.adapter, self.clock, native_schedule_check=self.schedule_check)
         self.engine.register("live-test", recover_context=True, native_heartbeat="native-test")
-        self.native = NativeController(self.store, self.adapter, self.clock)
+        self.native = NativeController(self.store, self.adapter, self.clock, native_schedule_check=self.schedule_check)
 
     def wake(self, turn_id="wake-one"):
         self.backend.history.insert(0, copy.deepcopy(self.backend.latest))
@@ -246,3 +248,57 @@ class NativeTests(unittest.TestCase):
             items=[{"type": "agentMessage", "phase": "final_answer", "text": "Saved next step.\n" + CHECKPOINT_MARKER}])
         self.wake("new-native-wake")
         self.assertEqual(self.claim()["action"], "continue")
+
+    def test_missing_schedule_cannot_remain_falsely_armed(self):
+        self.schedule_state = "MISSING"
+        self.engine.tick()
+        task = self.store.get("live-test")
+        self.assertEqual(task["state"], State.PAUSED_FOR_USER)
+        self.assertFalse(task["eligible"])
+        with self.assertRaisesRegex(Exception, "MISSING"):
+            self.engine.register("live-test")
+        self.assertFalse(any(m in ("thread/resume", "turn/start") for m, _ in self.backend.calls))
+
+    def test_paused_native_schedule_has_a_distinct_waiting_state(self):
+        self.schedule_state = "PAUSED"
+        self.engine.tick()
+        self.assertEqual(self.store.get("live-test")["state"], State.WAITING_FOR_SCHEDULE)
+        self.schedule_state = "ACTIVE"
+        self.engine.tick()
+        self.assertEqual(self.store.get("live-test")["state"], State.ARMED)
+
+    def test_native_claim_waits_if_schedule_was_paused(self):
+        self.wake()
+        self.schedule_state = "PAUSED"
+        self.assertEqual(self.claim()["action"], "wait")
+        self.assertEqual(self.store.get("live-test")["attempts"], 0)
+
+    def test_reset_after_confirmed_usage_failure_admits_real_native_path(self):
+        self.backend.latest.update(status="failed", error={"codexErrorInfo": "usageLimitExceeded"}, completedAt=int(self.clock()))
+        self.backend.payload = fake_payload(self.clock(), five=100, weekly=16, ordinary=False)
+        self.wake()
+        self.assertEqual(self.claim()["action"], "wait")
+        self.backend.latest.update(status="failed", error={"codexErrorInfo": "usageLimitExceeded"}, completedAt=int(self.clock()))
+        self.backend.payload = fake_payload(self.clock(), five=0, weekly=16, ordinary=True)
+        self.wake("after-actual-reset")
+        result = self.claim()
+        self.assertEqual(result["action"], "continue")
+        self.assertEqual(result["arming"]["registered_at"], self.clock())
+        self.assertIn("supersedes earlier", result["arming"]["scope"])
+
+    def test_explicit_rearming_renews_authorization_without_resetting_work_count(self):
+        self.wake()
+        self.claim()
+        self.now[0] += 3
+        result = self.engine.register("live-test")
+        self.assertEqual(result["attempts"], 1)
+        self.assertEqual(result["ack_turn"], "wake-one")
+        self.assertEqual(json.loads(result["context"])["armed_at"], self.clock())
+
+    def test_checkpoint_with_deleted_schedule_reports_disarmed(self):
+        self.wake()
+        self.claim()
+        self.schedule_state = "MISSING"
+        result = self.native.finish("live-test", "native-test", "checkpoint")
+        self.assertFalse(result["armed"])
+        self.assertFalse(self.store.get("live-test")["eligible"])

@@ -1,6 +1,6 @@
 # Documentation
 
-Codex Auto-Resume 0.3.2 is a local companion for explicitly armed, same-conversation continuation after a verified five-hour included-usage reset. It has a native control window and a CLI/background controller. Desktop writer ownership blocks external recovery; the native heartbeat guard passed its first real scheduled wake-up and research continuation on Ubuntu. Repeated checkpoint cycles and natural quota-reset recovery remain unverified. See [Recovery modes](RECOVERY.md).
+Codex Auto-Resume 0.4.0 is a local companion for explicitly armed, same-conversation continuation after a verified five-hour included-usage reset. It has a native control window and a CLI/background controller. Desktop writer ownership blocks external recovery; the native heartbeat guard passed its first real scheduled wake-up and research continuation on Ubuntu. One native restart after a genuine usage-limit failure and renewed allowance passed on 25 October; repeated unattended cycles remain unverified. See [Recovery modes](RECOVERY.md).
 
 ## Start here
 
@@ -21,9 +21,9 @@ Codex Auto-Resume 0.3.2 is a local companion for explicitly armed, same-conversa
 
 ## Verification snapshot
 
-On 25 October 2026, the local Ubuntu GUI-inclusive suite recorded 178 passing tests, including thirteen GUI tests. The 0.3.0 [GitHub CI](https://github.com/Manouselis/codex-auto-resume/actions/runs/39905443617) passed all four Ubuntu/Windows and Python 3.10/3.13 jobs for code commit `701b654`. Headless CI skips GUI and platform-specific cases; it does not verify real Windows Codex integration.
+On 25 October 2026, the local Ubuntu GUI-inclusive suite recorded 189 passing tests, including fifteen GUI tests. The 0.3.0 [GitHub CI](https://github.com/Manouselis/codex-auto-resume/actions/runs/39905443617) passed all four Ubuntu/Windows and Python 3.10/3.13 jobs for code commit `701b654`. Headless CI skips GUI and platform-specific cases; it does not verify real Windows Codex integration.
 
-The actual continuation path preserved context across two real authenticated model turns. The natural quota-exhaustion/reset sequence remains unverified live. The [verification report](TESTING.md) links the evidence and explains the distinction.
+The actual continuation path preserved context across two real authenticated model turns. A native restart after a genuine persisted usage-limit failure and renewed permission passed on 25 October; repeated unattended exhaustion/wait/reset cycles remain unverified. The [verification report](TESTING.md) links the evidence and explains the distinction.
 
 ## Overnight operation
 

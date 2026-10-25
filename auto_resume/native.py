@@ -9,11 +9,13 @@ import time
 from .checkpoints import context_checkpoint
 from .domain import State, UnsafeError
 from .policy import evaluate
+from .native_schedule import schedule_status
 
 
 class NativeController:
-    def __init__(self, store, adapter, clock=time.time):
+    def __init__(self, store, adapter, clock=time.time, *, native_schedule_check=schedule_status):
         self.store, self.adapter, self.clock = store, adapter, clock
+        self.native_schedule_check = native_schedule_check
 
     def _paused(self, task, reason, state=State.PAUSED_FOR_USER):
         with self.store.transaction():
@@ -88,6 +90,13 @@ class NativeController:
         context = json.loads(task["context"])
         if not automation_id or context.get("native_heartbeat") != automation_id:
             return {"action": "pause", "reason": "Native heartbeat identity does not match the arming"}
+        status, reason = self.native_schedule_check(automation_id, thread_id)
+        if status == "PAUSED":
+            return {"action": "wait", "reason": reason}
+        if status != "ACTIVE":
+            return self._paused(task, reason)
+        arming = {"registered_at": context.get("armed_at"), "monitored_turn": context["turn_id"],
+                  "scope": "This explicit arming supersedes earlier schedule cancellations; newer user activity still blocks admission"}
         generation = self.store.generation
         obs = self.adapter.observe(thread_id)
         if (not 0 <= self.clock() - obs.observed_at <= 30 or not obs.history_available
@@ -124,7 +133,7 @@ class NativeController:
                 return {"action": "pause", "reason": "Arming changed during native preflight"}
             if previous:
                 return {"action": "continue", "reason": "Fresh guards passed for the reserved native work turn",
-                        "attempt": current["attempts"]}
+                        "attempt": current["attempts"], "arming": arming}
             maximum = context.get("native_max_attempts", 10)
             if type(maximum) is not int or not 1 <= maximum <= 10 or current["attempts"] >= maximum:
                 self.store.update(thread_id, State.PAUSED_FOR_USER, "Native work-turn limit reached", self.clock(), eligible=False, next_check=None)
@@ -141,7 +150,7 @@ class NativeController:
                               continuation_id=native_id, ack_turn=obs.turn_id,
                               attempts=current["attempts"] + 1, next_check=None)
             return {"action": "continue", "reason": "Fresh included usage and native checkpoint guard passed",
-                    "attempt": current["attempts"] + 1, "maximum": maximum}
+                    "attempt": current["attempts"] + 1, "maximum": maximum, "arming": arming}
 
     def finish(self, thread_id, automation_id, outcome):
         if outcome not in ("checkpoint", "complete", "blocked"):
@@ -158,7 +167,12 @@ class NativeController:
             if not self.store.enabled or not current["eligible"]:
                 return {"outcome": outcome, "armed": False}
             if outcome == "checkpoint":
-                self.store.update(thread_id, State.ARMED, "Native checkpoint saved; waiting for the next native wake-up", self.clock(), next_check=None)
+                status, reason = self.native_schedule_check(automation_id, thread_id)
+                if status not in ("ACTIVE", "PAUSED"):
+                    self.store.update(thread_id, State.PAUSED_FOR_USER, reason, self.clock(), eligible=False, next_check=None)
+                    return {"outcome": outcome, "armed": False}
+                state = State.ARMED if status == "ACTIVE" else State.WAITING_FOR_SCHEDULE
+                self.store.update(thread_id, state, "Native checkpoint saved; waiting for the next native wake-up" if status == "ACTIVE" else reason, self.clock(), next_check=None)
             else:
                 state = State.COMPLETED if outcome == "complete" else State.PAUSED_FOR_USER
                 self.store.update(thread_id, state, "Native objective completion reported" if outcome == "complete" else "Native work needs user input or approval", self.clock(), eligible=False, next_check=None)

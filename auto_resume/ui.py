@@ -22,67 +22,92 @@ class ControlWindow:
         self.scheduler = Scheduler(engine)
         self.owns_controller = False
 
-        root.title("Codex Auto-Resume" + (" · Simulation" if simulation else ""))
-        root.geometry("760x760")
-        root.minsize(720, 720)
+        root.title("Codex Auto-Resume" + (" · Demo" if simulation else ""))
+        root.geometry("920x800")
+        root.minsize(760, 760)
         self.style = ttk.Style(root)
         self.style.theme_use("clam")
         self.dark = tk.BooleanVar(value=True)
         self.enabled = tk.BooleanVar(value=engine.store.enabled)
         self.recover_context = tk.BooleanVar(value=False)
-        self.status = tk.StringVar(value="Auto-Resume enabled" if self.enabled.get() else "Auto-Resume disabled")
+        self.status = tk.StringVar(value="Enabled" if self.enabled.get() else "Paused")
         self.usage_text = tk.StringVar(value="Usage has not been checked")
-        self.notice = tk.StringVar(value="")
+        self.quota_updated = tk.StringVar(value="Refresh to check your included allowance")
+        self.notice = tk.StringVar(value="Select a conversation to see recovery details.")
+        self.names = {"demo-task": "Demo research conversation"} if simulation else {}
+        self.remaining = [tk.StringVar(value="Not checked"), tk.StringVar(value="Not checked")]
+        self.progress = [tk.DoubleVar(value=0), tk.DoubleVar(value=0)]
+        self.bars = []
         frame = ttk.Frame(root, padding=24)
         frame.pack(fill="both", expand=True)
-        ttk.Label(frame, text="Auto-Resume", style="Title.TLabel").pack(anchor="w")
-        ttk.Label(frame, text="Local companion · independent community project", style="Muted.TLabel").pack(anchor="w", pady=(2, 18))
-        self.toggle = ttk.Checkbutton(frame, text="Continue automatically when the 5h limit resets",
-                                      variable=self.enabled, command=self.toggle_enabled, takefocus=True)
-        self.toggle.pack(anchor="w", pady=8)
-        ttk.Label(frame, textvariable=self.status, style="Status.TLabel").pack(anchor="w", pady=(0, 14))
-        banner = ("SIMULATION · Invented tasks and usage. No model requests are sent." if simulation else
-                  "Armed conversations recover usage-limit stops and optional context checkpoints.\nWeekly exhaustion, paid credits, unknown usage or changed work pauses automation.\nKeep the background controller running while waiting.")
-        ttk.Label(frame, text=banner, wraplength=650, style="Notice.TLabel", padding=12).pack(fill="x", pady=(0, 16))
-        row = ttk.Frame(frame)
-        row.pack(fill="x")
-        ttk.Label(row, text="Included usage", style="Section.TLabel").pack(side="left")
-        self.check = ttk.Button(row, text="Check usage", command=self.check_usage)
+        header = ttk.Frame(frame)
+        header.pack(fill="x", pady=(0, 18))
+        ttk.Label(header, text="Auto-Resume", style="Title.TLabel").pack(anchor="w")
+        ttk.Label(header, text="Keep your work moving in the same conversation.", style="Muted.TLabel").pack(anchor="w", pady=(4, 0))
+        setting = ttk.Frame(frame, style="Card.TFrame", padding=(18, 14))
+        setting.pack(fill="x", pady=(0, 18))
+        self.toggle = ttk.Checkbutton(setting, text="Continue automatically when the 5h limit resets",
+                                      variable=self.enabled, command=self.toggle_enabled,
+                                      style="Card.TCheckbutton", takefocus=True)
+        self.toggle.pack(side="left")
+        ttk.Label(setting, textvariable=self.status, style="Status.TLabel").pack(side="right", padx=(12, 0))
+        quota_head = ttk.Frame(frame)
+        quota_head.pack(fill="x", pady=(0, 10))
+        ttk.Label(quota_head, text="Included allowance", style="Section.TLabel").pack(side="left")
+        self.check = ttk.Button(quota_head, text="Refresh allowance", command=self.check_usage)
         self.check.pack(side="right")
-        ttk.Label(frame, textvariable=self.usage_text, wraplength=650).pack(anchor="w", pady=(8, 18))
-        ttk.Label(frame, text="Eligible conversations", style="Section.TLabel").pack(anchor="w")
-        armrow = ttk.Frame(frame)
-        armrow.pack(fill="x", pady=8)
-        self.thread_id = ttk.Entry(armrow)
-        self.thread_id.pack(side="left", fill="x", expand=True)
+        quotas = ttk.Frame(frame)
+        quotas.pack(fill="x")
+        quotas.columnconfigure((0, 1), weight=1, uniform="quota")
+        for i, label in enumerate(("5-hour window", "Weekly window")):
+            card = ttk.Frame(quotas, style="Card.TFrame", padding=(18, 13))
+            card.grid(row=0, column=i, sticky="nsew", padx=(0, 7) if i == 0 else (7, 0))
+            ttk.Label(card, text=label, style="CardMuted.TLabel").pack(anchor="w")
+            ttk.Label(card, textvariable=self.remaining[i], style="Metric.TLabel").pack(anchor="w", pady=(5, 10))
+            bar = tk.Canvas(card, height=6, borderwidth=0, highlightthickness=0)
+            bar.pack(fill="x")
+            bar.bind("<Configure>", lambda _: self.draw_quotas())
+            self.bars.append(bar)
+        ttk.Label(frame, textvariable=self.quota_updated, style="Muted.TLabel").pack(anchor="w", pady=(7, 17))
+        ttk.Label(frame, text="Conversations", style="Section.TLabel").pack(anchor="w", pady=(0, 9))
+        entryrow = ttk.Frame(frame)
+        entryrow.pack(fill="x", pady=(0, 10))
+        self.thread_id = ttk.Entry(entryrow)
+        self.thread_id.pack(side="left", fill="x", expand=True, ipady=6)
         self.thread_id.insert(0, "demo-task" if simulation else "")
         self.thread_id.bind("<Return>", lambda _: self.arm())
         if not simulation:
-            ttk.Button(armrow, text="Choose…", command=self.choose).pack(side="left", padx=(8, 0))
-        ttk.Button(armrow, text="Arm conversation", command=self.arm).pack(side="left", padx=(8, 0))
-        ttk.Checkbutton(frame, text="Also recover context-budget checkpoints for this arming",
-                        variable=self.recover_context).pack(anchor="w", pady=(0, 8))
-        self.tasks = ttk.Treeview(frame, columns=("state", "reset"), show="tree headings", height=4, selectmode="browse")
-        self.tasks.heading("#0", text="Conversation ID")
-        self.tasks.heading("state", text="Status")
-        self.tasks.heading("reset", text="Next check · local time")
-        self.tasks.column("#0", width=190)
-        self.tasks.column("state", width=180)
-        self.tasks.column("reset", width=150)
+            ttk.Button(entryrow, text="Choose…", command=self.choose).pack(side="left", padx=(10, 0))
+        controls = ttk.Frame(frame)
+        controls.pack(fill="x", pady=(0, 12))
+        self.arm_button = ttk.Button(controls, text="Arm conversation", command=self.arm, style="Primary.TButton")
+        self.arm_button.pack(side="left")
+        self.disarm_button = ttk.Button(controls, text="Disarm", command=self.disarm)
+        self.disarm_button.pack(side="left", padx=(8, 0))
+        ttk.Checkbutton(controls, text="Recover context checkpoints", variable=self.recover_context).pack(side="right")
+        table = ttk.Frame(frame, style="Card.TFrame", padding=1)
+        table.pack(fill="both", expand=True)
+        self.tasks = ttk.Treeview(table, columns=("state", "reset"), show="tree headings", height=2, selectmode="browse")
+        self.tasks.heading("#0", text="Conversation", anchor="w")
+        self.tasks.heading("state", text="Recovery", anchor="w")
+        self.tasks.heading("reset", text="Next check", anchor="w")
+        self.tasks.column("#0", width=380, minwidth=230)
+        self.tasks.column("state", width=150, minwidth=130)
+        self.tasks.column("reset", width=190, minwidth=150)
         self.tasks.pack(fill="both", expand=True)
         self.tasks.bind("<<TreeviewSelect>>", self.show_reason)
-        actions = ttk.Frame(frame)
-        actions.pack(fill="x", pady=8)
-        ttk.Button(actions, text="Disarm selected", command=self.disarm).pack(side="left")
-        ttk.Button(actions, text="Activity history", command=self.history).pack(side="left", padx=8)
-        ttk.Checkbutton(actions, text="Dark theme", variable=self.dark, command=self.theme).pack(side="right")
+        ttk.Label(frame, textvariable=self.notice, wraplength=700, style="Muted.TLabel").pack(anchor="w", fill="x", pady=(10, 10))
         if simulation:
             sims = ttk.Frame(frame)
-            sims.pack(fill="x", pady=4)
-            ttk.Button(sims, text="Simulate 5h reset", command=lambda: self.reset_simulation(30)).pack(side="left")
-            ttk.Button(sims, text="Simulate weekly limit", command=lambda: self.reset_simulation(100)).pack(side="left", padx=8)
+            sims.pack(fill="x", pady=(0, 8))
+            ttk.Button(sims, text="Simulate reset", command=lambda: self.reset_simulation(30)).pack(side="left")
+            ttk.Button(sims, text="Weekly limit", command=lambda: self.reset_simulation(100)).pack(side="left", padx=8)
             ttk.Button(sims, text="Complete task", command=self.complete_simulation).pack(side="left")
-        ttk.Label(frame, textvariable=self.notice, wraplength=650).pack(anchor="w", pady=8)
+        footer = self.footer = ttk.Frame(frame)
+        footer.pack(fill="x")
+        ttk.Button(footer, text="Activity log", command=self.history).pack(side="left")
+        ttk.Label(footer, text="Demo data · no model requests" if simulation else "Keep Codex open and your computer awake.", style="Muted.TLabel").pack(side="left", padx=14)
+        ttk.Checkbutton(footer, text="Dark mode", variable=self.dark, command=self.theme).pack(side="right")
         root.protocol("WM_DELETE_WINDOW", self.close)
         root.bind("<Control-q>", lambda _: self.close())
         self.theme()
@@ -90,30 +115,66 @@ class ControlWindow:
             self.scheduler.start()
             self.owns_controller = True
         except UnsafeError:
-            # A user service may own scheduling. The window still controls the
-            # same database; opening it must never recover a healthy controller.
-            self.notice.set("Background controller connected. Closing this window keeps armed tasks active. Use OFF to stop.")
+            self.notice.set("Background controller connected. Closing this panel keeps recovery enabled.")
         self.refresh()
 
     def theme(self):
-        bg, fg, muted, panel = ("#17191c", "#f1f3f5", "#b8c0c8", "#272d34") if self.dark.get() else (
-            "#f6f7f8", "#17212b", "#475569", "#e4e9ee")
+        if self.dark.get():
+            bg, fg, muted, panel, border, accent = "#10151e", "#edf3fb", "#9baac0", "#1a2331", "#2d3a4e", "#73a9ff"
+            selection, success = "#233e61", "#65dbc3"
+        else:
+            bg, fg, muted, panel, border, accent = "#f1f5fa", "#172b45", "#586c84", "#ffffff", "#d6e0ed", "#2563eb"
+            selection, success = "#dce9ff", "#087b64"
         self.root.configure(background=bg)
-        self.style.configure(".", background=bg, foreground=fg, fieldbackground=panel, font=("sans-serif", 10))
-        self.style.configure("TButton", padding=7)
-        self.style.map("TButton", background=[("active", panel)], foreground=[("active", fg)])
-        self.style.map("TCheckbutton", background=[("active", bg)], foreground=[("active", fg)])
-        self.style.configure("Title.TLabel", font=("sans-serif", 23, "bold"))
-        self.style.configure("Section.TLabel", font=("sans-serif", 11, "bold"))
-        self.style.configure("Muted.TLabel", foreground=muted)
-        self.style.configure("Notice.TLabel", background=panel)
-        self.style.configure("Status.TLabel", foreground="#69d6b2" if self.dark.get() else "#00654b")
-        self.style.configure("Treeview", background=panel, fieldbackground=panel, rowheight=28)
-        self.style.map("Treeview", background=[("selected", "#225b69")], foreground=[("selected", "#ffffff")])
+        self.style.configure(".", background=bg, foreground=fg, fieldbackground=panel, font=("DejaVu Sans", 10))
+        self.style.configure("TFrame", background=bg)
+        self.style.configure("Card.TFrame", background=panel)
+        self.style.configure("TLabel", background=bg, foreground=fg)
+        self.style.configure("Title.TLabel", font=("DejaVu Sans", 25, "bold"))
+        self.style.configure("Section.TLabel", font=("DejaVu Sans", 11, "bold"))
+        self.style.configure("Muted.TLabel", foreground=muted, font=("DejaVu Sans", 9))
+        self.style.configure("CardMuted.TLabel", background=panel, foreground=muted, font=("DejaVu Sans", 9))
+        self.style.configure("Metric.TLabel", background=panel, font=("DejaVu Sans", 19, "bold"))
+        self.style.configure("Status.TLabel", background=panel, foreground=success, font=("DejaVu Sans", 9, "bold"))
+        self.style.configure("TButton", background=panel, foreground=fg, bordercolor=border, lightcolor=panel,
+                             darkcolor=panel, borderwidth=1, padding=(13, 8), focuscolor=accent)
+        self.style.map("TButton", background=[("active", border)], foreground=[("active", fg)])
+        self.style.configure("Primary.TButton", background=accent, foreground="#101b2d", bordercolor=accent,
+                             font=("DejaVu Sans", 10, "bold"))
+        self.style.map("Primary.TButton", background=[("active", "#91bdff")], foreground=[("active", "#101b2d")])
+        if not self.dark.get():
+            self.style.configure("Primary.TButton", foreground="#ffffff")
+            self.style.map("Primary.TButton", foreground=[("active", "#ffffff")], background=[("active", "#1d4ed8")])
+        self.style.configure("TCheckbutton", background=bg, foreground=fg, indicatorbackground=panel, indicatorforeground=accent)
+        self.style.map("TCheckbutton", background=[("active", bg)])
+        self.style.configure("Card.TCheckbutton", background=panel)
+        self.style.map("Card.TCheckbutton", background=[("active", panel)])
+        self.style.configure("TEntry", fieldbackground=panel, foreground=fg, bordercolor=border,
+                             lightcolor=border, darkcolor=border, padding=5, insertcolor=fg)
+        self.style.map("TEntry", bordercolor=[("focus", accent)], lightcolor=[("focus", accent)])
+        self.style.configure("Treeview", background=panel, fieldbackground=panel, foreground=fg,
+                             rowheight=40, borderwidth=0, relief="flat", bordercolor=border, lightcolor=panel, darkcolor=panel)
+        self.style.configure("Treeview.Heading", background=panel, foreground=muted, relief="flat",
+                             borderwidth=0, font=("DejaVu Sans", 9, "bold"), padding=(12, 11))
+        self.style.map("Treeview", background=[("selected", selection)], foreground=[("selected", fg)])
+        self.style.map("Treeview.Heading", background=[("active", panel)])
+        self.bar_colors = (border, accent, success)
+        self.draw_quotas()
+
+    def draw_quotas(self):
+        if not hasattr(self, "bar_colors"):
+            return
+        trough, first, second = self.bar_colors
+        for i, bar in enumerate(self.bars):
+            bar.configure(background=trough)
+            bar.delete("all")
+            width = int(bar.winfo_width() * self.progress[i].get() / 100)
+            if width:
+                bar.create_rectangle(0, 0, width, 6, fill=(first, second)[i], width=0)
 
     def toggle_enabled(self):
         self.engine.store.set_enabled(self.enabled.get(), self.engine.clock())
-        self.status.set("Auto-Resume enabled" if self.enabled.get() else "Auto-Resume disabled")
+        self.status.set("Enabled" if self.enabled.get() else "Paused")
         self.scheduler.wake.set()
         if self.enabled.get() and not self.simulation:
             self.work(self.engine.adapter.ensure_daemon)
@@ -142,15 +203,28 @@ class ControlWindow:
             bucket = usage.payload.get("rateLimits", {})
             windows = {w.get("windowDurationMins"): w for key in ("primary", "secondary")
                        if isinstance((w := bucket.get(key)), dict)}
-            values = []
+            values, remaining = [], []
             for duration, label in ((300, "5h"), (10080, "Weekly")):
                 w = windows.get(duration)
-                if w and type(w.get("usedPercent")) is int:
-                    values.append(f"{label}: {w['usedPercent']}% used")
+                if w and type(w.get("usedPercent")) in (int, float) and 0 <= w["usedPercent"] <= 100:
+                    used = w["usedPercent"]
+                    values.append(f"{label}: {used:g}% used")
+                    remaining.append(100 - used)
                 else:
                     values.append(f"{label}: unavailable")
-            return " · ".join(values) + " · checked " + datetime.now().strftime("%H:%M")
-        self.work(check)
+                    remaining.append(None)
+            return {"summary": " · ".join(values), "remaining": remaining,
+                    "checked": "Last checked " + datetime.now().strftime("%H:%M")}
+        self.work(check, self.show_usage)
+
+    def show_usage(self, result):
+        self.usage_text.set(result["summary"])
+        for i, value in enumerate(result["remaining"]):
+            self.remaining[i].set(f"{value:g}% remaining" if value is not None else "Unavailable")
+            self.progress[i].set(value or 0)
+        self.draw_quotas()
+        self.quota_updated.set(result["checked"])
+        self.notice.set("Included allowance refreshed.")
 
     def arm(self):
         tid = self.thread_id.get().strip()
@@ -163,14 +237,24 @@ class ControlWindow:
             task = engine.register(tid, recover_context=recover_context)
             wake.set()
             if json.loads(task["context"]).get("native_heartbeat"):
+                if task["state"] == "WAITING_FOR_SCHEDULE":
+                    return "Native schedule is paused; activate it in Codex to enable recovery"
                 return "Native recovery armed; existing running work is preserved"
             return ("Conversation armed for usage-limit and context-budget recovery" if recover_context
                     else "Conversation explicitly armed")
         self.work(arm)
 
     def disarm(self):
-        for tid in self.tasks.selection():
+        chosen = self.tasks.selection()
+        if not chosen:
+            tid = self.thread_id.get().strip()
+            chosen = (tid,) if self.engine.store.get(tid) else ()
+        if not chosen:
+            self.notice.set("Choose a conversation to disarm.")
+            return
+        for tid in chosen:
             self.engine.disarm(tid)
+        self.scheduler.wake.set()
         self.notice.set("Selected conversation disarmed")
 
     def choose(self):
@@ -179,6 +263,7 @@ class ControlWindow:
     def show_picker(self, conversations):
         import tkinter as tk
         from tkinter import ttk
+        self.names.update({item["id"]: item["name"] for item in conversations})
         window = tk.Toplevel(self.root)
         window.title("Choose a conversation")
         window.geometry("660x360")
@@ -242,22 +327,29 @@ class ControlWindow:
             self.busy = False
             if ok and callback is not None:
                 callback(message)
-                self.notice.set("Choose the original task, then explicitly arm it")
+                if isinstance(message, list):
+                    self.notice.set("Choose a conversation, then click Arm conversation.")
                 continue
             self.notice.set(message)
             if ok and "% used" in message:
                 self.usage_text.set(message)
         enabled = self.engine.store.enabled
         self.enabled.set(enabled)
-        self.status.set("Auto-Resume enabled" if enabled else "Auto-Resume disabled")
+        self.status.set("Enabled" if enabled else "Paused")
         for task in self.engine.store.tasks():
             reset = datetime.fromtimestamp(task["next_check"]).strftime("%d %b %H:%M") if task["next_check"] else "—"
-            values = (task["state"].replace("_", " ").capitalize(), reset)
+            context = json.loads(task["context"])
+            if context.get("native_heartbeat"):
+                reset = "Activate in Codex" if task["state"] == "WAITING_FOR_SCHEDULE" else "Native schedule"
+            label = {"WAITING_FOR_SCHEDULE": "Schedule paused", "PAUSED_FOR_USER": "Needs attention",
+                     "WAITING_FOR_RESET": "Waiting for reset"}.get(task["state"], task["state"].replace("_", " ").capitalize())
+            values = (label, reset)
             tid = task["thread_id"]
+            name = self.names.get(tid) or context.get("name") or tid
             if self.tasks.exists(tid):
-                self.tasks.item(tid, values=values)
+                self.tasks.item(tid, text=name, values=values)
             else:
-                self.tasks.insert("", "end", iid=tid, text=tid, values=values)
+                self.tasks.insert("", "end", iid=tid, text=name, values=values)
         if self.scheduler.last_error:
             self.notice.set(self.scheduler.last_error)
         self.refresh_id = self.root.after(500, self.refresh)

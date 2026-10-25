@@ -1,4 +1,4 @@
-# Delivery summary — 0.3.2
+# Delivery summary — 0.4.0
 
 [Documentation index](README.md) · [Release history](CHANGELOG.md)
 
@@ -20,13 +20,14 @@ Version 0.3.1 fixes stale acknowledged reservations during explicit rearming and
 
 | Evidence | Scope |
 | --- | --- |
-| [Local results](evidence/test-results.json) | 178 passing Ubuntu tests, including thirteen native GUI tests |
+| [Local results](evidence/test-results.json) | 189 passing Ubuntu tests, including fifteen native GUI tests |
 | [Hosted 0.3.0 CI](evidence/ci-0.3.0.json) | All four Ubuntu/Windows and Python 3.10/3.13 jobs passed; headless skips are recorded |
 | [Real continuation](evidence/live-continuation.json) | Two authenticated model turns in a daemon-owned thread preserved context; desktop takeover was not tested |
+| [Post-reset native restart](evidence/limit-reset-recovery-0.4.0.json) | Actual scheduled restart after a genuine quota failure; guard first, matching reservation and interrupted work preserved |
 | [Native scheduled recovery](evidence/native-scheduled-recovery.json) | First native wake-up admitted and resumed original saved research; the turn was still running when recorded |
 | [Read-only arming probe](evidence/external-arm.json) | An externally running desktop turn could be armed without inference or thread mutations |
 
-The full quota-interruption/reset flow passes with controlled backend responses. This is separate from the genuine model execution check. A natural five-hour exhaustion/reset has not yet been verified live.
+The full quota-interruption/reset flow passes with controlled backend responses. This is separate from the genuine model execution check. One native restart after a genuine persisted usage-limit failure and renewed permission passed on 25 October; repeated unattended reset cycles remain unverified.
 
 ## Use
 
@@ -36,4 +37,4 @@ Source and documentation are published at [Manouselis/codex-auto-resume](https:/
 
 ## Remaining validation
 
-Repeated native checkpoint cycles, natural quota-reset recovery, cross-client approval routing, live Windows integration, Wayland and real suspend/reboot recovery remain unverified. The public API also leaves a short cross-client dispatch race and does not reserve future quota. See [Remaining limitations](LIMITATIONS.md).
+Repeated native checkpoint cycles and unattended quota-reset cycles, cross-client approval routing, live Windows integration, Wayland and real suspend/reboot recovery remain unverified. The public API also leaves a short cross-client dispatch race and does not reserve future quota. See [Remaining limitations](LIMITATIONS.md).

@@ -30,7 +30,7 @@ To also recover a recognized context-budget checkpoint, select **Also recover co
 
 A task running in another Codex runtime may show **Armed — waiting for a confirmed turn result**. Its history is available, but the companion cannot yet verify a terminal result. It continues monitoring without loading or interrupting the thread. This status alone can never authorize continuation.
 
-The table's **Next check · local time** column is the next scheduled check. For running or unresolved work it is a polling time; during a reset wait it includes the reset verification delay. It is not a guarantee that a new turn will start at that moment.
+The table's **Next check** column shows the next scheduled check in local time, or **Native schedule** for a native-bound chat. For running or unresolved work it is a polling time; during a reset wait it includes the reset verification delay. It is not a guarantee that a new turn will start at that moment.
 
 Closing a service-owned control panel leaves the background controller and armed tasks enabled. Use OFF or `disable` to stop them. Closing a window-owned controller still turns automation OFF and disarms tasks. An already acknowledged daemon turn keeps running. Use `status` from a terminal to inspect overnight operation without opening a control window.
 

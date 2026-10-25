@@ -7,6 +7,7 @@ from typing import Protocol
 class State(str, Enum):
     DISABLED = "DISABLED"
     ARMED = "ARMED"
+    WAITING_FOR_SCHEDULE = "WAITING_FOR_SCHEDULE"
     RUNNING = "RUNNING"
     FIVE_HOUR_LIMIT_REACHED = "FIVE_HOUR_LIMIT_REACHED"
     WAITING_FOR_RESET = "WAITING_FOR_RESET"
@@ -20,8 +21,9 @@ class State(str, Enum):
 
 TRANSITIONS = {
     State.DISABLED: {State.ARMED},
-    State.ARMED: {State.RUNNING, State.FIVE_HOUR_LIMIT_REACHED, State.VERIFYING_ALLOWANCE, State.COMPLETED},
-    State.RUNNING: {State.ARMED, State.FIVE_HOUR_LIMIT_REACHED, State.VERIFYING_ALLOWANCE, State.COMPLETED},
+    State.ARMED: {State.WAITING_FOR_SCHEDULE, State.RUNNING, State.FIVE_HOUR_LIMIT_REACHED, State.VERIFYING_ALLOWANCE, State.COMPLETED},
+    State.WAITING_FOR_SCHEDULE: {State.ARMED, State.VERIFYING_ALLOWANCE},
+    State.RUNNING: {State.ARMED, State.WAITING_FOR_SCHEDULE, State.FIVE_HOUR_LIMIT_REACHED, State.VERIFYING_ALLOWANCE, State.COMPLETED},
     State.FIVE_HOUR_LIMIT_REACHED: {State.WAITING_FOR_RESET},
     State.WAITING_FOR_RESET: {State.VERIFYING_ALLOWANCE, State.COMPLETED},
     State.VERIFYING_ALLOWANCE: {State.WAITING_FOR_RESET, State.RESUMING, State.COMPLETED},
@@ -63,6 +65,7 @@ class Observation:
     # for a still-open turn. It permits monitoring, never continuation dispatch.
     external_unresolved: bool = False
     stop_reason: str | None = None
+    name: str = ""
     # Dispatch rechecks these pinned facts; the public protocol is not atomic.
 
 

@@ -96,7 +96,8 @@ class Store:
                         self.update(t["thread_id"], State.DISABLED, "Auto-Resume disabled", now, eligible=False)
 
     def register(self, obs: Observation, now: float, *, recover_context=False,
-                 native_heartbeat=None, native_max_attempts=10, finished_submissions=(), expected_generation=None):
+                 native_heartbeat=None, native_max_attempts=10, finished_submissions=(), expected_generation=None,
+                 native_schedule_status=None):
         with self.transaction():
             if not self.enabled:
                 raise ValueError("Enable Auto-Resume before arming a task")
@@ -122,6 +123,17 @@ class Store:
             known_running = (outstanding and old and outstanding["status"] == "running"
                 and outstanding["id"] == old["continuation_id"] and outstanding["turn_id"] == old["ack_turn"])
             if same_settings and same_turn and old["eligible"] and not finished_submissions and (not outstanding or known_running):
+                if old_context.get("armed_at") != now:
+                    old_context["armed_at"] = now
+                    self.db.execute("UPDATE tasks SET context=? WHERE thread_id=?", (json.dumps(old_context), obs.thread_id))
+                    self.db.execute("UPDATE meta SET value=CAST(value AS INTEGER)+1 WHERE key='generation'")
+                    old = self.get(obs.thread_id)
+                if native_heartbeat and native_schedule_status == "PAUSED":
+                    self.update(obs.thread_id, State.WAITING_FOR_SCHEDULE, "Native recovery schedule is paused; waiting for activation in Codex", now)
+                    return self.get(obs.thread_id)
+                if old["state"] == State.WAITING_FOR_SCHEDULE and native_schedule_status == "ACTIVE":
+                    self.update(obs.thread_id, State.ARMED, "Native recovery schedule active; waiting for a native wake-up", now)
+                    return self.get(obs.thread_id)
                 return old  # Repeated Arm does not reset attempts or dispatch again.
             if same_settings and same_turn and native_heartbeat and obs.turn_status in ("inProgress", "unresolved"):
                 running = self.db.execute("SELECT 1 FROM submissions WHERE id=? AND thread_id=? AND turn_id=? AND status='running'",
@@ -129,7 +141,8 @@ class Store:
                 if running and old["continuation_id"] == "native-" + obs.turn_id:
                     self.db.execute("UPDATE meta SET value=CAST(value AS INTEGER)+1 WHERE key='generation'")
                     self.update(obs.thread_id, State.ARMED, "Existing native turn is still running; recovery rearmed", now, eligible=True, next_check=None)
-                    self.update(obs.thread_id, State.RUNNING, "Existing native turn is still running; recovery rearmed", now)
+                    state = State.WAITING_FOR_SCHEDULE if native_schedule_status == "PAUSED" else State.RUNNING
+                    self.update(obs.thread_id, state, "Native schedule is paused; waiting for activation" if state == State.WAITING_FOR_SCHEDULE else "Existing native turn is still running; recovery rearmed", now)
                     return self.get(obs.thread_id)
             if old and old["state"] == State.COMPLETED:
                 same_turn = obs.turn_id == (old["ack_turn"] or old_context["turn_id"])
@@ -142,17 +155,22 @@ class Store:
             context["recover_context"] = recover_context
             context["native_heartbeat"] = native_heartbeat
             context["native_max_attempts"] = native_max_attempts
+            context["armed_at"] = now
             reason = ("Task armed for usage-limit and context-budget recovery" if recover_context
                       else "Task explicitly armed")
             if native_heartbeat:
                 reason = "Native scheduled recovery armed; waiting for a native wake-up"
+            state = State.ARMED
+            if native_heartbeat and native_schedule_status == "PAUSED":
+                state = State.WAITING_FOR_SCHEDULE
+                reason = "Native recovery schedule is paused; waiting for activation in Codex"
             self.db.execute("UPDATE meta SET value=CAST(value AS INTEGER)+1 WHERE key='generation'")
             self.db.execute("""INSERT INTO tasks(thread_id,context,state,eligible,reason)
                 VALUES(?,?,?,1,?) ON CONFLICT(thread_id) DO UPDATE SET context=excluded.context,
                 state=excluded.state,eligible=1,next_check=NULL,retries=0,attempts=0,
                 continuation_id=NULL,ack_turn=NULL,reason=excluded.reason""",
-                (obs.thread_id, json.dumps(context), State.ARMED.value, reason))
-            self.log(obs.thread_id, State.ARMED, reason, now)
+                (obs.thread_id, json.dumps(context), state.value, reason))
+            self.log(obs.thread_id, state, reason, now)
             return self.get(obs.thread_id)
 
     def get(self, thread_id):

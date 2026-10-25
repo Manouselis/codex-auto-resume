@@ -18,6 +18,7 @@ The service command applies when you selected background operation. For a window
 
 | State | Meaning and next action |
 | --- | --- |
+| `WAITING_FOR_SCHEDULE` | The native heartbeat exists but is paused. Activate it through Codex; the controller then returns to ARMED. |
 | `ARMED` | Explicitly registered. The controller is watching the original turn; a result may still be unresolved. |
 | `RUNNING` | Codex is working on the tracked turn, including an acknowledged automatic continuation. |
 | `FIVE_HOUR_LIMIT_REACHED` | A five-hour interruption was confirmed. This brief transition advances to the scheduled reset wait. |
@@ -80,3 +81,9 @@ A native-bound task is skipped by the external scheduler. Check `status` for `na
 Update to 0.3.1 and rearm the original conversation. The controller checks the exact acknowledged turn using read-only history. If that turn has a confirmed end time and terminal status, it finishes the stale reservation and arms the current eligible turn atomically. It does not resend the old request. An unknown delivery without an acknowledged turn, unavailable history, or an open marker still blocks rearming for inspection.
 
 Clicking a saved row now fills its ID and context-recovery setting; choosing it in the picker does the same. Rearming preserves the saved native heartbeat binding. Clicking Arm again while a known native turn is running preserves that run and its attempt count. Native scheduling remains a separate Codex automation: if it was cancelled or deleted, restore it through Codex's native automation management tool before expecting wake-ups.
+
+## The panel says armed but its native schedule is gone
+
+Update to 0.4.0. The controller checks native metadata every scheduler tick and refuses new native arming when the schedule is missing or bound to another chat. Missing schedules become **Needs attention**, with the reason recorded in the activity log. Restore a schedule through Codex's native automation tool, then explicitly rearm. Paused schedules appear as **Schedule paused**.
+
+An earlier heartbeat incorrectly acted on an old cancellation before running the guard and deleted itself. The updated prompt requires its guard first and reports the newer arming authorization. Prefer a new schedule identity when restoring after cancellation. The prompt pauses on stop conditions rather than silently deleting the schedule.

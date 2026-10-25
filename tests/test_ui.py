@@ -117,12 +117,27 @@ class UiTests(unittest.TestCase):
         self.root.geometry("720x720")
         self.root.update()
         bottom = self.root.winfo_rooty() + self.root.winfo_height()
+        self.assertTrue(self.window.footer.winfo_ismapped())
         def check(widget):
             for child in widget.winfo_children():
                 if child.winfo_ismapped():
                     self.assertLessEqual(child.winfo_rooty() + child.winfo_height(), bottom)
                     check(child)
         check(self.root)
+
+    def test_arm_and_disarm_are_adjacent_on_the_same_row(self):
+        arm, disarm = self.window.arm_button, self.window.disarm_button
+        self.assertIs(arm.master, disarm.master)
+        self.assertEqual(arm.winfo_rooty(), disarm.winfo_rooty())
+        self.assertGreater(disarm.winfo_rootx(), arm.winfo_rootx())
+        self.assertLessEqual(disarm.winfo_rootx() - (arm.winfo_rootx() + arm.winfo_width()), 12)
+
+    def test_disarm_also_uses_the_chosen_conversation_without_table_selection(self):
+        self.window.arm()
+        self.pump()
+        self.window.tasks.selection_remove(*self.window.tasks.selection())
+        self.window.disarm_button.invoke()
+        self.assertFalse(self.store.get("demo-task")["eligible"])
 
     def test_real_control_panel_fits_and_renders(self):
         import tkinter as tk

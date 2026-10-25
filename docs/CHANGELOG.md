@@ -2,6 +2,15 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
+## 0.4.0 — 25 October 2026
+
+- Redesigned the desktop panel with dark/light themes, remaining-allowance cards, named conversations and adjacent Arm/Disarm buttons. Disarm works for the chosen chat without requiring table selection.
+- Native recovery verifies its saved schedule. Missing schedules pause with an actionable reason; paused schedules use a distinct waiting state.
+- The heartbeat must run its guard before acting on older cancellation history. Admission reports the current explicit arming timestamp and monitored turn; newer cancellations still block work.
+- Replaced the README with a concise guide and dark/light desktop screenshots.
+- Verified a real native scheduled restart after a persisted usage-limit failure and renewed included permission, preserving interrupted work. Repeated unattended reset cycles remain unverified.
+- The local suite passes 189 tests, including 15 GUI checks.
+
 ## 0.3.2 — 25 October 2026
 
 - The global five-hour continuation checkbox now defaults ON for new state files, as requested. Saved ON/OFF choices are preserved; individual chats still require explicit arming.
