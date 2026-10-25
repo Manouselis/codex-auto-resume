@@ -859,3 +859,5 @@ Build Codex Auto-Resume into a reliable, polished, low-maintenance feature that 
 Make it simple enough that a nontechnical user can turn it on, forget about it, and trust that it will automatically continue only eligible unfinished tasks without bypassing limits or intentionally incurring additional charges.
 
 **Research. Architect. Implement. Test. Debug. Improve. Verify. Package. Deliver.**
+
+Current preference update (25 October 2026): the user requested the global checkbox default ON. Version 0.3.2 supersedes the original default-OFF requirement for fresh state; explicit per-chat arming and saved OFF choices remain in force.

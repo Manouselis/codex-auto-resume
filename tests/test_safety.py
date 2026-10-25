@@ -181,8 +181,9 @@ class EngineTests(unittest.TestCase):
     def mutate(self, **values):
         self.adapter.observations["demo-task"] = replace(self.adapter.observe("demo-task"), **values)
 
-    def test_01_default_off(self):
-        self.assertFalse(self.store.enabled)
+    def test_01_default_on_but_off_still_blocks_arming(self):
+        self.assertTrue(self.store.enabled)
+        self.store.set_enabled(False, self.clock())
         with self.assertRaises(ValueError):
             self.engine.register("demo-task")
 

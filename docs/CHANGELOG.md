@@ -2,6 +2,10 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
+## 0.3.2 — 25 October 2026
+
+- The global five-hour continuation checkbox now defaults ON for new state files, as requested. Saved ON/OFF choices are preserved; individual chats still require explicit arming.
+
 ## 0.3.1 — 25 October 2026
 
 - Fixed choosing-and-arming and clicking-and-arming saved conversations. Both restore the chat ID and context-recovery setting; native heartbeat bindings are preserved.

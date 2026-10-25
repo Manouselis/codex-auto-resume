@@ -1,6 +1,6 @@
 # Documentation
 
-Codex Auto-Resume 0.3.1 is a local companion for explicitly armed, same-conversation continuation after a verified five-hour included-usage reset. It has a native control window and a CLI/background controller. Desktop writer ownership blocks external recovery; the native heartbeat guard passed its first real scheduled wake-up and research continuation on Ubuntu. Repeated checkpoint cycles and natural quota-reset recovery remain unverified. See [Recovery modes](RECOVERY.md).
+Codex Auto-Resume 0.3.2 is a local companion for explicitly armed, same-conversation continuation after a verified five-hour included-usage reset. It has a native control window and a CLI/background controller. Desktop writer ownership blocks external recovery; the native heartbeat guard passed its first real scheduled wake-up and research continuation on Ubuntu. Repeated checkpoint cycles and natural quota-reset recovery remain unverified. See [Recovery modes](RECOVERY.md).
 
 ## Start here
 

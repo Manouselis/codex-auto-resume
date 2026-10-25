@@ -17,7 +17,7 @@ python3 scripts/install.py
 
 The installer creates the application, launcher, manifest and Applications-menu entry under `~/.local`. It does not enable a startup service. Use `--prefix /private/path` for a custom installation location; the service recipes below assume the default prefix.
 
-A fresh installation starts OFF. Updating preserves the existing opt-in preference and local task state.
+A fresh installation starts ON, with **Continue automatically when the 5h limit resets** checked. Updating preserves your saved ON/OFF choice and local task state. Individual conversations still require explicit arming.
 
 ## Arm and monitor a conversation
 

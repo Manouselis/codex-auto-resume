@@ -2,7 +2,7 @@
 
 Resume an explicitly armed Codex conversation after its five-hour included-usage limit resets, or opt in to recovery when a run ends at a context-budget checkpoint. The local controller can continue daemon-owned conversations. Desktop-owned conversations require Codex’s native scheduler; the companion cannot take over the desktop’s exclusive writer. Both paths preserve the original conversation and check available included usage.
 
-**Current version: 0.3.1. The first real native scheduled wake-up and research continuation passed on Ubuntu. Repeated checkpoint cycles and natural quota-reset recovery remain unverified.** Independent community software, licensed under MIT. The verified live setup is Ubuntu with X11 and an existing ChatGPT Plus login.
+**Current version: 0.3.2. The first real native scheduled wake-up and research continuation passed on Ubuntu. Repeated checkpoint cycles and natural quota-reset recovery remain unverified.** Independent community software, licensed under MIT. The verified live setup is Ubuntu with X11 and an existing ChatGPT Plus login.
 
 ## Install and arm a conversation
 
@@ -15,7 +15,7 @@ python3 scripts/install.py
 ~/.local/bin/codex-auto-resume ui
 ```
 
-1. Turn on **Continue automatically when the 5h limit resets**. A fresh installation starts OFF.
+1. **Continue automatically when the 5h limit resets** is checked by default on a fresh installation. Your saved ON/OFF choice is preserved.
 2. Click **Choose…**, select the original conversation, and click **Arm conversation**. Global ON alone does not arm tasks.
 3. Keep the controller running. It watches for a structured usage-limit failure, waits for the official reset time, and checks included allowance again before continuing.
 

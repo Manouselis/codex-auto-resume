@@ -39,6 +39,9 @@ class UiTests(unittest.TestCase):
         self.root.update()
 
     def test_one_click_toggle_and_close_disables(self):
+        self.assertTrue(self.store.enabled)
+        self.assertIn("selected", self.window.toggle.state())
+        self.window.toggle.invoke()
         self.assertFalse(self.store.enabled)
         self.window.toggle.invoke()
         self.assertTrue(self.store.enabled)
@@ -46,7 +49,6 @@ class UiTests(unittest.TestCase):
         self.assertFalse(self.store.enabled)
 
     def test_keyboard_entry_arm_and_disarm(self):
-        self.window.toggle.invoke()
         self.window.arm()
         self.pump()
         self.assertTrue(self.store.get("demo-task")["eligible"])

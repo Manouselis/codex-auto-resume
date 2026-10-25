@@ -1,6 +1,6 @@
 # Security
 
-Version 0.3.1 sends real continuation requests only after explicit global opt-in, per-task arming and current included-usage checks. Preserve all refusal paths and the no-resend behavior for uncertain acknowledgements. Unresolved history from another runtime permits monitoring only and cannot authorize dispatch.
+Version 0.3.2 sends real continuation requests only while globally enabled, after explicit per-task arming and current included-usage checks. The global checkbox defaults ON for new state files; saved choices are preserved. Preserve all refusal paths and the no-resend behavior for uncertain acknowledgements. Unresolved history from another runtime permits monitoring only and cannot authorize dispatch.
 
 Never add billing purchases, API-key fallback, reset redemption, automatic approvals or implicit account changes. Changes to dispatch require tests for weekly exhaustion, missing ordinary permission, paid/unknown credits, concurrent work, cancellation and lost acknowledgements.
 

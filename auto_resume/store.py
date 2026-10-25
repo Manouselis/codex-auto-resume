@@ -41,7 +41,7 @@ class Store:
         self.db.executescript("""
             CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
             INSERT OR IGNORE INTO meta VALUES('schema_version','1');
-            INSERT OR IGNORE INTO meta VALUES('enabled','0');
+            INSERT OR IGNORE INTO meta VALUES('enabled','1');
             INSERT OR IGNORE INTO meta VALUES('generation','0');
             CREATE TABLE IF NOT EXISTS tasks(
                 thread_id TEXT PRIMARY KEY, context TEXT NOT NULL, state TEXT NOT NULL,

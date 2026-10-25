@@ -1,6 +1,6 @@
 # Architecture
 
-Version 0.3.1, regression checks on 25 October 2026. The daemon-owned model verification is from 19 October 2026; the first native scheduled desktop continuation passed on 23 October 2026. The implementation is a standalone native Tk companion with a shared CLI/background controller. It does not inject a control into Codex Settings.
+Version 0.3.2, regression checks on 25 October 2026. The daemon-owned model verification is from 19 October 2026; the first native scheduled desktop continuation passed on 23 October 2026. The implementation is a standalone native Tk companion with a shared CLI/background controller. It does not inject a control into Codex Settings.
 
 ## Real integration
 

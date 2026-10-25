@@ -1,4 +1,4 @@
-# Delivery summary — 0.3.1
+# Delivery summary — 0.3.2
 
 [Documentation index](README.md) · [Release history](CHANGELOG.md)
 

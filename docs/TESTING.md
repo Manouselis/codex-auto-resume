@@ -1,4 +1,4 @@
-# Testing and real verification — 0.3.1
+# Testing and real verification — 0.3.2
 
 Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 25 October 2026. The daemon-owned model execution evidence is from 19 October 2026. The first native scheduled desktop continuation passed on 23 October 2026.
 
@@ -76,7 +76,7 @@ PASS below means the corresponding local/mock scenario passed. It does not mean 
 
 | Specification scenario | Result and coverage |
 | --- | --- |
-| 1 default OFF | PASS — registration refused while disabled |
+| 1 default ON (updated by user request) | PASS — fresh setting is checked; explicitly switching OFF still blocks arming |
 | 2–9 enable, limit, wait, authorize, resume once, complete, stop | PASS — normal-flow engine test and finite CLI demo |
 | 10 both windows exhausted | PASS — weekly decision wins |
 | 11 weekly exhaustion during wait | PASS — complete usage-event snapshot disarms immediately |

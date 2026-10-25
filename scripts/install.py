@@ -91,7 +91,7 @@ Exec={cmd} --simulation ui
     atomic_write(launcher, script.encode(), 0o755)
     if desktop_text:
         atomic_write(desktop, desktop_text.encode())
-    metadata = {"application": "codex-auto-resume", "version": "0.3.1", "prefix": str(prefix),
+    metadata = {"application": "codex-auto-resume", "version": "0.3.2", "prefix": str(prefix),
                 "files": [p.relative_to(prefix).as_posix() for p in files]}
     atomic_write(marker, (json.dumps(metadata, indent=2) + "\n").encode())
     print("Installed:", launcher)
