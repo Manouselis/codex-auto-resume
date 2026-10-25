@@ -1,4 +1,4 @@
-# Testing and real verification — 0.4.0
+# Testing and real verification — 0.4.1
 
 Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 25 October 2026. The daemon-owned model execution evidence is from 19 October 2026. The first native scheduled desktop continuation passed on 23 October 2026.
 
@@ -6,7 +6,7 @@ Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 25 October
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Full automated suite, including native GUI | PASS — 189 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
+| Full automated suite, including native GUI | PASS — 198 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
 | Hosted Ubuntu/Windows core and packaging CI, Python 3.10/3.13 | PASS — all four jobs at code commit `701b654`; exact pass/skip counts below | [Recorded CI evidence](evidence/ci-0.3.0.json), [GitHub run](https://github.com/Manouselis/codex-auto-resume/actions/runs/39905443617) |
 | Open turn owned by another runtime can be armed | PASS — monitors without loading the thread or sending inference; controlled later failure/reset submits once on a resumable daemon-owned fixture | 12 live-adapter regressions and one native control-panel regression |
 | Read-only reproduction against an active desktop conversation | PASS — external open turn arms and remains monitored, with zero thread mutations | [Sanitized arming probe](evidence/external-arm.json) |
@@ -63,7 +63,7 @@ The 0.3.0 suite adds context-marker recognition, rejection of explanations/quote
 
 ## Native guard regressions
 
-Thirty-two tests cover external-scheduler exclusion, native heartbeat and thread identity, fresh allowance on repeated claims, idempotent reservation, checkpoint turnover, terminal-history reconciliation after companion restart, ordinary completion, cancellation, OFF, paid balances, weekly reserve, goal budgets, unknown external submissions, the native cap and intervening manual turns. They use controlled metadata. Separately, the [23 October live check](evidence/native-scheduled-recovery.json) observed the actual scheduled heartbeat, its successful guard command, a matching reservation and subsequent research commands in the original desktop chat. The turn was still running when recorded. The [25 October post-reset restart](evidence/limit-reset-recovery-0.4.0.json) separately passed after a genuine persisted usage-limit failure. Repeated checkpoint recoveries and uninterrupted unattended reset cycles remain unverified.
+Thirty-seven tests cover external-scheduler exclusion, native heartbeat and thread identity, fresh allowance on repeated claims, idempotent reservation, checkpoint turnover, terminal-history reconciliation after companion restart, ordinary completion, cancellation, OFF, paid balances, weekly reserve, goal budgets, unknown external submissions, the native cap and intervening manual turns. They use controlled metadata. Separately, the [23 October live check](evidence/native-scheduled-recovery.json) observed the actual scheduled heartbeat, its successful guard command, a matching reservation and subsequent research commands in the original desktop chat. The turn was still running when recorded. The [25 October post-reset restart](evidence/limit-reset-recovery-0.4.0.json) separately passed after a genuine persisted usage-limit failure. Repeated checkpoint recoveries and uninterrupted unattended reset cycles remain unverified.
 
 ## Rearming regressions in 0.3.1
 
@@ -149,3 +149,7 @@ The recovery prompt requires the guard as its first action, including before dec
 The old heartbeat had deleted itself in response to an earlier cancellation, while the local row incorrectly remained ARMED. The repaired version recorded a fresh arming and a new schedule identity. At 15:13:51 CET its native scheduled turn ran `native-claim` as its first action; the guard returned `continue` with the current arming timestamp. The same original chat then read its interrupted working tree and saved next steps. The schedule remained ACTIVE and SQLite recorded the matching RUNNING reservation. No manual continuation or alternate external dispatch was sent.
 
 This verifies one scheduled continuation after a genuine persisted usage-limit failure and renewed included allowance. It does not verify an uninterrupted unattended exhaustion/wait/reset cycle or multiple resets. See [redacted evidence](evidence/limit-reset-recovery-0.4.0.json).
+
+## Heartbeat XML checkpoint repair in 0.4.1
+
+The observed research turn saved its next action and called `native-finish checkpoint`, then placed the required checkpoint marker inside its XML heartbeat message. Version 0.4.0 looked only at the final line of the entire response and disarmed the next wake-up. The global switch stayed ON. The repaired parser extracts only the plain-text message of a complete, unambiguous heartbeat envelope. Four parser regressions cover the observed format, terminal state requirements, conflicting outcome markers, malformed/nested XML and quoted examples. Five native regressions cover three successive guarded checkpoint wake-ups, accurate disarm diagnostics, explicit rearming after diagnostic replies, newer-message rejection and ordinary-completion rejection. These repeat-wake tests use controlled metadata; they do not claim repeated live quota resets.

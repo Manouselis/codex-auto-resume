@@ -9,6 +9,53 @@ def turn(text, *, phase="final_answer", status="completed"):
 
 
 class CheckpointTests(unittest.TestCase):
+    def test_heartbeat_checkpoint_marker_inside_message(self):
+        for decision in ("DONT_NOTIFY", "NOTIFY"):
+            text = ("<heartbeat>\n  <automation_id>resume-research</automation_id>\n"
+                    f"  <decision>{decision}</decision>\n"
+                    "  <message>I0047–I0052 completed; checks &amp; backup passed. "
+                    "Exact next action saved for I0053.\n" + CHECKPOINT_MARKER + "</message>\n</heartbeat>")
+            with self.subTest(decision=decision):
+                self.assertTrue(context_checkpoint(turn(text)))
+
+    def test_heartbeat_stops_and_nonterminal_outputs_never_authorize_recovery(self):
+        template = ("<heartbeat><automation_id>resume-research</automation_id>"
+                    "<decision>DONT_NOTIFY</decision><message>{}</message></heartbeat>")
+        for marker in (COMPLETE_MARKER, BLOCKED_MARKER):
+            self.assertFalse(context_checkpoint(turn(template.format(marker + "\n" + CHECKPOINT_MARKER))))
+        for status in ("inProgress", "interrupted", "failed"):
+            self.assertFalse(context_checkpoint(turn(template.format(CHECKPOINT_MARKER), status=status)))
+        value = turn(template.format(CHECKPOINT_MARKER))
+        value["completedAt"] = None
+        self.assertFalse(context_checkpoint(value))
+
+    def test_malformed_ambiguous_or_nested_heartbeat_is_rejected(self):
+        text = ("<heartbeat><automation_id>resume-research</automation_id>"
+                "<decision>DONT_NOTIFY</decision><message>Saved.\n" + CHECKPOINT_MARKER + "</message></heartbeat>")
+        malformed = (
+            text.replace("</heartbeat>", ""),
+            text.replace("<decision>", "<decision extra='value'>"),
+            text.replace("</heartbeat>", "<message>extra</message></heartbeat>"),
+            text.replace("</heartbeat>", "<extra>value</extra></heartbeat>"),
+            text.replace("<message>", "<message><nested>example</nested>"),
+            text.replace("DONT_NOTIFY", "UNKNOWN"),
+            text.replace("<message>", "<!DOCTYPE message><message>"),
+            text + "\n" + CHECKPOINT_MARKER,
+            text.replace("<message>Saved.\n", ""),
+        )
+        for value in malformed:
+            with self.subTest(text=value):
+                self.assertFalse(context_checkpoint(turn(value)))
+
+    def test_heartbeat_examples_and_nonfinal_message_marker_do_not_trigger(self):
+        text = ("<heartbeat><automation_id>resume-research</automation_id>"
+                "<decision>DONT_NOTIFY</decision><message>Saved.\n" + CHECKPOINT_MARKER + "</message></heartbeat>")
+        for value in ("```xml\n" + text + "\n```", "> " + text,
+                      text.replace("</message>", "\nActually complete.</message>"),
+                      text.replace("Saved.\n" + CHECKPOINT_MARKER, "> " + CHECKPOINT_MARKER)):
+            with self.subTest(text=value):
+                self.assertFalse(context_checkpoint(turn(value)))
+
     def test_explicit_terminal_checkpoint_marker(self):
         self.assertTrue(context_checkpoint(turn("Saved the unfinished work and next action.\n" + CHECKPOINT_MARKER)))
 

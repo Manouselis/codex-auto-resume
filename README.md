@@ -4,7 +4,7 @@
 
 Resume explicitly armed chats after included usage resets, with optional recovery from saved context checkpoints. Your conversation, project and model stay together.
 
-[![Checks](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml) · **v0.4.0** · Python 3.10+ · MIT
+[![Checks](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml) · **v0.4.1** · Python 3.10+ · MIT
 
 | Dark mode | Light mode |
 | --- | --- |
@@ -37,6 +37,6 @@ python3 scripts/install.py
 - Lost acknowledgements pause for inspection. Automatic submissions are never blindly retried.
 - Native wake-ups use normal model turns. Keep Codex open and the computer awake.
 
-The control panel supports dark/light modes, remaining-allowance meters, adjacent Arm/Disarm controls and an activity log. The local suite passes **189 tests**, including **15 GUI checks**. A real scheduled restart after a usage-limit interruption is [recorded](docs/evidence/limit-reset-recovery-0.4.0.json); repeated unattended reset cycles remain unverified. See [Testing](docs/TESTING.md).
+The control panel supports dark/light modes, remaining-allowance meters, adjacent Arm/Disarm controls and an activity log. The local suite passes **198 tests**, including **15 GUI checks**. A real scheduled restart after a usage-limit interruption is [recorded](docs/evidence/limit-reset-recovery-0.4.0.json); repeated unattended reset cycles remain unverified. See [Testing](docs/TESTING.md).
 
 [Setup](docs/INSTALL.md) · [Recovery](docs/RECOVERY.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)

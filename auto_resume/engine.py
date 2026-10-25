@@ -61,7 +61,18 @@ class Engine:
         if reason:
             raise UnsafeError(reason)
         context_stop = recover_context and obs.stop_reason == "context_budget" and obs.turn_status in ("completed", "failed")
-        if not context_stop and not obs.external_unresolved and (obs.turn_status not in ("inProgress", "failed") or (
+        native_checkpoint = None
+        # Explicit Arm can renew a stopped native recovery after a diagnostic
+        # reply. Re-verify its exact acknowledged checkpoint; the latest turn
+        # becomes the new user-authorized boundary for intervening activity.
+        if (not context_stop and native_heartbeat and previous and not previous["eligible"]
+                and previous["state"] != State.COMPLETED
+                and saved.get("native_heartbeat") == native_heartbeat
+                and previous["ack_turn"] and obs.turn_status == "completed"):
+            verify = getattr(self.adapter, "confirmed_context_checkpoint", None)
+            if verify and verify(thread_id, previous["ack_turn"]):
+                native_checkpoint = previous["ack_turn"]
+        if not context_stop and not native_checkpoint and not obs.external_unresolved and (obs.turn_status not in ("inProgress", "failed") or (
                 obs.turn_status == "failed" and obs.error_code != "usageLimitExceeded")):
             raise UnsafeError("Only running tasks or structured usage-limit failures can be armed")
         finished = []
@@ -78,7 +89,7 @@ class Engine:
         return self.store.register(obs, self.clock(), recover_context=recover_context,
                             native_heartbeat=native_heartbeat, native_max_attempts=native_max_attempts,
                             finished_submissions=finished, expected_generation=generation,
-                            native_schedule_status=native_status)
+                            native_schedule_status=native_status, native_checkpoint=native_checkpoint)
 
     def disarm(self, thread_id, reason="Task disarmed by user"):
         with self.store.transaction():

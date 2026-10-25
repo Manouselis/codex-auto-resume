@@ -40,10 +40,11 @@ class NativeController:
                 return True
         return False
 
-    def _tracked_stop(self, thread_id, turn_id, *, automation_id=None, current_turn_id=None):
+    def _tracked_stop(self, thread_id, turn_id, *, automation_id=None, current_turn_id=None, authorized_baseline=None):
         cursor = None
         turn = None
         intervening = []
+        baseline_seen = authorized_baseline is None
         for _ in range(20):
             params = {"threadId": thread_id, "sortDirection": "desc", "limit": 100, "itemsView": "notLoaded"}
             if cursor:
@@ -53,17 +54,19 @@ class NativeController:
             if not isinstance(data, list):
                 raise UnsafeError("Prior native turn metadata is unavailable")
             for item in data:
+                if item.get("id") == authorized_baseline:
+                    baseline_seen = True
                 if item.get("id") == turn_id:
                     turn = item
                     break
-                if item.get("id") != current_turn_id:
+                if item.get("id") != current_turn_id and (authorized_baseline is None or not baseline_seen):
                     intervening.append(item.get("id"))
             if turn:
                 break
             cursor = page.get("nextCursor")
             if not cursor:
                 break
-        if not turn:
+        if not turn or not baseline_seen:
             raise UnsafeError("The tracked native turn is unavailable")
         if automation_id and any(not self._is_native_wake(thread_id, other, automation_id) for other in intervening):
             return False
@@ -85,8 +88,12 @@ class NativeController:
 
     def claim(self, thread_id, automation_id):
         task = self.store.get(thread_id)
-        if not self.store.enabled or not task or not task["eligible"]:
-            return {"action": "pause", "reason": "Auto-Resume is OFF or this task is disarmed"}
+        if not self.store.enabled:
+            return {"action": "pause", "reason": "Auto-Resume is OFF"}
+        if not task:
+            return {"action": "pause", "reason": "This conversation has not been armed in Auto-Resume"}
+        if not task["eligible"]:
+            return {"action": "pause", "reason": "This task is disarmed: " + task["reason"]}
         context = json.loads(task["context"])
         if not automation_id or context.get("native_heartbeat") != automation_id:
             return {"action": "pause", "reason": "Native heartbeat identity does not match the arming"}
@@ -117,7 +124,10 @@ class NativeController:
             return {"action": "wait", "reason": "No new native heartbeat turn has started"}
         if not self._is_native_wake(thread_id, obs.turn_id, automation_id):
             return self._paused(task, "The current turn is not the configured native heartbeat")
-        if not previous and not self._tracked_stop(thread_id, tracked_turn, automation_id=automation_id, current_turn_id=obs.turn_id):
+        saved_checkpoint = context.get("native_checkpoint_turn") if not task["ack_turn"] else None
+        if not previous and not self._tracked_stop(thread_id, saved_checkpoint or tracked_turn,
+                automation_id=automation_id, current_turn_id=obs.turn_id,
+                authorized_baseline=context["turn_id"] if saved_checkpoint else None):
             return self._paused(task, "The tracked turn ended without a recognized checkpoint or usage-limit failure")
         decision = evaluate(self.adapter.usage(), context["account_id"], tuple(context["bucket_ids"]), self.clock())
         if decision.kind == "weekly":

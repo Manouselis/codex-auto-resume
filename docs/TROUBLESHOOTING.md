@@ -1,5 +1,9 @@
 # Troubleshooting
 
+## A saved native checkpoint is rejected and the next guard says disarmed
+
+Update to 0.4.1. A 0.4.0 parser bug rejected a valid checkpoint when Codex wrapped its final message in heartbeat XML. The first wake-up disarmed recovery; later attempts then reported the misleading combined OFF/disarmed message even though the global switch remained ON. Version 0.4.1 recognizes the final marker inside a valid heartbeat message and reports the precise saved disarm reason. Explicitly rearm after the repair; a legitimate OFF choice or user cancellation is never automatically undone.
+
 [Documentation index](README.md) · [Installation and operation](INSTALL.md)
 
 ## Check the controller and task separately
@@ -87,3 +91,5 @@ Clicking a saved row now fills its ID and context-recovery setting; choosing it 
 Update to 0.4.0. The controller checks native metadata every scheduler tick and refuses new native arming when the schedule is missing or bound to another chat. Missing schedules become **Needs attention**, with the reason recorded in the activity log. Restore a schedule through Codex's native automation tool, then explicitly rearm. Paused schedules appear as **Schedule paused**.
 
 An earlier heartbeat incorrectly acted on an old cancellation before running the guard and deleted itself. The updated prompt requires its guard first and reports the newer arming authorization. Prefer a new schedule identity when restoring after cancellation. The prompt pauses on stop conditions rather than silently deleting the schedule.
+
+After diagnostic replies have become the latest turn, explicit Arm can reuse the exact earlier acknowledged native checkpoint only after reading and verifying it again. That arming records the current turn as its authorization boundary. It does not reopen completed objectives, accept an unverified checkpoint, or ignore manual activity arriving after arming. No extra “continue” message is needed before the next native wake-up.

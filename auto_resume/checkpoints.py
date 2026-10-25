@@ -1,5 +1,6 @@
 """Conservative recognition of model-reported context checkpoints, not task completion."""
 import re
+from xml.etree import ElementTree
 
 
 CHECKPOINT_MARKER = "[codex-auto-resume:context-checkpoint]"
@@ -29,6 +30,32 @@ def final_text(turn):
     return ""
 
 
+def _heartbeat_message(text):
+    """Unwrap only Codex's complete, plain-text heartbeat response envelope."""
+    if not text.startswith("<heartbeat>"):
+        return text
+    # No declarations, entities, nested markup or extra fields are necessary
+    # for this envelope. Reject them rather than interpreting example markup.
+    if "<!" in text or "<?" in text:
+        return ""
+    try:
+        root = ElementTree.fromstring(text)
+    except ElementTree.ParseError:
+        return ""
+    if root.tag != "heartbeat" or root.attrib or (root.text or "").strip():
+        return ""
+    children = list(root)
+    if sorted(child.tag for child in children) != ["automation_id", "decision", "message"]:
+        return ""
+    if any(child.attrib or len(child) or (child.tail or "").strip() for child in children):
+        return ""
+    fields = {child.tag: child.text or "" for child in children}
+    if (not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", fields["automation_id"].strip())
+            or fields["decision"].strip() not in ("NOTIFY", "DONT_NOTIFY")):
+        return ""
+    return fields["message"].strip()
+
+
 def context_checkpoint(turn):
     error = turn.get("error") or {}
     if not isinstance(error, dict):
@@ -38,7 +65,7 @@ def context_checkpoint(turn):
     if (turn.get("status") != "completed" or turn.get("error") is not None
             or type(turn.get("completedAt")) not in (int, float)):
         return False
-    text = final_text(turn)
+    text = _heartbeat_message(final_text(turn))
     prose = re.sub(r"```.*?(?:```|\Z)", "", text, flags=re.S)
     prose = "\n".join(line for line in prose.splitlines() if not line.lstrip().startswith(">"))
     if COMPLETE_MARKER in prose or BLOCKED_MARKER in prose:

@@ -95,6 +95,72 @@ class NativeTests(unittest.TestCase):
         self.assertEqual(self.store.get("live-test")["attempts"], 2)
         self.assertEqual(json.loads(self.store.get("live-test")["context"])["model"], "simulation-model")
 
+    def test_heartbeat_xml_checkpoint_survives_successive_wakeups(self):
+        for number in range(1, 4):
+            self.wake("wrapped-wake-" + str(number))
+            self.assertEqual(self.claim()["action"], "continue")
+            self.checkpoint()
+            self.backend.latest["items"][-1]["text"] = (
+                "<heartbeat>\n<automation_id>native-test</automation_id>\n"
+                "<decision>DONT_NOTIFY</decision>\n<message>Research saved; next action recorded.\n"
+                + CHECKPOINT_MARKER + "</message>\n</heartbeat>")
+            self.assertEqual(self.adapter.observe("live-test").stop_reason, "context_budget")
+        self.assertEqual(self.store.get("live-test")["attempts"], 3)
+        self.assertTrue(self.store.get("live-test")["eligible"])
+        self.assertFalse(any(m in ("thread/resume", "turn/start") for m, _ in self.backend.calls))
+
+    def test_disarmed_guard_reports_real_reason_without_claiming_global_off(self):
+        self.engine.disarm("live-test", "The checkpoint was not recognized")
+        result = self.claim()
+        self.assertEqual(result["action"], "pause")
+        self.assertEqual(result["reason"], "This task is disarmed: The checkpoint was not recognized")
+        self.assertTrue(self.store.enabled)
+        self.assertEqual(self.store.db.execute("SELECT count(*) FROM submissions").fetchone()[0], 0)
+        self.store.set_enabled(False, self.clock())
+        self.assertEqual(self.claim()["reason"], "Auto-Resume is OFF")
+
+    def diagnostic_after_checkpoint(self):
+        self.wake()
+        self.claim()
+        self.checkpoint()
+        self.backend.latest["items"][-1]["text"] = (
+            "<heartbeat><automation_id>native-test</automation_id><decision>DONT_NOTIFY</decision>"
+            "<message>Next action saved.\n" + CHECKPOINT_MARKER + "</message></heartbeat>")
+        self.engine.disarm("live-test", "Checkpoint was not recognized by the old parser")
+        self.wake("manual-diagnostic")
+        self.backend.latest.update(status="completed", completedAt=int(self.clock()), items=[
+            {"type": "userMessage", "content": [{"type": "text", "text": "CON"}]},
+            {"type": "agentMessage", "phase": "final_answer", "text": "The guard refused continuation."}])
+
+    def test_explicit_rearm_after_diagnostic_uses_verified_checkpoint_and_new_boundary(self):
+        self.diagnostic_after_checkpoint()
+        self.engine.register("live-test")
+        context = json.loads(self.store.get("live-test")["context"])
+        self.assertEqual(context["native_checkpoint_turn"], "wake-one")
+        self.assertEqual(context["turn_id"], "manual-diagnostic")
+        self.wake("renewed-native")
+        self.assertEqual(self.claim()["action"], "continue")
+        self.assertEqual(self.store.get("live-test")["ack_turn"], "renewed-native")
+        self.assertFalse(any(m in ("thread/resume", "turn/start") for m, _ in self.backend.calls))
+
+    def test_new_manual_activity_after_checkpoint_rearm_still_blocks_admission(self):
+        self.diagnostic_after_checkpoint()
+        self.engine.register("live-test")
+        self.wake("newer-human-turn")
+        self.backend.latest.update(status="completed", completedAt=int(self.clock()), items=[
+            {"type": "userMessage", "content": [{"type": "text", "text": "Stop researching"}]}])
+        self.wake("next-native")
+        self.assertEqual(self.claim()["action"], "pause")
+        self.assertFalse(self.store.get("live-test")["eligible"])
+
+    def test_rearm_after_diagnostic_never_assumes_ordinary_completion_is_a_checkpoint(self):
+        self.diagnostic_after_checkpoint()
+        saved = next(t for t in self.backend.history if t["id"] == "wake-one")
+        saved["items"][-1]["text"] = "The objective is finished."
+        with self.assertRaisesRegex(Exception, "Only running tasks"):
+            self.engine.register("live-test")
+        self.assertFalse(self.store.get("live-test")["eligible"])
+
     def test_ordinary_completion_does_not_admit_more_research(self):
         self.backend.latest["items"][-1]["text"] = "The objective is achieved."
         self.wake()

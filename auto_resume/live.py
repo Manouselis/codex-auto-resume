@@ -131,6 +131,34 @@ class LiveAdapter:
                 break
         return False
 
+    def confirmed_context_checkpoint(self, thread_id, turn_id):
+        """Verify the exact saved native checkpoint before an explicit rearm."""
+        cursor = None
+        for _ in range(20):
+            params = {"threadId": thread_id, "sortDirection": "desc", "limit": 100, "itemsView": "notLoaded"}
+            if cursor:
+                params["cursor"] = cursor
+            page = self.rpc.call("thread/turns/list", params)
+            data = page.get("data")
+            if not isinstance(data, list):
+                raise UnsafeError("Cannot verify the saved native checkpoint")
+            for turn in data:
+                if turn.get("id") != turn_id:
+                    continue
+                ended = turn.get("completedAt")
+                if type(ended) not in (int, float) or not 0 < ended <= self.clock():
+                    return False
+                items = self.rpc.call("thread/items/list", {"threadId": thread_id,
+                    "turnId": turn_id, "sortDirection": "desc", "limit": 10}).get("data")
+                if not isinstance(items, list):
+                    raise UnsafeError("Cannot verify the saved native checkpoint output")
+                return context_checkpoint({**turn, "items": [entry["item"] for entry in reversed(items)
+                    if isinstance(entry, dict) and isinstance(entry.get("item"), dict)]})
+            cursor = page.get("nextCursor")
+            if not cursor:
+                break
+        return False
+
     def goal_allows_continuation(self, thread_id):
         response = self.rpc.call("thread/goal/get", {"threadId": thread_id})
         if not isinstance(response, dict) or "goal" not in response:

@@ -97,7 +97,7 @@ class Store:
 
     def register(self, obs: Observation, now: float, *, recover_context=False,
                  native_heartbeat=None, native_max_attempts=10, finished_submissions=(), expected_generation=None,
-                 native_schedule_status=None):
+                 native_schedule_status=None, native_checkpoint=None):
         with self.transaction():
             if not self.enabled:
                 raise ValueError("Enable Auto-Resume before arming a task")
@@ -156,6 +156,8 @@ class Store:
             context["native_heartbeat"] = native_heartbeat
             context["native_max_attempts"] = native_max_attempts
             context["armed_at"] = now
+            if native_checkpoint:
+                context["native_checkpoint_turn"] = native_checkpoint
             reason = ("Task armed for usage-limit and context-budget recovery" if recover_context
                       else "Task explicitly armed")
             if native_heartbeat:

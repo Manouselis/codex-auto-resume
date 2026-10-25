@@ -47,7 +47,7 @@ class ReadOnlyRpc:
         self.reader = threading.Thread(target=self._read, args=(proc, responses, self.events), daemon=True)
         self.reader.start()
         self._call("initialize", {"clientInfo": {"name": "codex_auto_resume", "title": "Codex Auto-Resume",
-                                                "version": "0.4.0"},
+                                                "version": "0.4.1"},
                                   "capabilities": {"experimentalApi": True}})
         self._write({"method": "initialized"})
 

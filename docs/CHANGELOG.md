@@ -2,6 +2,14 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
+## 0.4.1 — 25 October 2026
+
+- Recognize a checkpoint marker on the last line of a native heartbeat's XML message. The closing XML tags no longer cause the next wake-up to reject an unfinished checkpoint.
+- Reject malformed, nested, ambiguous and quoted heartbeat examples; completion and blocked markers still stop recovery.
+- Report the actual saved disarm reason instead of saying Auto-Resume might be OFF when its global switch is ON.
+- Explicit Arm can recover a disarmed native chat after diagnostic replies by re-verifying its saved checkpoint and recording a fresh user-activity boundary. Newer messages still block admission.
+- Clarified checkpoint formatting in the native prompt and added nine regressions, including three successive guarded checkpoint wake-ups. The local suite passes 198 tests.
+
 ## 0.4.0 — 25 October 2026
 
 - Redesigned the desktop panel with dark/light themes, remaining-allowance cards, named conversations and adjacent Arm/Disarm buttons. Disarm works for the chosen chat without requiring table selection.
