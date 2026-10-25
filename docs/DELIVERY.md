@@ -1,4 +1,4 @@
-# Delivery summary — 0.3.0
+# Delivery summary — 0.3.1
 
 [Documentation index](README.md) · [Release history](CHANGELOG.md)
 
@@ -14,11 +14,13 @@ Desktop-owned chats cannot be restored by a separate App Server. The native hear
 
 Version 0.3.0 adds explicitly enabled context-checkpoint recovery, goal-budget checks and a distinction between an ended turn and a completed objective. A service-owned control panel can be closed while monitoring continues. See [Recovery modes](RECOVERY.md).
 
+Version 0.3.1 fixes stale acknowledged reservations during explicit rearming and loads saved IDs/settings from both GUI selection paths. Native bindings and running attempt counts are preserved; unknown delivery outcomes still block retries.
+
 ## Verified
 
 | Evidence | Scope |
 | --- | --- |
-| [Local results](evidence/test-results.json) | 167 passing Ubuntu tests, including ten native GUI tests |
+| [Local results](evidence/test-results.json) | 178 passing Ubuntu tests, including thirteen native GUI tests |
 | [Hosted 0.3.0 CI](evidence/ci-0.3.0.json) | All four Ubuntu/Windows and Python 3.10/3.13 jobs passed; headless skips are recorded |
 | [Real continuation](evidence/live-continuation.json) | Two authenticated model turns in a daemon-owned thread preserved context; desktop takeover was not tested |
 | [Native scheduled recovery](evidence/native-scheduled-recovery.json) | First native wake-up admitted and resumed original saved research; the turn was still running when recorded |

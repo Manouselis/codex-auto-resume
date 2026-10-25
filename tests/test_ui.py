@@ -204,3 +204,51 @@ class UiTests(unittest.TestCase):
         finally:
             window.close()
             store.close()
+
+    def prepare_saved_native_task(self):
+        self.store.set_enabled(True, time.time())
+        self.engine.register("demo-task", recover_context=True, native_heartbeat="saved-native")
+        self.window.refresh()
+        self.window.thread_id.delete(0, "end")
+        self.window.recover_context.set(False)
+
+    def test_clicking_saved_row_loads_id_and_mode_then_arm_succeeds(self):
+        import json
+        self.prepare_saved_native_task()
+        self.window.tasks.selection_set("demo-task")
+        self.root.update()
+        self.assertEqual(self.window.thread_id.get(), "demo-task")
+        self.assertTrue(self.window.recover_context.get())
+        self.window.arm()
+        self.pump()
+        context = json.loads(self.store.get("demo-task")["context"])
+        self.assertEqual(context["native_heartbeat"], "saved-native")
+        self.assertIn("Native recovery armed", self.window.notice.get())
+        self.assertFalse(self.adapter.requests)
+
+    def test_chooser_restores_existing_native_settings_before_arm(self):
+        import tkinter as tk
+        import json
+        self.prepare_saved_native_task()
+        self.window.show_picker([{"id": "demo-task", "name": "Saved conversation"}])
+        picker = next(w for w in self.root.winfo_children() if isinstance(w, tk.Toplevel))
+        listing = next(w for w in picker.winfo_children() if isinstance(w, tk.Listbox))
+        listing.selection_set(0)
+        next(w for w in picker.winfo_children() if w.winfo_class() == "TButton").invoke()
+        self.assertEqual(self.window.thread_id.get(), "demo-task")
+        self.assertTrue(self.window.recover_context.get())
+        self.window.arm()
+        self.pump()
+        self.assertEqual(json.loads(self.store.get("demo-task")["context"])["native_heartbeat"], "saved-native")
+        self.assertFalse(self.adapter.requests)
+
+    def test_arm_uses_selected_row_when_entry_is_empty(self):
+        self.prepare_saved_native_task()
+        self.window.tasks.selection_set("demo-task")
+        self.root.update()
+        self.window.thread_id.delete(0, "end")
+        self.window.arm()
+        self.pump()
+        self.assertEqual(self.window.thread_id.get(), "demo-task")
+        self.assertTrue(self.store.get("demo-task")["eligible"])
+        self.assertFalse(self.adapter.requests)

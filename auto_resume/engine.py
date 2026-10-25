@@ -26,11 +26,20 @@ class Engine:
         self.lock = threading.Lock()
         self.last_quota_audit = 0
 
-    def register(self, thread_id: str, *, recover_context=False, native_heartbeat=None, native_max_attempts=10):
+    def register(self, thread_id: str, *, recover_context=None, native_heartbeat=None, native_max_attempts=None):
         # No context or private messages are copied from the original conversation.
         if not isinstance(thread_id, str) or not 1 <= len(thread_id) <= 128 or any(
                 not (c.isalnum() or c in "-_") for c in thread_id):
             raise ValueError("Invalid conversation ID")
+        generation = self.store.generation
+        previous = self.store.get(thread_id)
+        saved = json.loads(previous["context"]) if previous else {}
+        if recover_context is None:
+            recover_context = saved.get("recover_context", False)
+        if native_heartbeat is None:
+            native_heartbeat = saved.get("native_heartbeat")
+        if native_max_attempts is None:
+            native_max_attempts = saved.get("native_max_attempts", 10)
         if type(recover_context) is not bool:
             raise ValueError("Context-budget recovery must be explicitly enabled or disabled")
         if native_heartbeat is not None and (not recover_context or not isinstance(native_heartbeat, str)
@@ -46,8 +55,20 @@ class Engine:
         if not context_stop and not obs.external_unresolved and (obs.turn_status not in ("inProgress", "failed") or (
                 obs.turn_status == "failed" and obs.error_code != "usageLimitExceeded")):
             raise UnsafeError("Only running tasks or structured usage-limit failures can be armed")
-        self.store.register(obs, self.clock(), recover_context=recover_context,
-                            native_heartbeat=native_heartbeat, native_max_attempts=native_max_attempts)
+        finished = []
+        # Only acknowledged, known-ended turns can release their reservation.
+        # An unknown delivery outcome remains blocked, including after rearming.
+        if previous and previous["ack_turn"] and previous["continuation_id"]:
+            with self.store.lock:
+                submission = self.store.db.execute(
+                    "SELECT * FROM submissions WHERE id=? AND thread_id=? AND turn_id=? AND status IN ('running','uncertain')",
+                    (previous["continuation_id"], thread_id, previous["ack_turn"])).fetchone()
+            confirm = getattr(self.adapter, "confirmed_terminal_turn", None)
+            if submission and confirm and confirm(thread_id, previous["ack_turn"]):
+                finished.append((submission["id"], submission["turn_id"]))
+        return self.store.register(obs, self.clock(), recover_context=recover_context,
+                            native_heartbeat=native_heartbeat, native_max_attempts=native_max_attempts,
+                            finished_submissions=finished, expected_generation=generation)
 
     def disarm(self, thread_id, reason="Task disarmed by user"):
         with self.store.transaction():

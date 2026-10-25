@@ -2,7 +2,7 @@
 
 Resume an explicitly armed Codex conversation after its five-hour included-usage limit resets, or opt in to recovery when a run ends at a context-budget checkpoint. The local controller can continue daemon-owned conversations. Desktop-owned conversations require Codex’s native scheduler; the companion cannot take over the desktop’s exclusive writer. Both paths preserve the original conversation and check available included usage.
 
-**Current version: 0.3.0. The first real native scheduled wake-up and research continuation passed on Ubuntu. Repeated checkpoint cycles and natural quota-reset recovery remain unverified.** Independent community software, licensed under MIT. The verified live setup is Ubuntu with X11 and an existing ChatGPT Plus login.
+**Current version: 0.3.1. The first real native scheduled wake-up and research continuation passed on Ubuntu. Repeated checkpoint cycles and natural quota-reset recovery remain unverified.** Independent community software, licensed under MIT. The verified live setup is Ubuntu with X11 and an existing ChatGPT Plus login.
 
 ## Install and arm a conversation
 
@@ -22,6 +22,8 @@ python3 scripts/install.py
 You can arm a running task or one that has already stopped at its five-hour limit while usage still reports exhaustion. A task running in another Codex runtime may show **Armed — waiting for a confirmed turn result**. This is a monitoring state; it does not interrupt the task or start another turn. Version 0.2.1 fixes the earlier false cancellation error in this case.
 
 When a background service owns scheduling, closing its control panel keeps armed work active; use OFF to disarm. Closing a window that owns the only controller still disables automation. For overnight operation without a window, follow the [background service instructions](docs/INSTALL.md#overnight-operation-without-a-window). Keep the computer awake and online, and leave Codex open. A service does not wake a suspended computer.
+
+Version 0.3.1 fixes both rearming paths. Choosing a saved conversation or clicking its row loads the correct chat ID and context-recovery setting, and rearming preserves its native heartbeat binding. A stale acknowledged reservation is released only after read-only history proves that its turn ended. Repeated Arm on an already running native turn preserves its reservation and attempt count. Unknown delivery outcomes still block retries.
 
 ## Desktop conversations need native recovery
 
@@ -46,7 +48,7 @@ These are current-state checks, not a reservation of future usage. The public AP
 
 | Check | Result |
 | --- | --- |
-| Local Ubuntu suite, including ten native GUI tests | 167 passed; no skips |
+| Local Ubuntu suite, including thirteen native GUI tests | 178 passed; no skips |
 | Recorded 0.3.0 GitHub CI on Ubuntu and Windows, Python 3.10 and 3.13 | All four jobs passed at code commit `701b654`; headless platform skips apply |
 | Real same-thread continuation in a daemon-owned test chat | Two authenticated model turns preserved the original context; this did not test desktop writer ownership |
 | Desktop writer conflict | Reproduced live; separate-server restoration and queue start are refused |

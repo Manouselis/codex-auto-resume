@@ -2,6 +2,13 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
+## 0.3.1 — 25 October 2026
+
+- Fixed choosing-and-arming and clicking-and-arming saved conversations. Both restore the chat ID and context-recovery setting; native heartbeat bindings are preserved.
+- Explicit rearming now reconciles a stale acknowledged reservation only when read-only history proves that its exact turn ended. Unknown deliveries and unfinished external markers still block retries.
+- Repeated Arm on a running native turn is idempotent and preserves its attempt count. A disabled but still running native turn can be rearmed without starting another turn.
+- Added eight controller and three real Tk regressions. The full local suite passed 178 tests, including thirteen GUI checks.
+
 ## 0.3.0 — 23 October 2026
 
 - Added explicit per-arming recovery for context-budget checkpoints and structured context-window failures, with fresh included-usage checks and the existing three-attempt limit.

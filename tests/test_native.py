@@ -171,3 +171,78 @@ class NativeTests(unittest.TestCase):
                                    items=[{"type": "userMessage", "content": [{"type": "text", "text": "Do different work"}]}])
         self.wake("actual-heartbeat")
         self.assertEqual(self.claim()["action"], "pause")
+
+    def stop_reserved_turn_and_resume_manually(self, *, ended=True):
+        self.wake()
+        self.claim()
+        self.backend.latest.update(status="interrupted", error=None,
+                                   completedAt=int(self.clock()) if ended else None)
+        self.engine.disarm("live-test")
+        self.wake("manual-resumed-turn")
+        self.backend.latest["items"][0]["content"][0]["text"] = "Continue"
+
+    def test_rearm_finishes_confirmed_old_native_reservation_and_preserves_mode(self):
+        self.stop_reserved_turn_and_resume_manually()
+        result = self.engine.register("live-test")
+        self.assertEqual(result["state"], State.ARMED)
+        self.assertTrue(result["eligible"])
+        self.assertEqual(json.loads(result["context"])["native_heartbeat"], "native-test")
+        self.assertTrue(json.loads(result["context"])["recover_context"])
+        self.assertEqual(self.store.db.execute("SELECT status FROM submissions").fetchone()[0], "finished")
+        self.assertFalse(any(m in ("thread/resume", "turn/start") for m, _ in self.backend.calls))
+
+    def test_rearm_can_reconcile_uncertain_but_acknowledged_terminal_turn(self):
+        self.stop_reserved_turn_and_resume_manually()
+        self.store.db.execute("UPDATE submissions SET status='uncertain'")
+        self.engine.register("live-test")
+        self.assertEqual(self.store.db.execute("SELECT status FROM submissions").fetchone()[0], "finished")
+
+    def test_external_unfinished_marker_does_not_release_a_reserved_turn(self):
+        self.stop_reserved_turn_and_resume_manually(ended=False)
+        with self.assertRaisesRegex(ValueError, "outstanding or uncertain"):
+            self.engine.register("live-test")
+        self.assertEqual(self.store.db.execute("SELECT status FROM submissions").fetchone()[0], "running")
+
+    def test_unknown_submission_remains_blocked_when_rearming(self):
+        self.store.db.execute("INSERT INTO submissions VALUES(?,?,?,?,?)", ("unknown", "live-test", "uncertain", None, self.clock()))
+        with self.assertRaisesRegex(ValueError, "outstanding or uncertain"):
+            self.engine.register("live-test")
+        self.assertEqual(self.store.db.execute("SELECT status FROM submissions").fetchone()[0], "uncertain")
+
+    def test_arm_running_native_turn_is_idempotent_and_preserves_attempts(self):
+        self.wake()
+        self.claim()
+        before = self.store.get("live-test")
+        result = self.engine.register("live-test")
+        self.assertEqual(result, before)
+        self.assertEqual(result["attempts"], 1)
+        self.assertEqual(self.store.db.execute("SELECT count(*) FROM submissions").fetchone()[0], 1)
+
+    def test_rearm_disabled_but_running_native_turn_without_starting_another(self):
+        self.wake()
+        self.claim()
+        self.engine.disarm("live-test")
+        result = self.engine.register("live-test")
+        self.assertTrue(result["eligible"])
+        self.assertEqual(result["state"], State.RUNNING)
+        self.assertEqual(result["attempts"], 1)
+        self.assertEqual(result["ack_turn"], "wake-one")
+
+    def test_changed_arming_rolls_back_terminal_reservation_reconciliation(self):
+        self.stop_reserved_turn_and_resume_manually()
+        def changed(*_):
+            self.store.set_enabled(False, self.clock())
+            self.store.set_enabled(True, self.clock())
+            return True
+        self.adapter.confirmed_terminal_turn = changed
+        with self.assertRaisesRegex(ValueError, "Arming changed"):
+            self.engine.register("live-test")
+        self.assertEqual(self.store.db.execute("SELECT status FROM submissions").fetchone()[0], "running")
+
+    def test_rearmed_manual_work_can_later_continue_at_its_own_checkpoint(self):
+        self.stop_reserved_turn_and_resume_manually()
+        self.engine.register("live-test")
+        self.backend.latest.update(status="completed", completedAt=int(self.clock()),
+            items=[{"type": "agentMessage", "phase": "final_answer", "text": "Saved next step.\n" + CHECKPOINT_MARKER}])
+        self.wake("new-native-wake")
+        self.assertEqual(self.claim()["action"], "continue")

@@ -1,5 +1,6 @@
 """Accessible, native Tk control window. GUI never runs network I/O on its event thread."""
 import queue
+import json
 import threading
 from datetime import datetime
 
@@ -153,11 +154,16 @@ class ControlWindow:
 
     def arm(self):
         tid = self.thread_id.get().strip()
+        if not tid and self.tasks.selection():
+            tid = self.tasks.selection()[0]
+            self.select_conversation(tid)
         recover_context = self.recover_context.get()
         engine, wake = self.engine, self.scheduler.wake
         def arm():
-            engine.register(tid, recover_context=recover_context)
+            task = engine.register(tid, recover_context=recover_context)
             wake.set()
+            if json.loads(task["context"]).get("native_heartbeat"):
+                return "Native recovery armed; existing running work is preserved"
             return ("Conversation armed for usage-limit and context-budget recovery" if recover_context
                     else "Conversation explicitly armed")
         self.work(arm)
@@ -183,8 +189,7 @@ class ControlWindow:
         def select(*_):
             selected = listing.curselection()
             if selected:
-                self.thread_id.delete(0, "end")
-                self.thread_id.insert(0, conversations[selected[0]]["id"])
+                self.select_conversation(conversations[selected[0]]["id"])
                 window.destroy()
         listing.bind("<Return>", select)
         listing.bind("<Double-Button-1>", select)
@@ -195,7 +200,14 @@ class ControlWindow:
         if chosen:
             task = self.engine.store.get(chosen[0])
             if task:
+                self.select_conversation(chosen[0])
                 self.notice.set(task["reason"])
+
+    def select_conversation(self, thread_id):
+        self.thread_id.delete(0, "end")
+        self.thread_id.insert(0, thread_id)
+        task = self.engine.store.get(thread_id)
+        self.recover_context.set(json.loads(task["context"]).get("recover_context", False) if task else False)
 
     def history(self):
         import tkinter as tk

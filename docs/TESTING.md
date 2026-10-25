@@ -1,12 +1,12 @@
-# Testing and real verification — 0.3.0
+# Testing and real verification — 0.3.1
 
-Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 23 October 2026. The daemon-owned model execution evidence is from 19 October 2026. The first native scheduled desktop continuation passed on 23 October 2026.
+Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 25 October 2026. The daemon-owned model execution evidence is from 19 October 2026. The first native scheduled desktop continuation passed on 23 October 2026.
 
 ## Results
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Full automated suite, including native GUI | PASS — 167 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
+| Full automated suite, including native GUI | PASS — 178 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
 | Hosted Ubuntu/Windows core and packaging CI, Python 3.10/3.13 | PASS — all four jobs at code commit `701b654`; exact pass/skip counts below | [Recorded CI evidence](evidence/ci-0.3.0.json), [GitHub run](https://github.com/Manouselis/codex-auto-resume/actions/runs/39905443617) |
 | Open turn owned by another runtime can be armed | PASS — monitors without loading the thread or sending inference; controlled later failure/reset submits once on a resumable daemon-owned fixture | 12 live-adapter regressions and one native control-panel regression |
 | Read-only reproduction against an active desktop conversation | PASS — external open turn arms and remains monitored, with zero thread mutations | [Sanitized arming probe](evidence/external-arm.json) |
@@ -28,7 +28,7 @@ Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 23 October
 
 The normal automated suite makes zero live model requests. The separately invoked live check made two genuine included-usage turns, in a dedicated harmless conversation, through the same production `_dispatch` method with an explicit manual-test trigger. It did not inject a fake quota or pretend that the real service had exhausted/reset. This confirms daemon-owned execution and context preservation. It did not test taking over the desktop writer, native scheduled recovery or a natural quota reset.
 
-The final full run includes ten GUI tests; headless runs intentionally skip them. The 2500-case randomized quota check is counted as one test. Earlier 0.1.0 results remain in Git history and do not describe this release's execution capability.
+The final full run includes thirteen GUI tests; headless runs intentionally skip them. The 2500-case randomized quota check is counted as one test. Earlier 0.1.0 results remain in Git history and do not describe this release's execution capability.
 
 ## Recorded 0.3.0 hosted CI results
 
@@ -62,7 +62,13 @@ The 0.3.0 suite adds context-marker recognition, rejection of explanations/quote
 
 ## Native guard regressions
 
-Eighteen tests cover external-scheduler exclusion, native heartbeat and thread identity, fresh allowance on repeated claims, idempotent reservation, checkpoint turnover, terminal-history reconciliation after companion restart, ordinary completion, cancellation, OFF, paid balances, weekly reserve, goal budgets, unknown external submissions, the native cap and intervening manual turns. They use controlled metadata. Separately, the [23 October live check](evidence/native-scheduled-recovery.json) observed the actual scheduled heartbeat, its successful guard command, a matching reservation and subsequent research commands in the original desktop chat. The turn was still running when recorded. A second checkpoint recovery and a natural quota reset have not yet been verified.
+Twenty-six tests cover external-scheduler exclusion, native heartbeat and thread identity, fresh allowance on repeated claims, idempotent reservation, checkpoint turnover, terminal-history reconciliation after companion restart, ordinary completion, cancellation, OFF, paid balances, weekly reserve, goal budgets, unknown external submissions, the native cap and intervening manual turns. They use controlled metadata. Separately, the [23 October live check](evidence/native-scheduled-recovery.json) observed the actual scheduled heartbeat, its successful guard command, a matching reservation and subsequent research commands in the original desktop chat. The turn was still running when recorded. A second checkpoint recovery and a natural quota reset have not yet been verified.
+
+## Rearming regressions in 0.3.1
+
+Eight new controller tests cover a confirmed terminal native reservation, acknowledged-but-uncertain terminal history, refusal of unresolved or unknown delivery, idempotent Arm while running, rearming a disabled but running native turn, transactional rollback when arming changes, and a later checkpoint after explicit manual rearming. Three real Tk regressions cover clicking the saved row, choosing it in the picker, and arming from a selected row with an empty entry. These make zero model requests. The separate [real UI check](evidence/rearming-0.3.1.json) also exercised both paths against the already armed research chat with server mutations forbidden, confirming the task and attempt count stayed unchanged.
+
+The engine preserves a saved native binding and per-task settings when options are omitted. It reads bounded paginated metadata to confirm the exact acknowledged turn ended; an `interrupted` marker without `completedAt` is insufficient. Reconciliation and rearming commit atomically, and a concurrent change rolls them back.
 
 ## Required scenario coverage
 

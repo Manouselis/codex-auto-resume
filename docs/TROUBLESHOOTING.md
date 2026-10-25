@@ -74,3 +74,9 @@ Keep the computer awake, connected and logged in for an overnight wait. The comp
 The desktop can retain its exclusive writer while the chat is idle. The external controller cannot restore this chat, and queue APIs cannot bypass the restore requirement. This is a definite pre-dispatch refusal, recorded as `not_sent`; it is not a successful continuation. Do not restart Codex or send duplicate requests to work around it. The experimental [native heartbeat setup](RECOVERY.md#native-desktop-recovery-experimental) uses the existing writer. Its first real native wake-up resumed saved research on Ubuntu; repeated checkpoint and natural quota-reset cycles remain unverified.
 
 A native-bound task is skipped by the external scheduler. Check `status` for `native_heartbeat` and attempts, and inspect the native heartbeat’s own active/paused state in Codex. OFF prevents substantive work but does not itself pause the native scheduler; pause the heartbeat to stop model wake-ups.
+
+## Arming says execution is outstanding or uncertain
+
+Update to 0.3.1 and rearm the original conversation. The controller checks the exact acknowledged turn using read-only history. If that turn has a confirmed end time and terminal status, it finishes the stale reservation and arms the current eligible turn atomically. It does not resend the old request. An unknown delivery without an acknowledged turn, unavailable history, or an open marker still blocks rearming for inspection.
+
+Clicking a saved row now fills its ID and context-recovery setting; choosing it in the picker does the same. Rearming preserves the saved native heartbeat binding. Clicking Arm again while a known native turn is running preserves that run and its attempt count. Native scheduling remains a separate Codex automation: if it was cancelled or deleted, restore it through Codex's native automation management tool before expecting wake-ups.

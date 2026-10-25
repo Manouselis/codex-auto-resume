@@ -110,6 +110,27 @@ class LiveAdapter:
         values = {k: thread.get(k) for k in ("id", "model", "modelProvider", "cwd", "reasoningEffort")}
         return hashlib.sha256(json.dumps(values, sort_keys=True).encode()).hexdigest()
 
+    def confirmed_terminal_turn(self, thread_id, turn_id):
+        """Prove an acknowledged turn ended; an external open marker is not proof."""
+        cursor = None
+        for _ in range(20):
+            params = {"threadId": thread_id, "sortDirection": "desc", "limit": 100, "itemsView": "notLoaded"}
+            if cursor:
+                params["cursor"] = cursor
+            page = self.rpc.call("thread/turns/list", params)
+            turns = page.get("data")
+            if not isinstance(turns, list):
+                raise UnsafeError("Cannot verify the reserved turn history")
+            for turn in turns:
+                if turn.get("id") == turn_id:
+                    ended = turn.get("completedAt")
+                    return (turn.get("status") in ("completed", "failed", "interrupted")
+                            and type(ended) in (int, float) and 0 < ended <= self.clock())
+            cursor = page.get("nextCursor")
+            if not cursor:
+                break
+        return False
+
     def goal_allows_continuation(self, thread_id):
         response = self.rpc.call("thread/goal/get", {"threadId": thread_id})
         if not isinstance(response, dict) or "goal" not in response:

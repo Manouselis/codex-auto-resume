@@ -97,10 +97,11 @@ def main(argv=None):
     arm = sub.add_parser("arm", help="Explicitly register an eligible conversation")
     arm.add_argument("thread_id")
     arm.add_argument("--recover-context", action="store_true",
+                     default=None,
                      help="Also recover confirmed context-budget checkpoints for this conversation")
     arm.add_argument("--native-heartbeat", help="Bind this arming to an existing native Codex heartbeat ID")
-    arm.add_argument("--native-max-attempts", type=int, default=10,
-                     help="Maximum admitted native work turns, from 1 to 10 (default: 10)")
+    arm.add_argument("--native-max-attempts", type=int,
+                     help="Maximum native work turns, from 1 to 10 (new task: 10; otherwise preserved)")
     claim = sub.add_parser("native-claim", help="Check and durably admit work inside a native heartbeat turn")
     claim.add_argument("thread_id")
     claim.add_argument("--automation-id", required=True)

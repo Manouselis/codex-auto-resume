@@ -96,13 +96,42 @@ class Store:
                         self.update(t["thread_id"], State.DISABLED, "Auto-Resume disabled", now, eligible=False)
 
     def register(self, obs: Observation, now: float, *, recover_context=False,
-                 native_heartbeat=None, native_max_attempts=10):
+                 native_heartbeat=None, native_max_attempts=10, finished_submissions=(), expected_generation=None):
         with self.transaction():
             if not self.enabled:
                 raise ValueError("Enable Auto-Resume before arming a task")
+            if expected_generation is not None and self.generation != expected_generation:
+                raise ValueError("Arming changed during inspection; select the conversation and try again")
             old = self.get(obs.thread_id)
+            old_context = json.loads(old["context"]) if old else {}
+            for submission_id, turn_id in finished_submissions:
+                if not old or (submission_id, turn_id) != (old["continuation_id"], old["ack_turn"]):
+                    raise ValueError("Reserved turn changed during inspection")
+                changed = self.db.execute("UPDATE submissions SET status='finished' WHERE id=? AND thread_id=? AND turn_id=? AND status IN ('running','uncertain')",
+                    (submission_id, obs.thread_id, turn_id)).rowcount
+                if changed:
+                    self.log(obs.thread_id, State(old["state"]), "Acknowledged reserved turn confirmed ended; reservation finished without a retry", now)
+            same_settings = (old and old_context.get("recover_context", False) == recover_context
+                and old_context.get("native_heartbeat") == native_heartbeat
+                and old_context.get("native_max_attempts", 10) == native_max_attempts
+                and tuple(old_context.get("bucket_ids", ())) == obs.bucket_ids
+                and all(old_context.get(k) == getattr(obs, k) for k in ("thread_id", "account_id", "model", "cwd", "config_hash")))
+            same_turn = old and obs.turn_id == (old["ack_turn"] or old_context["turn_id"])
+            outstanding = self.db.execute("SELECT * FROM submissions WHERE thread_id=? AND status IN ('reserved','running','uncertain')",
+                (obs.thread_id,)).fetchone()
+            known_running = (outstanding and old and outstanding["status"] == "running"
+                and outstanding["id"] == old["continuation_id"] and outstanding["turn_id"] == old["ack_turn"])
+            if same_settings and same_turn and old["eligible"] and not finished_submissions and (not outstanding or known_running):
+                return old  # Repeated Arm does not reset attempts or dispatch again.
+            if same_settings and same_turn and native_heartbeat and obs.turn_status in ("inProgress", "unresolved"):
+                running = self.db.execute("SELECT 1 FROM submissions WHERE id=? AND thread_id=? AND turn_id=? AND status='running'",
+                    (old["continuation_id"], obs.thread_id, obs.turn_id)).fetchone()
+                if running and old["continuation_id"] == "native-" + obs.turn_id:
+                    self.db.execute("UPDATE meta SET value=CAST(value AS INTEGER)+1 WHERE key='generation'")
+                    self.update(obs.thread_id, State.ARMED, "Existing native turn is still running; recovery rearmed", now, eligible=True, next_check=None)
+                    self.update(obs.thread_id, State.RUNNING, "Existing native turn is still running; recovery rearmed", now)
+                    return self.get(obs.thread_id)
             if old and old["state"] == State.COMPLETED:
-                old_context = json.loads(old["context"])
                 same_turn = obs.turn_id == (old["ack_turn"] or old_context["turn_id"])
                 if same_turn and not (recover_context and obs.stop_reason == "context_budget"):
                     raise ValueError("This Codex turn ended; only a new turn or an explicitly enabled context checkpoint can be armed")
@@ -124,6 +153,7 @@ class Store:
                 continuation_id=NULL,ack_turn=NULL,reason=excluded.reason""",
                 (obs.thread_id, json.dumps(context), State.ARMED.value, reason))
             self.log(obs.thread_id, State.ARMED, reason, now)
+            return self.get(obs.thread_id)
 
     def get(self, thread_id):
         with self.lock:

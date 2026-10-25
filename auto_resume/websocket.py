@@ -143,7 +143,7 @@ class DaemonRpc:
         self.responses = queue.Queue()
         threading.Thread(target=self._read, args=(connection, self.responses), daemon=True).start()
         self._call("initialize", {"clientInfo": {"name": "codex_auto_resume", "title": "Codex Auto-Resume",
-                                                "version": "0.3.0"},
+                                                "version": "0.3.1"},
                                   "capabilities": {"experimentalApi": True}})
         self._write({"method": "initialized"})
 

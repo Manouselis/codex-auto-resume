@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-25",
+  "version": "0.3.1",
+  "status": "PASS",
+  "check": "Real chooser-and-arm and saved-row-and-arm against the existing research chat",
+  "chooser_path_passed": true,
+  "saved_row_path_passed": true,
+  "native_binding_preserved": true,
+  "task_armed": true,
+  "attempt_counter_unchanged": true,
+  "background_controller_owns_state": true,
+  "server_mutation_methods_permitted": false,
+  "model_requests_sent": 0,
+  "research_turn_interrupted": false
+}
