@@ -29,7 +29,8 @@ class Engine:
         self.last_reservation_audit = 0
         self.native_schedule_check = native_schedule_check
 
-    def register(self, thread_id: str, *, recover_context=None, native_heartbeat=None, native_max_attempts=None):
+    def register(self, thread_id: str, *, recover_context=None, native_heartbeat=None, native_max_attempts=None,
+                 start_idle=False, desktop_queue=None):
         # No context or private messages are copied from the original conversation.
         if not isinstance(thread_id, str) or not 1 <= len(thread_id) <= 128 or any(
                 not (c.isalnum() or c in "-_") for c in thread_id):
@@ -37,6 +38,10 @@ class Engine:
         generation = self.store.generation
         previous = self.store.get(thread_id)
         saved = json.loads(previous["context"]) if previous else {}
+        if desktop_queue is None:
+            desktop_queue = saved.get("desktop_queue", False)
+        if type(start_idle) is not bool or type(desktop_queue) is not bool:
+            raise ValueError("Invalid conversation selection settings")
         if recover_context is None:
             recover_context = saved.get("recover_context", False)
         if native_heartbeat is None:
@@ -62,6 +67,8 @@ class Engine:
         if reason:
             raise UnsafeError(reason)
         context_stop = recover_context and obs.stop_reason == "context_budget" and obs.turn_status in ("completed", "failed")
+        user_start = start_idle and (obs.turn_status == "completed" or (
+            obs.turn_status == "failed" and obs.error_code == "usageLimitExceeded"))
         native_checkpoint = None
         # Explicit Arm can renew a stopped native recovery after a diagnostic
         # reply. Re-verify its exact acknowledged checkpoint; the latest turn
@@ -73,7 +80,7 @@ class Engine:
             verify = getattr(self.adapter, "confirmed_context_checkpoint", None)
             if verify and verify(thread_id, previous["ack_turn"]):
                 native_checkpoint = previous["ack_turn"]
-        if not context_stop and not native_checkpoint and not obs.external_unresolved and (obs.turn_status not in ("inProgress", "failed") or (
+        if not user_start and not context_stop and not native_checkpoint and not obs.external_unresolved and (obs.turn_status not in ("inProgress", "failed") or (
                 obs.turn_status == "failed" and obs.error_code != "usageLimitExceeded")):
             raise UnsafeError("Only running tasks or structured usage-limit failures can be armed")
         finished = []
@@ -90,7 +97,16 @@ class Engine:
         return self.store.register(obs, self.clock(), recover_context=recover_context,
                             native_heartbeat=native_heartbeat, native_max_attempts=native_max_attempts,
                             finished_submissions=finished, expected_generation=generation,
-                            native_schedule_status=native_status, native_checkpoint=native_checkpoint)
+                            native_schedule_status=native_status, native_checkpoint=native_checkpoint,
+                            user_start=user_start, desktop_queue=desktop_queue)
+
+    def start_selected(self, thread_id):
+        """Process one explicit UI selection; SQLite still protects all writers."""
+        with self.lock:
+            task = self.store.get(thread_id)
+            if self.store.enabled and task and task["eligible"]:
+                self._tick_task(task)
+            return self.store.get(thread_id)
 
     def disarm(self, thread_id, reason="Task disarmed by user"):
         with self.store.transaction():
@@ -189,8 +205,10 @@ class Engine:
     def _tick_task(self, task):
         # The desktop owns native scheduled turns. This controller only audits
         # quota for them; it must never start a competing App Server writer.
-        native_id = json.loads(task["context"]).get("native_heartbeat")
-        if native_id:
+        selected_context = json.loads(task["context"])
+        native_id = selected_context.get("native_heartbeat")
+        selected_start = selected_context.get("user_start_pending") and not task["ack_turn"]
+        if native_id and not selected_start:
             if getattr(self.adapter, "live_execution", False):
                 status, reason = self.native_schedule_check(native_id, task["thread_id"])
                 if status not in ("ACTIVE", "PAUSED"):
@@ -229,6 +247,24 @@ class Engine:
                     self._pause(tid, "Unable to confirm the usage-limit failure; inspect the conversation")
                 else:
                     self._change(tid, state, "Armed — waiting for a confirmed turn result", next_check=now + 30)
+                return
+            if selected_start:
+                if obs.revision != context["revision"]:
+                    self._pause(tid, "The chat changed after selection; no continue was sent")
+                    return
+                goal = getattr(self.adapter, "goal_allows_continuation", None)
+                if goal and not goal(tid):
+                    self._pause(tid, "The chat's goal is paused, complete or out of budget")
+                    return
+                decision = evaluate(self.adapter.usage(), context["account_id"], tuple(context["bucket_ids"]), self.clock(), reserve=self.reserve)
+                if decision.kind in ("weekly", "pause"):
+                    self._pause(tid, decision.reason, State.WEEKLY_LIMIT_REACHED if decision.kind == "weekly" else State.PAUSED_FOR_USER)
+                    return
+                self._change(tid, State.VERIFYING_ALLOWANCE, "Checking included usage for the selected chat")
+                if decision.kind == "wait":
+                    self._change(tid, State.WAITING_FOR_RESET, "Selected chat will receive continue after included usage resets", next_check=decision.reset_at + self.delay)
+                else:
+                    self._submit(task, obs, generation, trigger="user_continue")
                 return
             if context.get("recover_context") is True and obs.stop_reason == "context_budget":
                 self._recover_context(task, obs, context, generation)
@@ -282,7 +318,7 @@ class Engine:
                     if not current["eligible"] or not self.store.enabled or self.store.generation != generation:
                         return
                     self.store.db.execute("UPDATE tasks SET context=?,ack_turn=NULL WHERE thread_id=?",
-                                          (json.dumps({**obs.__dict__, "recover_context": context.get("recover_context", False)}), tid))
+                                          (json.dumps({**obs.__dict__, "recover_context": context.get("recover_context", False), "desktop_queue": context.get("desktop_queue", False)}), tid))
                     self.store.update(tid, State.FIVE_HOUR_LIMIT_REACHED, decision.reason, now)
                     self.store.update(tid, State.WAITING_FOR_RESET, decision.reason, now,
                                       next_check=decision.reset_at + self.delay, retries=0)
@@ -340,7 +376,7 @@ class Engine:
                 if not current["eligible"] or not self.store.enabled or self.store.generation != generation:
                     return
                 self.store.db.execute("UPDATE tasks SET context=?,ack_turn=NULL WHERE thread_id=?",
-                                      (json.dumps({**obs.__dict__, "recover_context": True}), tid))
+                                      (json.dumps({**obs.__dict__, "recover_context": True, "desktop_queue": context.get("desktop_queue", False)}), tid))
                 if state != State.WAITING_FOR_RESET:
                     self.store.update(tid, State.FIVE_HOUR_LIMIT_REACHED, decision.reason, now)
                 self.store.update(tid, State.WAITING_FOR_RESET, decision.reason, now,
@@ -384,7 +420,11 @@ class Engine:
         # The durable reservation precedes the only submission. No automatic retries,
         # even if the process crashes before the call, or acknowledgement is lost.
         request = Request(cid, tid, obs.revision, obs.account_id, obs.model, obs.config_hash, obs.bucket_ids)
-        if json.loads(task["context"]).get("recover_context") is True:
+        context = json.loads(task["context"])
+        request = replace(request, desktop_queue=context.get("desktop_queue", False))
+        if trigger == "user_continue":
+            request = replace(request, text="continue")
+        elif context.get("recover_context") is True:
             request = replace(request, text=request.text + CHECKPOINT_INSTRUCTIONS)
         request = replace(request, trigger=trigger)
         try:
@@ -416,9 +456,9 @@ class Engine:
                                       self.clock(), eligible=False, next_check=None)
             return
         with self.store.transaction():
-            self.store.db.execute("UPDATE submissions SET status='running',turn_id=? WHERE id=?", (turn_id, cid))
+            changed = self.store.db.execute("UPDATE submissions SET status='running',turn_id=? WHERE id=? AND status IN ('reserved','running')", (turn_id, cid)).rowcount
             current = self.store.get(tid)
-            if current["eligible"] and self.store.enabled:
+            if changed and current["eligible"] and self.store.enabled:
                 self.store.update(tid, State.RUNNING, "Codex working", self.clock(), ack_turn=turn_id,
                                   retries=0, next_check=self.clock() + 30)
 

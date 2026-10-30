@@ -86,6 +86,24 @@ class NativeController:
                                   if isinstance(entry, dict) and isinstance(entry.get("item"), dict)]}
         return context_checkpoint(turn)
 
+    def _selected_continue(self, task, obs):
+        """An explicit Add selection may start a manual turn in a native-bound chat."""
+        context = json.loads(task["context"])
+        cid = task["continuation_id"]
+        if not context.get("user_start_pending") or not cid or cid.startswith("native-"):
+            return False
+        if task["ack_turn"] and task["ack_turn"] != obs.turn_id:
+            return False
+        row = self.store.db.execute("SELECT status FROM submissions WHERE id=? AND thread_id=?", (cid, obs.thread_id)).fetchone()
+        if not row or row["status"] not in ("reserved", "running"):
+            return False
+        page = self.adapter.rpc.call("thread/items/list", {"threadId": obs.thread_id,
+            "turnId": obs.turn_id, "sortDirection": "asc", "limit": 10})
+        return any((item := entry.get("item") or {}).get("type") == "userMessage"
+                   and item.get("clientId") == cid
+                   and [part.get("text") for part in item.get("content", []) if part.get("type") == "text"] == ["continue"]
+                   for entry in page.get("data", []))
+
     def claim(self, thread_id, automation_id):
         task = self.store.get(thread_id)
         if not self.store.enabled:
@@ -97,15 +115,17 @@ class NativeController:
         context = json.loads(task["context"])
         if not automation_id or context.get("native_heartbeat") != automation_id:
             return {"action": "pause", "reason": "Native heartbeat identity does not match the arming"}
-        status, reason = self.native_schedule_check(automation_id, thread_id)
-        if status == "PAUSED":
-            return {"action": "wait", "reason": reason}
-        if status != "ACTIVE":
-            return self._paused(task, reason)
         arming = {"registered_at": context.get("armed_at"), "monitored_turn": context["turn_id"],
                   "scope": "This explicit arming supersedes earlier schedule cancellations; newer user activity still blocks admission"}
         generation = self.store.generation
         obs = self.adapter.observe(thread_id)
+        selected = self._selected_continue(task, obs)
+        if not selected:
+            status, reason = self.native_schedule_check(automation_id, thread_id)
+            if status == "PAUSED":
+                return {"action": "wait", "reason": reason}
+            if status != "ACTIVE":
+                return self._paused(task, reason)
         if (not 0 <= self.clock() - obs.observed_at <= 30 or not obs.history_available
                 or not obs.project_exists or obs.cancelled or obs.approval_pending or obs.user_work_active):
             return self._paused(task, "Native conversation is unavailable, cancelled or waiting for user action")
@@ -115,6 +135,20 @@ class NativeController:
             return self._paused(task, "Native goal is paused, terminal or its configured budget is unavailable/exhausted")
         if obs.turn_status not in ("inProgress", "unresolved"):
             return {"action": "wait", "reason": "The guard must run inside a new native heartbeat turn"}
+        if selected:
+            decision = evaluate(self.adapter.usage(), context["account_id"], tuple(context["bucket_ids"]), self.clock())
+            if decision.kind == "wait":
+                return {"action": "wait", "reason": decision.reason}
+            if decision.kind != "ready":
+                return self._paused(task, decision.reason, State.WEEKLY_LIMIT_REACHED if decision.kind == "weekly" else State.PAUSED_FOR_USER)
+            self.adapter._financial_config(obs.cwd)
+            with self.store.transaction():
+                current = self.store.get(thread_id)
+                if not self.store.enabled or not current["eligible"] or self.store.generation != generation:
+                    return {"action": "pause", "reason": "Arming changed during selected-continue preflight"}
+                self.store.db.execute("UPDATE submissions SET status='running',turn_id=? WHERE id=? AND status IN ('reserved','running')", (obs.turn_id, current["continuation_id"]))
+                self.store.update(thread_id, State.RUNNING, "Explicit selected-chat continue admitted", self.clock(), ack_turn=obs.turn_id)
+            return {"action": "continue", "reason": "The user selected this idle chat; its exact continue message and fresh guards passed", "arming": arming}
         native_id = "native-" + obs.turn_id
         previous = self.store.db.execute("SELECT status FROM submissions WHERE id=?", (native_id,)).fetchone()
         if previous and previous["status"] != "running":
@@ -169,7 +203,7 @@ class NativeController:
         if not task or json.loads(task["context"]).get("native_heartbeat") != automation_id:
             raise UnsafeError("Native heartbeat identity does not match")
         obs = self.adapter.observe(thread_id)
-        if obs.turn_id != task["ack_turn"] or task["continuation_id"] != "native-" + obs.turn_id:
+        if obs.turn_id != task["ack_turn"] or (task["continuation_id"] != "native-" + obs.turn_id and not self._selected_continue(task, obs)):
             raise UnsafeError("The native work reservation does not match this turn")
         with self.store.transaction():
             self.store.db.execute("UPDATE submissions SET status='finished' WHERE id=? AND status='running'", (task["continuation_id"],))

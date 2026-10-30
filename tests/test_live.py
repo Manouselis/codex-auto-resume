@@ -36,6 +36,7 @@ class Backend:
         self.queue_add_lost_ack = False
         self.queue_start_error = False
         self.after_queue_add = None
+        self.queue_auto_start = False
 
     def call(self, method, params=None):
         params = params or {}
@@ -78,6 +79,13 @@ class Backend:
                 self.after_queue_add()
             if self.queue_add_lost_ack:
                 raise TransientError("Queue acknowledgement lost")
+            if self.queue_auto_start:
+                self.history.insert(0, copy.deepcopy(self.latest))
+                self.latest = {"id": "native-queued-" + str(sum(m == 'thread/queue/add' for m, _ in self.calls)),
+                    "status": "inProgress", "error": None, "completedAt": None,
+                    "items": [{"type": "userMessage", "clientId": params["clientUserMessageId"], "content": params["input"]}]}
+                self.thread["status"] = {"type": "active", "activeFlags": []}
+                self.queued.remove(entry)
             return {"queuedSubmission": copy.deepcopy(entry)}
         if method == "thread/queue/start":
             if self.queue_start_error:

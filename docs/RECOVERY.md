@@ -1,5 +1,11 @@
 # Usage limits and context-budget recovery
 
+## Selecting an idle chat
+
+In 0.7.0, **Add conversation** opens the selected original chat in the Codex desktop app. If its last turn is completed, selection explicitly requests one literal `continue`; it does not create a new conversation or override an approval or exhausted goal budget. A running or unresolved external turn is monitored without injecting another message. With no included usage, the explicit start waits for a fresh permitted reset. Normal completion after the selected start still stops recovery.
+
+The native queue was verified with Codex runtime 0.166. Requests use durable client message identities, and actual turn history must confirm the corresponding user message. Queue acceptance alone is insufficient. Older results showing a queue/desktop writer restriction are historical; this new selection path avoids `thread/resume` entirely. Existing heartbeat bindings continue to use their original guard and schedule for subsequent scheduled work.
+
 [Documentation index](README.md) · [Installation and operation](INSTALL.md)
 
 ## Two different stopping conditions

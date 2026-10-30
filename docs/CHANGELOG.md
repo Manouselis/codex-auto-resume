@@ -2,6 +2,15 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
+## 0.7.0 — 30 October 2026
+
+- Selecting a conversation opens its original Codex desktop chat through the registered URL handler, starting the app when needed.
+- Selecting an idle completed chat requests exactly one `continue`. Active chats are monitored without an extra message. Fresh included usage, approvals, identity and existing goal budgets remain guards.
+- New UI selections use the native message queue, verified against runtime 0.166, without restoring or taking over the desktop writer. A client message ID must match an actual started turn before the companion reports running.
+- The background controller owns idle startup. Pending sends are durably reserved and never blindly retried. Normal completion after an explicit start removes the chat from the armed queue.
+- Existing native heartbeat bindings remain supported, including exact-identity admission of an explicitly selected continue.
+- All 233 local tests pass, including 19 GUI checks.
+
 ## 0.6.0 — 30 October 2026
 
 - Replaced the loop/play logo with a simpler conversation icon.

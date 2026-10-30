@@ -1,4 +1,6 @@
-# Testing and real verification — 0.6.0
+# Testing and real verification — 0.7.0
+
+The 0.7.0 suite adds 15 selection/dispatch regressions, three desktop-launch tests and two native-guard tests. They cover literal `continue`, no extra message for active work, repeated selections, normal completion, exhausted usage, weekly and goal stops, approvals, uncertain delivery, existing user queues, changed chat state, preserved queue transport after a later quota reset, and exact native message identity. A user-authorized harmless chat also resumed through the real native queue and replied `CONTINUED`. No working user chat was closed for testing.
 
 The 0.6.0 UI regressions exercise a real picker-selection event that arms without a second button, saved native settings, queue removal without state deletion, a repeating 60-second timer, and a selection queued during an in-flight allowance check. GUI layout checks cover the visible Add/Disarm controls, the empty queue and both themes. These UI tests use controlled backend data and send no real model requests.
 
@@ -10,7 +12,7 @@ Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 30 October
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Full automated suite, including native GUI | PASS — 213 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
+| Full automated suite, including native GUI | PASS — 233 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
 | Hosted Ubuntu/Windows core and packaging CI, Python 3.10/3.13 | PASS — all four jobs at code commit `701b654`; exact pass/skip counts below | [Recorded CI evidence](evidence/ci-0.3.0.json), [GitHub run](https://github.com/Manouselis/codex-auto-resume/actions/runs/39905443617) |
 | Open turn owned by another runtime can be armed | PASS — monitors without loading the thread or sending inference; controlled later failure/reset submits once on a resumable daemon-owned fixture | 12 live-adapter regressions and one native control-panel regression |
 | Read-only reproduction against an active desktop conversation | PASS — external open turn arms and remains monitored, with zero thread mutations | [Sanitized arming probe](evidence/external-arm.json) |
@@ -67,7 +69,7 @@ The 0.3.0 suite adds context-marker recognition, rejection of explanations/quote
 
 ## Native guard regressions
 
-Thirty-nine tests cover external-scheduler exclusion, native heartbeat and thread identity, fresh allowance on repeated claims, idempotent reservation, checkpoint turnover, terminal-history reconciliation after companion restart, ordinary completion, cancellation, OFF, paid balances, weekly reserve, goal budgets, unknown external submissions, the native cap and intervening manual turns. They use controlled metadata. Separately, the [23 October live check](evidence/native-scheduled-recovery.json) observed the actual scheduled heartbeat, its successful guard command, a matching reservation and subsequent research commands in the original desktop chat. The turn was still running when recorded. The [25 October post-reset restart](evidence/limit-reset-recovery-0.4.0.json) separately passed after a genuine persisted usage-limit failure. Repeated checkpoint recoveries and uninterrupted unattended reset cycles remain unverified.
+Forty-one tests cover external-scheduler exclusion, native heartbeat and thread identity, fresh allowance on repeated claims, idempotent reservation, checkpoint turnover, terminal-history reconciliation after companion restart, ordinary completion, cancellation, OFF, paid balances, weekly reserve, goal budgets, unknown external submissions, the native cap and intervening manual turns. They use controlled metadata. Separately, the [23 October live check](evidence/native-scheduled-recovery.json) observed the actual scheduled heartbeat, its successful guard command, a matching reservation and subsequent research commands in the original desktop chat. The turn was still running when recorded. The [25 October post-reset restart](evidence/limit-reset-recovery-0.4.0.json) separately passed after a genuine persisted usage-limit failure. Repeated checkpoint recoveries and uninterrupted unattended reset cycles remain unverified.
 
 ## Rearming regressions in 0.3.1
 

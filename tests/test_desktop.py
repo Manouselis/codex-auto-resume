@@ -5,12 +5,28 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from auto_resume.desktop import ensure_background
+from auto_resume.desktop import ensure_background, open_conversation
 from auto_resume.power import AwakeLease
 from auto_resume.store import Store
 
 
 class DesktopTests(unittest.TestCase):
+    def test_opening_selected_chat_starts_the_desktop_url_handler(self):
+        with patch("auto_resume.desktop.os.name", "posix"), patch("auto_resume.desktop.sys.platform", "linux"), patch("auto_resume.desktop.shutil.which", return_value="/usr/bin/chatgpt"), patch("auto_resume.desktop.subprocess.Popen") as start:
+            open_conversation("selected-chat")
+            self.assertEqual(start.call_args.args[0], ["/usr/bin/chatgpt", "codex://threads/selected-chat"])
+            self.assertTrue(start.call_args.kwargs["start_new_session"])
+
+    def test_desktop_url_handler_fallback_opens_only_the_selected_chat(self):
+        with patch("auto_resume.desktop.os.name", "posix"), patch("auto_resume.desktop.sys.platform", "linux"), patch("auto_resume.desktop.shutil.which", side_effect=lambda name: "/usr/bin/xdg-open" if name == "xdg-open" else None), patch("auto_resume.desktop.subprocess.Popen") as start:
+            open_conversation("selected-chat")
+            self.assertEqual(start.call_args.args[0], ["xdg-open", "codex://threads/selected-chat"])
+
+    def test_invalid_conversation_id_cannot_launch_a_command_or_url(self):
+        with patch("auto_resume.desktop.subprocess.Popen") as start:
+            with self.assertRaises(ValueError):
+                open_conversation("../../other?prompt=unexpected")
+            self.assertFalse(start.called)
     def test_existing_background_service_is_reused(self):
         with patch("auto_resume.desktop.sys.platform", "linux"), patch("auto_resume.desktop.shutil.which", return_value="/usr/bin/systemctl"), patch("auto_resume.desktop.subprocess.run", return_value=SimpleNamespace(returncode=0)) as run:
             self.assertTrue(ensure_background(Path("state.sqlite3")))

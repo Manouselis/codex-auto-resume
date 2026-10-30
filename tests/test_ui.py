@@ -14,6 +14,10 @@ class UiTests(unittest.TestCase):
     def setUp(self):
         import tkinter as tk
         from auto_resume.ui import ControlWindow
+        from unittest.mock import patch
+        launcher = patch("auto_resume.ui.open_conversation")
+        self.open_desktop = launcher.start()
+        self.addCleanup(launcher.stop)
         self.tmp = tempfile.TemporaryDirectory()
         self.store = Store(Path(self.tmp.name) / "ui.sqlite3")
         self.adapter = SimulationAdapter()
@@ -200,6 +204,7 @@ class UiTests(unittest.TestCase):
         from auto_resume.live import LiveAdapter
         from test_live import Backend
         backend = Backend(self.tmp.name)
+        backend.queue_auto_start = True
         backend.latest.update(status="interrupted", completedAt=None, error=None)
         store = Store(Path(self.tmp.name) / "external-panel.sqlite3")
         store.set_enabled(True, time.time())
@@ -227,6 +232,7 @@ class UiTests(unittest.TestCase):
         from auto_resume.live import LiveAdapter
         from test_live import Backend
         backend = Backend(self.tmp.name)
+        backend.queue_auto_start = True
         backend.latest.update(status="completed", completedAt=int(time.time()), error=None,
                               items=[{"type": "agentMessage", "phase": "final_answer",
                                       "text": "Saved next action.\n" + CHECKPOINT_MARKER}])

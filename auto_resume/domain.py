@@ -99,6 +99,7 @@ class Request:
     expected_config_hash: str
     bucket_ids: tuple[str, ...]
     included_only: bool = True
+    desktop_queue: bool = False
     text: str = (
         "Continue the previously interrupted task from its current state. First inspect existing "
         "progress, files, and test results. Do not redo completed work. Resume only the outstanding "

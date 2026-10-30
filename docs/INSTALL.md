@@ -22,8 +22,8 @@ Opening the app turns **Continue automatically when the 5h limit resets** ON, in
 ## Arm and monitor a conversation
 
 1. Open **Codex Auto-Resume** from the Ubuntu Applications menu. The switch is ON; the app starts or connects to its background controller and the official Codex daemon. Enabling alone starts no model work.
-2. Click **Add conversation**, then select the original chat. Selection immediately arms it. You can arm a running turn, or a structured usage-limit failure while the five-hour window still reports exhaustion.
-3. Leave the controller running. It watches for a confirmed five-hour interruption, waits for the official reset time, and checks fresh included allowance before sending one continuation in the original conversation.
+2. Click **Add conversation**, then select the original chat. Selection immediately arms it and opens the original chat in Codex, starting the desktop app if needed. Idle completed chats receive exactly `continue`; a running chat is monitored without an extra message. Usage, approval and goal-budget guards still apply.
+3. Leave the controller running. A selected idle chat starts once included usage is available. Running chats are monitored for a confirmed usage-limit interruption, then receive a guarded continuation after reset. The native desktop queue preserves the original writer and context.
 4. Use **Disarm** to remove a chat from the queue, or switch OFF to remove all armed chats. Switching back ON does not rearm them.
 
 To also recover a recognized context-budget checkpoint, select **Recover context checkpoints**, or use `arm THREAD_ID --recover-context`. This is separate from quota recovery and starts unchecked. Read [Recovery modes](RECOVERY.md) for its scope.

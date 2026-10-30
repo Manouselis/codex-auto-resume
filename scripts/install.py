@@ -104,7 +104,7 @@ Exec={cmd} --simulation ui
                    "\n[Service]\nType=simple\nExecStart=" + unit_quote(sys.executable) + " " + unit_quote(str(app)) +
                    " run\nRestart=on-failure\nRestartSec=5\nUMask=0077\n\n[Install]\nWantedBy=default.target\n")
         atomic_write(unit, service.encode())
-    metadata = {"application": "codex-auto-resume", "version": "0.6.0", "prefix": str(prefix),
+    metadata = {"application": "codex-auto-resume", "version": "0.7.0", "prefix": str(prefix),
                 "files": [p.relative_to(prefix).as_posix() for p in files]}
     atomic_write(marker, (json.dumps(metadata, indent=2) + "\n").encode())
     print("Installed:", launcher)

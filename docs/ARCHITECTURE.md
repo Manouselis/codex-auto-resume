@@ -1,10 +1,12 @@
 # Architecture
 
-The 0.6.0 desktop launcher starts an installed per-user service. `desktop.py` reuses an active controller or starts the service; Tk remains a control panel. `power.py` takes a `systemd-inhibit --what=sleep` lease while recovery is enabled and any chat is eligible. The lease follows controller lifetime and never inhibits idle display handling, locking or shutdown. A private heartbeat records controller liveness.
+For 0.7.0 UI selections, `desktop.open_conversation` invokes the installed `codex://threads/<id>` handler. An explicit selection can persist `user_start_pending` for a completed chat. The background controller sends a single literal `continue` only after fresh usage and goal checks. Running chats have no pending start. `LiveAdapter` uses `thread/queue/add` with the reservation's client ID, then matches that ID in `thread/items/list` to confirm the actual turn. It never calls `thread/queue/start` or takes over a desktop writer. Subsequent confirmed quota recovery keeps the selected queue transport. A lost or delayed acknowledgement remains an uncertain reservation, with no automatic resend.
+
+The 0.7.0 desktop launcher starts an installed per-user service. `desktop.py` reuses an active controller or starts the service; Tk remains a control panel. `power.py` takes a `systemd-inhibit --what=sleep` lease while recovery is enabled and any chat is eligible. The lease follows controller lifetime and never inhibits idle display handling, locking or shutdown. A private heartbeat records controller liveness.
 
 The former global `one_execution` index migrates to `one_execution_per_thread`. Submission checks use the chat ID in both external and native guards. API requests remain serialized on their RPC connection, while admitted model turns run independently. Each dispatch still reads fresh shared quota. A read-only audit releases only acknowledged running reservations whose exact turns have confirmed terminal metadata; unknown delivery stays blocked in its own chat.
 
-Version 0.5.0, regression checks on 30 October 2026. The daemon-owned model verification is from 19 October 2026; the first native scheduled desktop continuation passed on 23 October 2026. The implementation is a standalone native Tk companion with a shared CLI/background controller. It does not inject a control into Codex Settings.
+Version 0.7.0, regression checks on 30 October 2026. The daemon-owned model verification is from 19 October 2026; the first native scheduled desktop continuation passed on 23 October 2026. The implementation is a standalone native Tk companion with a shared CLI/background controller. It does not inject a control into Codex Settings.
 
 ## Real integration
 

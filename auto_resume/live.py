@@ -20,7 +20,7 @@ from .checkpoints import context_checkpoint, final_text
 
 
 LIVE_METHODS = READ_METHODS | {"config/read", "thread/list", "thread/loaded/list", "thread/goal/get", "thread/resume", "turn/start",
-                             "thread/items/list"}
+                             "thread/items/list", "thread/queue/add", "thread/queue/list"}
 
 
 class LiveRpc(DaemonRpc):
@@ -246,6 +246,11 @@ class LiveAdapter:
             elif request.trigger == "context_budget":
                 if obs.stop_reason != "context_budget" or obs.turn_status not in ("completed", "failed"):
                     raise UnsafeError("The context-budget checkpoint is no longer confirmed")
+            elif request.trigger == "user_continue":
+                if obs.turn_status != "completed" and not (obs.turn_status == "failed" and obs.error_code == "usageLimitExceeded"):
+                    raise UnsafeError("The selected chat is no longer idle; no continue was sent")
+                if not self.goal_allows_continuation(request.thread_id):
+                    raise UnsafeError("The selected chat's goal is paused, complete or out of budget")
             else:
                 raise UnsafeError("Unsupported continuation trigger")
         usage = self.usage()
@@ -297,8 +302,52 @@ class LiveAdapter:
                 raise UnsafeError("Continuation acknowledgement is unavailable; do not retry")
             return turn_id
 
+    def queued_turn(self, request):
+        """Match an actual native turn by its caller-selected message identity."""
+        page = self.rpc.call("thread/turns/list", {"threadId": request.thread_id,
+            "sortDirection": "desc", "limit": 10, "itemsView": "notLoaded"})
+        turns = page.get("data")
+        if not isinstance(turns, list):
+            raise UnsafeError("Queued continuation history is unavailable")
+        for turn in turns:
+            page = self.rpc.call("thread/items/list", {"threadId": request.thread_id,
+                "turnId": turn["id"], "sortDirection": "asc", "limit": 10})
+            for entry in page.get("data", []):
+                item = entry.get("item") or {}
+                if item.get("type") == "userMessage" and item.get("clientId") == request.continuation_id:
+                    return turn["id"]
+        return None
+
+    def _dispatch_queue(self, request):
+        """Use Codex's native queue without restoring or taking its writer."""
+        with self.guard:
+            try:
+                self._preflight(request)
+                pending = self.rpc.call("thread/queue/list", {"threadId": request.thread_id, "limit": 1})
+                if pending.get("data") != []:
+                    raise UnsafeError("This chat already has a queued message; inspect it in Codex")
+                self._preflight(request)
+            except Exception as exc:
+                reason = str(exc) if isinstance(exc, UnsafeError) else "Native queue preflight failed; no message was sent"
+                raise NotSentError(reason) from exc
+            self.on_dispatch_stage("Sending continue through the original Codex writer" if request.trigger == "user_continue" else "Queuing the guarded continuation in Codex")
+            result = self.rpc.call("thread/queue/add", {"threadId": request.thread_id,
+                "clientUserMessageId": request.continuation_id,
+                "input": [{"type": "text", "text": request.text}]})
+            acknowledgement = result.get("queuedSubmission") or {}
+            if acknowledgement.get("clientUserMessageId") != request.continuation_id or not acknowledgement.get("id"):
+                raise UnsafeError("Native queue acknowledgement is uncertain; do not retry")
+            self.on_dispatch_stage("Continue queued; waiting for Codex to confirm its turn")
+            deadline = time.monotonic() + 20
+            while time.monotonic() < deadline:
+                turn_id = self.queued_turn(request)
+                if turn_id:
+                    return turn_id
+                time.sleep(.5)
+            raise UnsafeError("Continue was queued but its turn is not confirmed; inspect Codex before retrying")
+
     def submit(self, request):
-        return self._dispatch(request)
+        return self._dispatch_queue(request) if request.desktop_queue else self._dispatch(request)
 
     def recent_threads(self):
         page = self.rpc.call("thread/list", {"limit": 30, "sortKey": "updated_at", "sourceKinds": [],

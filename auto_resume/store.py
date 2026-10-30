@@ -100,7 +100,7 @@ class Store:
 
     def register(self, obs: Observation, now: float, *, recover_context=False,
                  native_heartbeat=None, native_max_attempts=10, finished_submissions=(), expected_generation=None,
-                 native_schedule_status=None, native_checkpoint=None):
+                 native_schedule_status=None, native_checkpoint=None, user_start=False, desktop_queue=False):
         with self.transaction():
             if not self.enabled:
                 raise ValueError("Enable Auto-Resume before arming a task")
@@ -116,6 +116,7 @@ class Store:
                 if changed:
                     self.log(obs.thread_id, State(old["state"]), "Acknowledged reserved turn confirmed ended; reservation finished without a retry", now)
             same_settings = (old and old_context.get("recover_context", False) == recover_context
+                and old_context.get("desktop_queue", False) == desktop_queue
                 and old_context.get("native_heartbeat") == native_heartbeat
                 and old_context.get("native_max_attempts", 10) == native_max_attempts
                 and tuple(old_context.get("bucket_ids", ())) == obs.bucket_ids
@@ -131,7 +132,7 @@ class Store:
                     self.db.execute("UPDATE tasks SET context=? WHERE thread_id=?", (json.dumps(old_context), obs.thread_id))
                     self.db.execute("UPDATE meta SET value=CAST(value AS INTEGER)+1 WHERE key='generation'")
                     old = self.get(obs.thread_id)
-                if native_heartbeat and native_schedule_status == "PAUSED":
+                if native_heartbeat and native_schedule_status == "PAUSED" and not (user_start and not old["ack_turn"]):
                     self.update(obs.thread_id, State.WAITING_FOR_SCHEDULE, "Native recovery schedule is paused; waiting for activation in Codex", now)
                     return self.get(obs.thread_id)
                 if old["state"] == State.WAITING_FOR_SCHEDULE and native_schedule_status == "ACTIVE":
@@ -149,7 +150,7 @@ class Store:
                     return self.get(obs.thread_id)
             if old and old["state"] == State.COMPLETED:
                 same_turn = obs.turn_id == (old["ack_turn"] or old_context["turn_id"])
-                if same_turn and not (recover_context and obs.stop_reason == "context_budget"):
+                if same_turn and not user_start and not (recover_context and obs.stop_reason == "context_budget"):
                     raise ValueError("This Codex turn ended; only a new turn or an explicitly enabled context checkpoint can be armed")
             if self.db.execute("SELECT 1 FROM submissions WHERE thread_id=? AND status IN ('reserved','running','uncertain')",
                                (obs.thread_id,)).fetchone():
@@ -159,14 +160,18 @@ class Store:
             context["native_heartbeat"] = native_heartbeat
             context["native_max_attempts"] = native_max_attempts
             context["armed_at"] = now
+            context["desktop_queue"] = desktop_queue
+            context["user_start_pending"] = user_start
             if native_checkpoint:
                 context["native_checkpoint_turn"] = native_checkpoint
             reason = ("Task armed for usage-limit and context-budget recovery" if recover_context
                       else "Task explicitly armed")
             if native_heartbeat:
                 reason = "Native scheduled recovery armed; waiting for a native wake-up"
+            if user_start:
+                reason = "Conversation armed; continue will start when included usage is available"
             state = State.ARMED
-            if native_heartbeat and native_schedule_status == "PAUSED":
+            if native_heartbeat and native_schedule_status == "PAUSED" and not user_start:
                 state = State.WAITING_FOR_SCHEDULE
                 reason = "Native recovery schedule is paused; waiting for activation in Codex"
             self.db.execute("UPDATE meta SET value=CAST(value AS INTEGER)+1 WHERE key='generation'")

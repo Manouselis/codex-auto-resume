@@ -10,6 +10,7 @@ from datetime import datetime
 
 from .engine import Scheduler
 from .domain import UnsafeError
+from .desktop import open_conversation
 
 
 class ControlWindow:
@@ -279,8 +280,21 @@ class ControlWindow:
         recover_context = self.recover_context.get()
         engine, wake = self.engine, self.scheduler.wake
         def arm():
-            task = engine.register(tid, recover_context=recover_context)
+            if not self.simulation:
+                open_conversation(tid)
+            task = engine.register(tid, recover_context=recover_context, start_idle=True,
+                                   desktop_queue=not self.simulation)
+            if not self.simulation and self.owns_controller:
+                task = engine.start_selected(tid)
             wake.set()
+            if not task["eligible"]:
+                if task["state"] == "COMPLETED":
+                    return "The selected chat has finished its turn"
+                raise UnsafeError(task["reason"])
+            if task["state"] == "RUNNING":
+                return "Conversation armed · continue sent" if json.loads(task["context"]).get("user_start_pending") else "Conversation armed · already working"
+            if json.loads(task["context"]).get("user_start_pending") and not task["ack_turn"]:
+                return "Conversation armed · continue will start when included usage is available"
             if json.loads(task["context"]).get("native_heartbeat"):
                 if task["state"] == "WAITING_FOR_SCHEDULE":
                     return "Native schedule is paused; activate it in Codex to enable recovery"
@@ -327,7 +341,7 @@ class ControlWindow:
         window.title("Add a conversation")
         window.geometry("660x360")
         ttk.Label(window, text="Select a conversation to arm it", style="Section.TLabel").pack(anchor="w", padx=16, pady=(16, 4))
-        ttk.Label(window, text="Choose a running chat or one stopped by a usage limit. Selection arms it immediately.", style="Muted.TLabel").pack(anchor="w", padx=16)
+        ttk.Label(window, text="Codex opens when you choose. Idle chats receive continue; running chats keep working.", style="Muted.TLabel").pack(anchor="w", padx=16)
         listing = tk.Listbox(window, font=("sans-serif", 11), exportselection=False)
         listing.pack(fill="both", expand=True, padx=16, pady=16)
         for item in conversations:
@@ -412,10 +426,16 @@ class ControlWindow:
         alive = time.time() - float(self.engine.store.value("controller_heartbeat")) < 20
         controller = "Window controller" if self.owns_controller else ("Background controller active" if alive else "Background controller starting")
         self.power_status.set(controller + " · " + (power if power != "Not requested" else "No armed work needs sleep protection."))
-        active = [task for task in self.engine.store.tasks() if task["eligible"]]
+        saved_tasks = self.engine.store.tasks()
+        saved_by_id = {task["thread_id"]: task for task in saved_tasks}
+        active = [task for task in saved_tasks if task["eligible"]]
         visible = {task["thread_id"] for task in active}
         for tid in self.tasks.get_children():
             if tid not in visible:
+                if tid in saved_by_id:
+                    task = saved_by_id[tid]
+                    name = self.names.get(tid) or json.loads(task["context"]).get("name") or "Conversation"
+                    self.notice.set(name + ": " + task["reason"])
                 self.tasks.delete(tid)
         self.queue_title.set(f"Armed conversations · {len(active)}")
         if active:

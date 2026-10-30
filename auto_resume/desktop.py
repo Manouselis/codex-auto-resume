@@ -3,7 +3,35 @@ import os
 import shutil
 import subprocess
 import sys
+import re
 from pathlib import Path
+
+from .domain import UnsafeError
+
+
+def open_conversation(thread_id):
+    """Open the selected chat via the desktop's documented URL handler."""
+    if not isinstance(thread_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", thread_id):
+        raise ValueError("Invalid conversation ID")
+    url = "codex://threads/" + thread_id
+    try:
+        if os.name == "nt":
+            os.startfile(url)
+            return
+        if sys.platform == "darwin":
+            command = ["open", url]
+        else:
+            launcher = shutil.which("chatgpt")
+            if launcher:
+                command = [launcher, url]
+            elif shutil.which("xdg-open"):
+                command = ["xdg-open", url]
+            else:
+                raise OSError("No desktop URL handler")
+        subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, start_new_session=True)
+    except OSError as exc:
+        raise UnsafeError("Could not open Codex. Install the desktop app and its codex:// URL handler.") from exc
 
 
 def ensure_background(state_path):

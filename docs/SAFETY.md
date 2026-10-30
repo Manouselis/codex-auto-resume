@@ -21,7 +21,7 @@ These checks establish the current included-usage path. They cannot reserve futu
 
 ## Task and concurrency checks
 
-Each task is explicitly armed. A new turn, ordinary completion, cancellation, changed original identity/context, missing project/history or pending approval pauses automation. Completed work is never automatically restarted. Global OFF disarms waiting work; ON does not rearm old tasks.
+Each task is explicitly armed. Selecting an idle chat in Add conversation is also a fresh request to send `continue` once. That explicit action may restart a completed turn; ordinary completion never restarts unattended. A selected active chat receives no extra message. A new turn, ordinary completion, cancellation, changed original identity/context, missing project/history or pending approval pauses automation. Completed work is never automatically restarted. Global OFF disarms waiting work; ON does not rearm old tasks.
 
 An open turn owned by another runtime is a separate monitoring case. When a `notLoaded` reader reports `interrupted` or `inProgress` with no error or completion time, the adapter records an unresolved observation. It may be explicitly armed and watched for a confirmed result, but it cannot enter dispatch preflight. A confirmed cancellation still stops the task. If an already confirmed usage-limit failure becomes unresolved while waiting, the task pauses instead of using the older failure to continue.
 
@@ -50,3 +50,7 @@ The companion never approves sensitive actions. A server approval or input reque
 On Ubuntu state files use mode 0600 and newly created state directories 0700. An application ID prevents overwriting unrelated databases. State contains account/thread/project identifiers and safety metadata, but no conversation text or credentials. Logs do not include raw backend error messages. Public live evidence omits the test thread ID.
 
 The socket is restricted to the current user's official daemon. Closing the window/connection does not kill an acknowledged running daemon turn. Uninstall preserves task history and never modifies Codex's files. Windows ACLs and transport behavior remain unverified.
+
+## Explicit idle selection and native queue
+
+A selected idle chat gets a pinned `user_start_pending` intent and durable per-chat reservation before any message is sent. The background controller verifies fresh included usage, identity, pending approvals and the existing goal budget. Queue admission uses a client message ID that must appear in the actual started turn; acceptance alone is not reported as running. No writer is restored or displaced. Missing acknowledgements or an unconfirmed start pause without retrying. A native-bound chat may admit its explicitly selected continue only when that exact reserved message identity and the literal text match; the same goal and financial guards apply. Queue consumption remains governed by Codex account settings and is not an atomic quota reservation.

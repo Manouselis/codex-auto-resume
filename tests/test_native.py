@@ -15,6 +15,24 @@ from test_live import Backend
 
 
 class NativeTests(unittest.TestCase):
+    def test_selected_continue_is_guarded_even_with_the_old_timer_paused(self):
+        self.backend.queue_auto_start = True
+        self.engine.register("live-test", start_idle=True, desktop_queue=True)
+        self.engine.start_selected("live-test")
+        self.schedule_state = "PAUSED"
+        self.assertEqual(self.claim()["action"], "continue")
+        self.assertEqual(self.store.get("live-test")["attempts"], 1)
+        self.assertEqual(self.store.db.execute("SELECT count(*) FROM submissions").fetchone()[0], 1)
+        self.native.finish("live-test", "native-test", "checkpoint")
+        self.assertEqual(self.store.get("live-test")["state"], State.WAITING_FOR_SCHEDULE)
+
+    def test_selected_continue_guard_requires_the_exact_message_identity(self):
+        self.backend.queue_auto_start = True
+        self.engine.register("live-test", start_idle=True, desktop_queue=True)
+        self.engine.start_selected("live-test")
+        self.backend.latest["items"][0]["clientId"] = "different-user-message"
+        self.assertNotEqual(self.claim()["action"], "continue")
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)

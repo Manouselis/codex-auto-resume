@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-30",
+  "version": "0.7.0",
+  "status": "PASS",
+  "real_picker_selection": true,
+  "desktop_url_handler_invoked": true,
+  "desktop_launcher_return_code": 0,
+  "literal_continue_sent_by_background_controller": true,
+  "actual_turn_client_identity_matched": true,
+  "real_model_reply": "CONTINUED",
+  "same_original_chat": true,
+  "durable_submissions_for_selection": 1,
+  "ordinary_completion_disarmed": true,
+  "foreground_model_writes_allowed": false,
+  "full_desktop_cold_start_tested": false,
+  "unrelated_working_chats_closed": 0
+}
