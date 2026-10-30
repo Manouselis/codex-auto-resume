@@ -29,7 +29,11 @@ def nsis(binary, option, path):
 
 def smoke(binary, report):
     start = time.monotonic()
-    run(binary, '--package-smoke', report)
+    try:
+        run(binary, '--package-smoke', report)
+    except subprocess.CalledProcessError as exc:
+        details = report.read_text(encoding='utf-8') if report.exists() else 'No smoke report written'
+        raise RuntimeError(details) from exc
     result = json.loads(report.read_text(encoding='utf-8'))
     assert result['gui'] and result['bundled_icon'] and result['default_enabled'], result
     assert result['button'] == '+ Add conversation', result

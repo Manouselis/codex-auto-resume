@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import platform
+import plistlib
 import shutil
 import subprocess
 import sys
@@ -39,12 +40,34 @@ def build():
                '--add-data', str(ROOT / 'LICENSE') + ':licenses',
                '--add-data', str(ROOT / 'packaging/THIRD_PARTY.md') + ':licenses']
     if sys.platform == 'win32':
-        command += ['--windowed', '--icon', str(work / 'icon.ico')]
+        version_info = work / 'windows-version.txt'
+        file_version = tuple(int(part) for part in VERSION.split('.')) + (0,)
+        version_info.write_text(f"""VSVersionInfo(
+ffi=FixedFileInfo(filevers={file_version},prodvers={file_version},mask=0x3f,flags=0,OS=0x40004,fileType=0x1,subtype=0,date=(0,0)),
+kids=[StringFileInfo([StringTable('040904B0',[
+StringStruct('CompanyName','Manouselis'),StringStruct('FileDescription','Codex Auto-Resume'),
+StringStruct('FileVersion','{VERSION}'),StringStruct('ProductName','Codex Auto-Resume'),
+StringStruct('ProductVersion','{VERSION}'),StringStruct('LegalCopyright','MIT licensed')])]),
+VarFileInfo([VarStruct('Translation',[1033,1200])])])
+""", encoding='utf-8')
+        command += ['--windowed', '--icon', str(work / 'icon.ico'), '--version-file', str(version_info)]
     elif sys.platform == 'darwin':
         command += ['--windowed', '--icon', str(work / 'icon.icns'),
                     '--osx-bundle-identifier', 'io.github.manouselis.codex-auto-resume']
     command += [str(ROOT / 'packaging/desktop_entry.py')]
     run(*command)
+    if sys.platform == 'darwin':
+        app = output / f'{name}.app'
+        info_path = app / 'Contents/Info.plist'
+        with info_path.open('rb') as handle:
+            info = plistlib.load(handle)
+        info.update(CFBundleShortVersionString=VERSION, CFBundleVersion=VERSION,
+                    LSMinimumSystemVersion='14.0' if platform.machine() == 'arm64' else '15.0',
+                    NSHighResolutionCapable=True)
+        with info_path.open('wb') as handle:
+            plistlib.dump(info, handle)
+        run('codesign', '--force', '--deep', '--sign', '-', app)
+        run('codesign', '--verify', '--deep', '--strict', app)
     if args.bundle_only:
         return
     release = ROOT / 'dist/release'

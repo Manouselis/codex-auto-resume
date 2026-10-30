@@ -50,7 +50,11 @@ def main():
         sys.stdin.buffer.read()
         return 0
     if sys.argv[1:2] == ["--package-smoke"] and len(sys.argv) == 3:
-        return package_smoke(sys.argv[2])
+        try:
+            return package_smoke(sys.argv[2])
+        except Exception as exc:
+            Path(sys.argv[2]).write_text(json.dumps({"package_smoke": "FAIL", "error_type": type(exc).__name__}) + "\n", encoding="utf-8")
+            return 1
     from .cli import main as cli_main
     try:
         return cli_main(sys.argv[1:] or ["ui"])

@@ -1,0 +1,28 @@
+{
+  "version": "0.8.0",
+  "platform": "linux",
+  "machine": "x86_64",
+  "gui": true,
+  "bundled_icon": true,
+  "default_enabled": true,
+  "button": "+ Add conversation",
+  "demo": {
+    "mode": "SIMULATION \u2014 no model requests",
+    "waiting": "WAITING_FOR_RESET",
+    "automatic_continuations": 1,
+    "final": "COMPLETED"
+  },
+  "startup_and_smoke_seconds": 0.667,
+  "host": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+  "test_scope": "Real packaged Tk GUI + isolated simulation; no live Codex continuation",
+  "artifact": "codex-auto-resume-0.8.0-linux-x64.deb",
+  "installed_and_removed": false,
+  "checked_at": "2026-10-30",
+  "artifact_scope": "Locally built Ubuntu 22.04/Python 3.10 bundle extracted to temporary directory, not system installed",
+  "real_daemon_read_only_connection": "PASS",
+  "official_raw_byte_proxy_read_only": "PASS on Linux; Windows validation is CI/package-only",
+  "frozen_inhibitor_helper": "PASS: ready then release on stdin EOF",
+  "live_model_requests": 0,
+  "live_windows_macos_codex": "NOT VERIFIED",
+  "physical_screen_lock": "NOT VERIFIED"
+}
