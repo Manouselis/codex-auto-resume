@@ -1,140 +1,65 @@
-# Installation and operation
+# Install Codex Auto-Resume
 
-[Documentation index](README.md) · [Troubleshooting](TROUBLESHOOTING.md)
+Download your installer from the [v0.8.0 release](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.0). Python and Tk are bundled; there is no terminal setup. The official Codex desktop app is a separate prerequisite. Open it and sign in to ChatGPT Plus before adding conversations.
 
-## Requirements
+## Ubuntu
 
-The verified live setup is Ubuntu 22.04 with X11, Python 3.10+, Tk (`python3-tk`), and an installed official Codex CLI or desktop runtime signed in to ChatGPT Plus. The companion prefers the desktop-bundled runtime when available. Application runtime uses the Python standard library and does not require an API key.
+Use the **linux-x64.deb** on Ubuntu 22.04 or later, on an x64 computer.
 
-## Install on Ubuntu
+1. In Files, open the downloaded package with **Software Install** or your graphical package manager. If double-click opens an archive, right-click → **Open With** → **Software Install**.
+2. Click **Install** and approve Ubuntu's normal installation prompt.
+3. Open **Codex Auto-Resume** from Applications. Pin it to your dock if desired.
+
+The application lives in `/opt/codex-auto-resume`. Its installed runtime does not need system Python. A per-user systemd controller is started on demand; closing the panel leaves recovery enabled when the app reports that its background controller is connected. Without a user systemd session, keep the panel open/minimized.
+
+Screen locking with Super+L is allowed. The sleep inhibitor is held only while at least one eligible chat is armed. Power off, forced suspension and lid policies can still stop execution; the status line reports when sleep prevention is unavailable. Login is required; this release does not install an always-on boot service.
+
+## Windows 11
+
+Open **windows-x64-setup.exe**. The wizard installs for your user, creates Start and desktop shortcuts, and offers to launch Auto-Resume. Administrator access and Python are not required. The x64 app also runs through Windows 11 ARM's x64 emulation; it is not a native ARM binary.
+
+The community installer is not Authenticode signed. If SmartScreen appears, verify that the download is from this repository's release, then use **More info → Run anyway** if Windows offers it. Managed devices may require administrator approval.
+
+Keep Auto-Resume open/minimized while recovery is armed. The app requests prevention of idle system sleep without preventing screen locking or display sleep. Closing it disarms recovery. The official Codex byte proxy provides access to its local daemon; unsupported runtimes stop with an actionable error rather than starting a second writer.
+
+Uninstall using **Settings → Apps → Installed apps → Codex Auto-Resume → Uninstall**. Close the app first.
+
+## macOS
+
+Choose **macos-arm64.dmg** for Apple silicon (macOS 14+) or **macos-x64.dmg** for Intel (macOS 15+).
+
+1. Open the disk image.
+2. Drag **Codex Auto-Resume.app** to **Applications**.
+3. Eject the disk image and open the app from Applications.
+
+The app is ad-hoc signed for bundle integrity but is not Developer ID signed or notarized. macOS may initially block a downloaded copy. After attempting to open it, use **System Settings → Privacy & Security → Open Anyway**, if offered. Organizational policies may prohibit this. Do not disable Gatekeeper globally.
+
+Keep Auto-Resume open/minimized; closing it disarms recovery. While armed, `caffeinate -i` requests prevention of idle sleep. Screen locking remains available. Quit before replacing the application during an upgrade. To uninstall, drag it from Applications to Trash.
+
+## First use
+
+Opening the app checks **Continue automatically when the 5h limit resets**. This alone sends no message: select a chat using **Add conversation** to arm it. Selecting an idle chat explicitly requests one `continue`. Running chats are monitored without an extra message. A disabled or normally completed chat disappears from the queue.
+
+The app discovers standard Codex desktop/CLI install locations and the desktop's managed runtime; no API key entry is needed. If it cannot find Codex, install/open the official desktop app, sign in, and reopen Auto-Resume. The native queue requires a compatible runtime (live-tested with 0.166). The app does not download, update, stop or replace an existing Codex runtime.
+
+## Updates and data
+
+Download the new installer, close Auto-Resume, and install it over the previous version. Installer updates are manual; the app makes no background update requests.
+
+Recovery metadata is preserved across upgrades/uninstall. It contains chat/account/project identifiers and guard state, not credentials or message text. Defaults:
+
+- Ubuntu/macOS: `$XDG_STATE_HOME/codex-auto-resume/state.sqlite3`, normally `~/.local/state/codex-auto-resume/state.sqlite3`.
+- Windows: `%LOCALAPPDATA%\codex-auto-resume\state.sqlite3`.
+
+Uninstalling never removes Codex. Reinstalling does not silently re-arm previously disarmed chats. Disable recovery before uninstalling.
+
+## Source/developer installation
+
+The smaller `.pyz` is for users who already have Python 3.10+ and Tk. It is not the graphical installer. From a source checkout:
 
 ```sh
-git clone https://github.com/Manouselis/codex-auto-resume.git
-cd codex-auto-resume
 python3 scripts/install.py
 ~/.local/bin/codex-auto-resume ui
 ```
 
-The installer creates the application, launcher, manifest and Applications-menu entry under `~/.local`. It does not enable a startup service. Use `--prefix /private/path` for a custom installation location; the service recipes below assume the default prefix.
-
-Opening the app turns **Continue automatically when the 5h limit resets** ON, including after a previous OFF choice. OFF still stops recovery immediately while the app is open. Previously disarmed conversations stay disarmed until explicitly armed again. The installer adds a branded application-menu entry and, on Linux, a user-service definition.
-
-## Arm and monitor a conversation
-
-1. Open **Codex Auto-Resume** from the Ubuntu Applications menu. The switch is ON; the app starts or connects to its background controller and the official Codex daemon. Enabling alone starts no model work.
-2. Click **Add conversation**, then select the original chat. Selection immediately arms it and opens the original chat in Codex, starting the desktop app if needed. Idle completed chats receive exactly `continue`; a running chat is monitored without an extra message. Usage, approval and goal-budget guards still apply.
-3. Leave the controller running. A selected idle chat starts once included usage is available. Running chats are monitored for a confirmed usage-limit interruption, then receive a guarded continuation after reset. The native desktop queue preserves the original writer and context.
-4. Use **Disarm** to remove a chat from the queue, or switch OFF to remove all armed chats. Switching back ON does not rearm them.
-
-To also recover a recognized context-budget checkpoint, select **Recover context checkpoints**, or use `arm THREAD_ID --recover-context`. This is separate from quota recovery and starts unchecked. Read [Recovery modes](RECOVERY.md) for its scope.
-
-A task running in another Codex runtime may show **Armed — waiting for a confirmed turn result**. Its history is available, but the companion cannot yet verify a terminal result. It continues monitoring without loading or interrupting the thread. This status alone can never authorize continuation.
-
-Allowance refreshes automatically on opening and every minute; no refresh button is needed. Only armed chats are shown. Disarmed and finished chats leave the queue, while their past events remain in **Activity log**.
-
-The table's **Next check** column shows the next scheduled check in local time, or **Native schedule** for a native-bound chat. For running or unresolved work it is a polling time; during a reset wait it includes the reset verification delay. It is not a guarantee that a new turn will start at that moment.
-
-Closing a service-owned control panel leaves the background controller and armed tasks enabled. Use OFF or `disable` to stop them. Closing a window-owned controller still turns automation OFF and disarms tasks. An already acknowledged daemon turn keeps running. Use `status` from a terminal to inspect overnight operation without opening a control window.
-
-## Overnight operation without a window
-
-If the window is the only controller, close it before switching to a service. Enable and arm the conversation explicitly. Replace `THREAD_ID` with the exact ID printed by `threads`.
-
-```sh
-~/.local/bin/codex-auto-resume enable
-~/.local/bin/codex-auto-resume threads
-~/.local/bin/codex-auto-resume arm THREAD_ID
-```
-
-If `codex-auto-resume.service` is already active, keep it running and skip the start command below. Otherwise, start a session service:
-
-```sh
-systemd-run --user --unit=codex-auto-resume \
-  --description="Codex Auto-Resume continuation controller" \
-  --property=Restart=on-failure \
-  --property=RestartSec=30 \
-  --property=UMask=0077 \
-  ~/.local/bin/codex-auto-resume run
-```
-
-Confirm the task is eligible and the service is running:
-
-```sh
-~/.local/bin/codex-auto-resume status
-systemctl --user status codex-auto-resume.service
-```
-
-Keep Codex open, stay logged in and keep the network connected. On Ubuntu the controller holds a sleep inhibitor only while at least one task is armed. Locking with **Super+L** and display blanking remain allowed. OFF or disarming all work releases the inhibitor within a scheduler tick. The footer reports whether sleep protection is available. This does not wake a suspended machine or guarantee rearming after reboot.
-
-Ordinary completion, confirmed cancellation, a superseding turn, pending approval, exhausted weekly usage, or an unverifiable safety check stops automatic continuation. A recognized context checkpoint is eligible only when that recovery mode was explicitly enabled. The default is at most three continuation attempts per arming. See [Safety](SAFETY.md) for the full conditions.
-
-To stop monitoring:
-
-```sh
-~/.local/bin/codex-auto-resume disable
-systemctl --user stop codex-auto-resume.service
-```
-
-## Optional installed user service
-
-Choose this instead of the transient service when you want an installed service definition. If a transient unit with the same name is active, stop it first; normal stop disarms tasks.
-
-```sh
-mkdir -p ~/.config/systemd/user
-cp packaging/codex-auto-resume.service ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable --now codex-auto-resume.service
-~/.local/bin/codex-auto-resume enable
-~/.local/bin/codex-auto-resume arm THREAD_ID
-~/.local/bin/codex-auto-resume status
-```
-
-The service template uses the default installation path. Its enabled startup definition does not guarantee armed work survives a normal reboot: normal stop/SIGTERM disarms conservatively. A crash can preserve a reset wait, while an uncertain submission pauses rather than retrying. Real reboot and logout recovery have not been verified.
-
-To remove this startup service:
-
-```sh
-systemctl --user disable --now codex-auto-resume.service
-```
-
-## Update an existing installation
-
-Pull the repository and rerun the installer. Then restart the controller to load the new application code. A normal restart disarms tasks, so explicitly enable and rearm the desired conversation afterward.
-
-```sh
-git pull --ff-only
-python3 scripts/install.py
-~/.local/bin/codex-auto-resume --version
-```
-
-For a service, use `systemctl --user restart codex-auto-resume.service`, followed by `enable` and `arm THREAD_ID`. For a window-owned controller, close the old window, reopen `ui`, turn ON and rearm. These instructions concern the companion; they do not require interrupting the original Codex conversation.
-
-## CLI and local data
-
-The installed launcher works from any directory. From the source checkout, `python3 -m auto_resume` exposes the same commands. `run` stays in the foreground; leave the terminal running unless a service owns it. Only one controller can own a state file, while other CLI commands can inspect or control that state.
-
-```sh
-~/.local/bin/codex-auto-resume doctor --connect
-~/.local/bin/codex-auto-resume status
-~/.local/bin/codex-auto-resume disarm THREAD_ID
-```
-
-`doctor --connect` inspects the installed schema and reads account/quota metadata without inference. Global flags go before the subcommand, for example `--state /private/task.sqlite3 status`.
-
-Default real state is `$XDG_STATE_HOME/codex-auto-resume/state.sqlite3`, normally `~/.local/state/codex-auto-resume/state.sqlite3`. Simulation uses a separate database. Never point `--state` at a Codex database. State contains task/account/project identifiers and safety metadata; it contains no conversation text or credentials.
-
-## Windows
-
-Hosted Windows CI passed the headless core, packaging, installation/update/uninstall and simulation checks on Python 3.10 and 3.13. Windows real Codex continuation, GUI integration and ACL behavior remain unverified. Live execution depends on the official local daemon transport; unsupported socket behavior stops safely.
-
-`py -m auto_resume demo` exercises the core without a daemon. Passing that simulation is not evidence of live Windows continuation.
-
-## Uninstall
-
-Stop the companion window or service first, then run from the source checkout:
-
-```sh
-python3 scripts/uninstall.py
-```
-
-Use the same `--prefix` for a custom installation. Remove an optional installed user-service definition separately if you created one. The uninstaller preserves local task history. The official Codex daemon is a separate component and is not stopped or removed by companion disable/uninstall.
+This retains the legacy per-user launcher. Close an old copy before starting a native installer version; both share the same guarded state/controller lock. See [Building](BUILDING.md) for release packaging and [Troubleshooting](TROUBLESHOOTING.md) for connection issues.

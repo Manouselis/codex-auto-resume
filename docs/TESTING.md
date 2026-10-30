@@ -1,3 +1,32 @@
+# Testing — 0.8.0
+
+Local Ubuntu 22.04/X11, Python 3.10.12: **241 tests, 240 passed, one Windows-only API test skipped; all 19 GUI tests passed**. [Current report](evidence/test-results.json). Tests send zero live model requests.
+
+## Native installers and compatibility
+
+The [desktop workflow](../.github/workflows/desktop.yml) builds native installers and runs real bundled Tk windows, not just import/syntax checks. Each smoke report records the exact OS/architecture, GUI/icon/default-enabled checks, private SQLite/recovery simulation and total launch/test duration. Linux/Windows install and uninstall the final artifact; macOS mounts the DMG, copies its app and launches that copy.
+
+| Target | Automated check | Live Codex integration |
+| --- | --- | --- |
+| Ubuntu 22.04 x64 | Native DEB build/install/bundled GUI/uninstall | Previously verified on this local X11 host, runtime 0.166 |
+| Ubuntu 24.04 and 26.04 x64 | Install/run/uninstall the **same 22.04-built DEB** | Not verified |
+| Windows Server 2025 x64 | NSIS build/install/bundled GUI/uninstall; full GUI suite | Not verified |
+| Windows 11 ARM | Same x64 installer under x64 emulation; GUI/core tests and native power API | Not verified; not a native ARM build or an Intel Windows 11 hardware test |
+| macOS 14 ARM / macOS 15 Intel | Native DMG build/mount/copy/bundled GUI; full GUI suite | Not verified |
+
+CI results and uploaded JSON reports are the evidence for each configured row; a configured job is not a passing result. Release publication requires all platform checks to pass. [View actual runs](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml). The release bundles its platform smoke reports alongside installer checksums.
+
+Package smoke mode uses invented data. It verifies bundled runtime/install behavior without a signed-in Codex account. It does not establish live continuation, natural quota reset, private-socket ownership/ACL enforcement on every OS, downloaded-app SmartScreen/Gatekeeper prompts, physical locking, forced sleep or reboot behavior. CI hosts may have development tools installed; smoke tests launch the frozen executable, not system Python, but are not minimal clean consumer machines.
+
+## Real continuation evidence
+
+- [0.7.0 harmless chat](evidence/startup-0.7.0.json): actual picker → native queue → one acknowledged `continue` → `CONTINUED`, followed by normal completion/removal. Existing working chats were not closed.
+- [Genuine daemon-owned continuation](evidence/live-continuation.json): two authenticated included-usage turns preserved context.
+- [Native scheduled recovery](evidence/native-scheduled-recovery.json) and [one post-reset restart](evidence/limit-reset-recovery-0.4.0.json): actual scheduled work resumed. Repeated unattended exhaustion/wait/reset cycles remain unverified.
+- [Sleep/controller evidence](evidence/desktop-0.5.0.json): Ubuntu inhibitor acquired/released; controller persisted after panels closed. A physical locked-session continuation was not observed.
+
+## Historical verification (0.7.0 and earlier)
+
 # Testing and real verification — 0.7.0
 
 The 0.7.0 suite adds 15 selection/dispatch regressions, three desktop-launch tests and two native-guard tests. They cover literal `continue`, no extra message for active work, repeated selections, normal completion, exhausted usage, weekly and goal stops, approvals, uncertain delivery, existing user queues, changed chat state, preserved queue transport after a later quota reset, and exact native message identity. A user-authorized harmless chat also resumed through the real native queue and replied `CONTINUED`. No working user chat was closed for testing.
@@ -12,7 +41,7 @@ Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 30 October
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Full automated suite, including native GUI | PASS — 233 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
+| Full automated suite, including native GUI | PASS — 233 tests, zero failures/errors/skips | [0.7.0 recorded results](evidence/test-results-0.7.0.json) |
 | Hosted Ubuntu/Windows core and packaging CI, Python 3.10/3.13 | PASS — all four jobs at code commit `701b654`; exact pass/skip counts below | [Recorded CI evidence](evidence/ci-0.3.0.json), [GitHub run](https://github.com/Manouselis/codex-auto-resume/actions/runs/39905443617) |
 | Open turn owned by another runtime can be armed | PASS — monitors without loading the thread or sending inference; controlled later failure/reset submits once on a resumable daemon-owned fixture | 12 live-adapter regressions and one native control-panel regression |
 | Read-only reproduction against an active desktop conversation | PASS — external open turn arms and remains monitored, with zero thread mutations | [Sanitized arming probe](evidence/external-arm.json) |
@@ -142,7 +171,7 @@ For an explicitly authorized real check using two tiny included-usage turns:
 python3 scripts/live_check.py --run
 ```
 
-GUI tests require Tk and a graphical session; screenshot capture uses Pillow only during tests. Application runtime remains standard-library only. Hosted GitHub CI runs the headless core and packaging checks on Ubuntu and Windows with Python 3.10 and 3.13. These checks do not validate real Windows Codex transport or GUI integration.
+GUI tests require Tk and a graphical session; screenshot capture uses Pillow only during tests. Application runtime remains standard-library only. The legacy core CI runs Python 3.10/3.13 on Ubuntu, Windows and macOS. Native package/GUI coverage is described above; no automated check here establishes live Windows Codex continuation.
 
 ## Native recovery health and UI redesign in 0.4.0
 

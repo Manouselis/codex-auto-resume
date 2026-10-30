@@ -1,3 +1,13 @@
+# Desktop packaging in 0.8.0
+
+`entry.py` maps an argument-free launch to the normal control window. PyInstaller onedir bundles include Python/Tk and assets. Native installers do not require a terminal or a system Python interpreter. `process.py` restores external program library paths; native package smoke mode uses isolated state and never connects to Codex.
+
+`protocol.find_codex` searches standard desktop/CLI roots and the managed daemon package. Unix connects directly to the private control socket. Windows uses `codex app-server proxy` as a **raw byte stream**, with the same RFC6455 handshake/frame validation. Codex owns Windows socket/rendezvous validation. No TCP listener, token handling or alternate writer is introduced.
+
+Linux's frozen controller starts its sleep-wait helper through `--inhibit-wait`, not `sys.executable -c`. Windows holds a system-required power request on a dedicated owning thread; macOS uses `caffeinate -i`. Neither prevents display sleep or screen locking. Windows/macOS use a window-owned controller in this release; Ubuntu can use the user systemd controller.
+
+## Existing continuation architecture
+
 # Architecture
 
 For 0.7.0 UI selections, `desktop.open_conversation` invokes the installed `codex://threads/<id>` handler. An explicit selection can persist `user_start_pending` for a completed chat. The background controller sends a single literal `continue` only after fresh usage and goal checks. Running chats have no pending start. `LiveAdapter` uses `thread/queue/add` with the reservation's client ID, then matches that ID in `thread/items/list` to confirm the actual turn. It never calls `thread/queue/start` or takes over a desktop writer. Subsequent confirmed quota recovery keeps the selected queue transport. A lost or delayed acknowledgement remains an uncertain reservation, with no automatic resend.
@@ -6,7 +16,7 @@ The 0.7.0 desktop launcher starts an installed per-user service. `desktop.py` re
 
 The former global `one_execution` index migrates to `one_execution_per_thread`. Submission checks use the chat ID in both external and native guards. API requests remain serialized on their RPC connection, while admitted model turns run independently. Each dispatch still reads fresh shared quota. A read-only audit releases only acknowledged running reservations whose exact turns have confirmed terminal metadata; unknown delivery stays blocked in its own chat.
 
-Version 0.7.0, regression checks on 30 October 2026. The daemon-owned model verification is from 19 October 2026; the first native scheduled desktop continuation passed on 23 October 2026. The implementation is a standalone native Tk companion with a shared CLI/background controller. It does not inject a control into Codex Settings.
+Version 0.8.0, regression checks on 30 October 2026. The daemon-owned model verification is from 19 October 2026; the first native scheduled desktop continuation passed on 23 October 2026. The implementation is a standalone native Tk companion with a shared CLI/background controller. It does not inject a control into Codex Settings.
 
 ## Real integration
 

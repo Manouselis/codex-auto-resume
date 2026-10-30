@@ -34,7 +34,7 @@ The CLI equivalent is:
 ~/.local/bin/codex-auto-resume status
 ```
 
-Replace `THREAD_ID` with the original conversation's ID. The status output includes `recover_context: true`. Keep a controller running using the [background service recipe](INSTALL.md#overnight-operation-without-a-window).
+Replace `THREAD_ID` with the original conversation's ID. The status output includes `recover_context: true`. Keep a controller running using the [background service recipe](INSTALL.md#ubuntu).
 
 This option can arm a recognized checkpoint that was already marked as an ended turn by an older version. It does not make an arbitrary completed response eligible for recovery.
 

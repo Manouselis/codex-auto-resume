@@ -14,6 +14,7 @@ from .adapters import SimulationAdapter
 from .domain import TransientError, UnsafeError
 from .engine import Engine, Scheduler
 from .protocol import find_codex
+from .process import external_options
 from .store import Store
 from .live import LiveAdapter
 
@@ -32,11 +33,11 @@ def doctor(connect=False):
               "session_type": os.environ.get("XDG_SESSION_TYPE", "unknown")}
     try:
         binary = find_codex()
-        v = subprocess.run([binary, "--version"], capture_output=True, text=True, timeout=10, check=True)
+        v = subprocess.run([binary, "--version"], capture_output=True, text=True, timeout=10, check=True, **external_options())
         result["runtime"] = v.stdout.strip()
         with tempfile.TemporaryDirectory(prefix="auto-resume-schema-") as folder:
             subprocess.run([binary, "app-server", "generate-json-schema", "--experimental", "--out", folder],
-                           capture_output=True, timeout=20, check=True)
+                           capture_output=True, timeout=20, check=True, **external_options())
             p = json.loads((Path(folder) / "v2/TurnStartParams.json").read_text())
             q = json.loads((Path(folder) / "v2/GetAccountRateLimitsResponse.json").read_text())
             result["turn_start_fields"] = sorted(p.get("properties", {}))

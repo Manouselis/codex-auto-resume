@@ -2,6 +2,16 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
+## 0.8.0 — 30 October 2026
+
+- Standalone Ubuntu DEB, Windows installer and macOS Intel/Apple silicon DMGs: bundled Python/Tk, app icon and graphical launch with no terminal setup.
+- Native build/install/GUI/uninstall pipeline with Ubuntu 22.04/24.04/26.04, Windows 11 ARM (x64 emulation), Windows Server build host and macOS ARM/Intel jobs. Release assets/checksums are published only after all required checks pass.
+- Discover standard desktop and managed Codex runtimes outside a shell PATH. Windows connects through Codex's official raw socket proxy; framing, guards and uncertain-send behavior are preserved.
+- Fix frozen sleep-inhibitor startup; add Windows/macOS idle-sleep requests scoped to armed work. Screen locking remains enabled.
+- Restore external child-process library paths; use onedir bundles for faster startup and preserve runtime symlinks. Keep build dependencies outside runtime.
+- Update download-first README, graphical installation instructions, compatibility scope, build/signing guide and upstream license notices.
+- Community beta: no Authenticode/Developer ID credentials; live cross-platform Codex integration remains unverified.
+
 ## 0.7.0 — 30 October 2026
 
 - Selecting a conversation opens its original Codex desktop chat through the registered URL handler, starting the app when needed.

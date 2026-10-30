@@ -5,29 +5,62 @@ import queue
 import shutil
 import subprocess
 import threading
+import sys
 from pathlib import Path
 
 from .domain import TransientError, UnsafeError
+from .process import external_options
 
 READ_METHODS = frozenset({"initialize", "account/read", "account/rateLimits/read",
                           "thread/read", "thread/turns/list", "model/list"})
 
 
 def find_codex() -> str:
-    bundled = Path("/usr/lib/chatgpt/resources/codex")
-    if bundled.is_file() and os.access(bundled, os.X_OK):
-        return str(bundled)
-    found = shutil.which("codex")
-    if not found:
-        raise UnsafeError("Codex CLI is missing. Install Codex before connecting.")
-    return found
+    # Desktop launches do not inherit shell PATH customizations. Search only
+    # standard per-user/system installation roots; never execute from a project.
+    home = Path.home()
+    codex_home = Path(os.environ.get("CODEX_HOME", home / ".codex"))
+    candidates = []
+    if sys.platform == "darwin":
+        for base in (Path("/Applications"), home / "Applications"):
+            for app in ("ChatGPT.app", "Codex.app"):
+                candidates += [base / app / "Contents/Resources/codex",
+                               base / app / "Contents/Resources/bin/codex"]
+    elif sys.platform == "win32":
+        local = Path(os.environ.get("LOCALAPPDATA", home / "AppData/Local"))
+        programs = Path(os.environ.get("ProgramFiles", "C:/Program Files"))
+        candidates += [local / "Programs/OpenAI/Codex/bin/codex.exe",
+                       local / "Programs/ChatGPT/resources/codex.exe",
+                       local / "Programs/Codex/resources/codex.exe",
+                       programs / "ChatGPT/resources/codex.exe",
+                       programs / "Codex/resources/codex.exe"]
+    else:
+        candidates += [Path("/usr/lib/chatgpt/resources/codex"),
+                       Path("/opt/ChatGPT/resources/codex"), Path("/opt/Codex/resources/codex")]
+    executable = "codex.exe" if sys.platform == "win32" else "codex"
+    candidates += [home / ".local/bin" / executable, codex_home / "bin" / executable]
+    if sys.platform == "darwin":
+        candidates += [Path("/opt/homebrew/bin/codex"), Path("/usr/local/bin/codex")]
+    for candidate in candidates:
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate)
+    found = shutil.which(executable)
+    if found:
+        return found
+    # The desktop's managed daemon is a full Codex runtime. Prefer the newest
+    # installed binary without reading credentials or modifying Codex packages.
+    releases = codex_home / "packages/app-server-daemon/releases"
+    installed = [p for p in releases.glob("*/bin/" + executable) if p.is_file() and os.access(p, os.X_OK)]
+    if installed:
+        return str(max(installed, key=lambda p: p.stat().st_mtime_ns))
+    raise UnsafeError("Codex was not found. Install the Codex desktop app, open it and sign in, then reopen Auto-Resume.")
 
 
 def start_daemon():
     """Start the official per-user transport; this never starts a model turn."""
     try:
         subprocess.run([find_codex(), "app-server", "daemon", "start"], capture_output=True,
-                       timeout=30, check=True)
+                       timeout=30, check=True, **external_options())
     except (OSError, subprocess.SubprocessError) as exc:
         raise TransientError("Unable to start the Codex connection; check the installed Codex runtime") from exc
 
@@ -48,7 +81,7 @@ class ReadOnlyRpc:
         try:
             # Codex owns credentials. No token file is opened by this application.
             self.process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                            stderr=subprocess.DEVNULL, bufsize=0)
+                                            stderr=subprocess.DEVNULL, bufsize=0, **external_options())
         except OSError as exc:
             raise UnsafeError("Unable to start the installed Codex App Server") from exc
         self.responses = queue.Queue()
@@ -56,7 +89,7 @@ class ReadOnlyRpc:
         self.reader = threading.Thread(target=self._read, args=(proc, responses, self.events), daemon=True)
         self.reader.start()
         self._call("initialize", {"clientInfo": {"name": "codex_auto_resume", "title": "Codex Auto-Resume",
-                                                "version": "0.7.0"},
+                                                "version": "0.8.0"},
                                   "capabilities": {"experimentalApi": True}})
         self._write({"method": "initialized"})
 

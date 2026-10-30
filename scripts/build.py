@@ -8,7 +8,7 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-VERSION = "0.7.0"
+VERSION = "0.8.0"
 
 
 def build_app(root=ROOT):
@@ -31,7 +31,7 @@ def source_files(root=ROOT):
     excluded = {".git", "dist", "__pycache__", ".pytest_cache", ".venv", ".ruff_cache"}
     directories = {"auto_resume", "tests", "scripts", "docs", "packaging", ".github"}
     top_files = {"README.md", "LICENSE", "CONTRIBUTING.md", "SECURITY.md", "pyproject.toml", ".gitignore"}
-    extensions = {".py", ".md", ".json", ".png", ".svg", ".desktop", ".service", ".toml", ".yml", ".yaml"}
+    extensions = {".py", ".md", ".json", ".png", ".svg", ".desktop", ".service", ".toml", ".yml", ".yaml", ".nsi", ".spec", ".txt", ".ico", ".icns"}
     for p in sorted(root.rglob("*")):
         relative = p.relative_to(root)
         allowed = (relative.as_posix() in top_files or

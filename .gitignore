@@ -13,3 +13,5 @@ backups/
 .env.*
 auth.json
 config.toml
+build/
+*.spec

@@ -109,3 +109,11 @@ Update to 0.4.0. The controller checks native metadata every scheduler tick and 
 An earlier heartbeat incorrectly acted on an old cancellation before running the guard and deleted itself. The updated prompt requires its guard first and reports the newer arming authorization. Prefer a new schedule identity when restoring after cancellation. The prompt pauses on stop conditions rather than silently deleting the schedule.
 
 After diagnostic replies have become the latest turn, explicit Arm can reuse the exact earlier acknowledged native checkpoint only after reading and verifying it again. That arming records the current turn as its authorization boundary. It does not reopen completed objectives, accept an unverified checkpoint, or ignore manual activity arriving after arming. No extra “continue” message is needed before the next native wake-up.
+
+## Downloaded app will not open
+
+Use the native installer for your OS/CPU, not the developer `.pyz`. Python is bundled. Windows/macOS reputation prompts are expected for this unsigned community beta; see the [graphical installation steps](INSTALL.md). Do not disable system security globally. Close an older Auto-Resume copy before upgrading.
+
+If the GUI reports Codex missing, install/open the official Codex desktop app and sign in, then reopen Auto-Resume. Standard desktop, per-user CLI and managed daemon locations are searched without a shell. Windows requires an official runtime with `app-server proxy`; an unsupported transport is refused rather than using a second writer.
+
+On Windows/macOS, keep the app open/minimized. On Ubuntu, check the panel's background-controller status. A suspended computer is not running either app; screen locking and suspension are different.

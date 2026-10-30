@@ -1,15 +1,22 @@
 {
   "status": "PASS",
-  "tests_run": 233,
-  "passed": 233,
+  "tests_run": 241,
+  "passed": 240,
   "failures": 0,
   "errors": 0,
-  "skipped": 0,
-  "skip_reasons": [],
+  "skipped": 1,
+  "skip_reasons": [
+    {
+      "test": "test_real_windows_idle_sleep_request_acquired_and_released (test_native_package.NativePowerTests)",
+      "reason": "Windows API requires a Windows host"
+    }
+  ],
   "python": "3.10.12",
   "platform": "Linux",
   "gui_requested": true,
   "live_model_requests": 0,
   "live_continuation": "IMPLEMENTED; see live-continuation.json",
-  "windows_host_test": "NOT TESTED"
+  "host_os": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+  "host_arch": "x86_64",
+  "test_scope": "Core and GUI tests; no live Codex requests"
 }

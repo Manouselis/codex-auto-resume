@@ -20,14 +20,16 @@ Context checkpoint recognition uses explicit model-reported outcomes and a narro
 
 ## Controller lifecycle
 
-Normal process stop and global OFF disarm tasks. Closing a window-owned controller disarms work; closing a service-owned control panel leaves monitoring enabled. On Ubuntu, the installed app starts a background service and holds a sleep inhibitor while work is armed. Screen locking remains allowed. The app cannot wake an already suspended computer or guarantee recovery after logout/reboot. Keep Codex open and remain connected and logged in. Sleep-inhibitor acquisition and release were verified on this host; a physical locked-session continuation has not been observed.
+Normal process stop and global OFF disarm tasks. Closing a window-owned controller disarms work; closing a service-owned control panel leaves monitoring enabled. On Ubuntu with a user systemd session, the installed app starts a background controller and holds a sleep inhibitor while work is armed. Screen locking remains allowed. The app cannot wake an already suspended computer or guarantee recovery after logout/reboot. Keep Codex open and remain connected and logged in. Sleep-inhibitor acquisition and release were verified on this host; a physical locked-session continuation has not been observed.
 
 A process crash can preserve a reset wait, but an uncertain submission is paused for inspection. An enabled service definition does not override those safety decisions. See the [operation guide](INSTALL.md) for the transient and installed user-service options.
 
 ## Platform and integration scope
 
-Ubuntu X11 is the verified live platform. Headless core, installer and packaging checks pass on hosted Ubuntu and Windows runners with Python 3.10 and 3.13. Live Windows Codex transport, Windows GUI/ACL behavior, Wayland and real suspend/reboot recovery remain unverified.
+Standalone installers target Ubuntu 22.04+ x64, Windows 11 x64 (including emulation on ARM), macOS 14+ Apple silicon and macOS 15+ Intel. See [Testing](TESTING.md) for actual build/install/GUI results; packaging tests use invented data and are distinct from live Codex continuation.
 
-The control is a separate companion, not a native Codex Settings control or tray integration. It reopens the original persisted thread through the official App Server and restores saved sandbox/approval configuration. It does not attach to the desktop application's private transport. Recorded runtime/schema versions are snapshots; future protocol changes may require updates.
+Ubuntu X11 with runtime 0.166 is the verified live platform. Windows/macOS live Codex queue integration, Windows private-socket ACL behavior, Wayland, physical locked-session continuation, forced suspend, logout and reboot remain unverified. Windows uses Codex's official raw socket proxy; an incompatible runtime refuses execution. These community beta downloads are not Authenticode signed or Apple Developer ID signed/notarized.
 
-The 0.7.0 selection path starts the desktop through its documented `codex://threads/<id>` handler. Opening the installed handler and a real queued continuation were verified while the desktop was already running. A complete cold start with every Codex window/process closed was not tested, because other chats were working. Starts not confirmed within the bounded acknowledgement window pause for inspection without resending.
+Keep Auto-Resume open/minimized on Windows/macOS. On Ubuntu, a user systemd controller may continue after the panel closes, as reported by the app. The sleep requests prevent ordinary idle suspension where available; they do not wake suspended computers or override forced suspension/lid/shutdown policies.
+
+The app opens the original chat using `codex://threads/<id>`. Opening the handler and real queued continuation were verified while Codex was already running. A complete cold start with all Codex processes closed has not been tested because other user chats were working. Unknown acknowledgements pause without resending.

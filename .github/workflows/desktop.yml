@@ -1,0 +1,135 @@
+name: Desktop installers
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: linux-x64
+          - os: windows-2025
+            target: windows-x64
+          - os: macos-14
+            target: macos-arm64
+          - os: macos-15-intel
+            target: macos-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Linux desktop libraries
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb xauth python3-tk libxft2
+      - name: Windows installer compiler
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (!(Test-Path 'C:\Program Files (x86)\NSIS\makensis.exe')) { choco install nsis --yes --no-progress }
+      - run: python -m pip install -r packaging/requirements-build.txt
+      - name: Core and GUI tests (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python scripts/verify.py --gui
+      - name: Core and GUI tests (Windows and macOS)
+        if: runner.os != 'Linux'
+        run: python scripts/verify.py --gui
+      - run: python scripts/build_native.py
+      - name: Install, launch bundled GUI, uninstall (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python scripts/smoke_native.py dist/release/codex-auto-resume-0.8.0-linux-x64.deb --install --report dist/smoke-${{ matrix.target }}.json
+      - name: Install, launch bundled GUI, uninstall (Windows)
+        if: runner.os == 'Windows'
+        run: python scripts/smoke_native.py dist/release/codex-auto-resume-0.8.0-windows-x64-setup.exe --install --report dist/smoke-${{ matrix.target }}.json
+      - name: Mount DMG, copy app, launch bundled GUI (macOS)
+        if: runner.os == 'macOS'
+        run: python scripts/smoke_native.py dist/release/codex-auto-resume-0.8.0-${{ matrix.target }}.dmg --report dist/smoke-${{ matrix.target }}.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.target }}
+          path: |
+            dist/release/*
+            dist/smoke-*.json
+          if-no-files-found: error
+  ubuntu-compatibility:
+    name: Install same DEB on ${{ matrix.os }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-26.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: installer-linux-x64
+          path: downloads
+      - run: sudo apt-get update && sudo apt-get install -y xvfb xauth libxft2
+      - run: xvfb-run -a python scripts/smoke_native.py downloads/release/codex-auto-resume-0.8.0-linux-x64.deb --install --report dist/smoke-${{ matrix.os }}.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: smoke-${{ matrix.os }}
+          path: dist/smoke-*.json
+  windows-11:
+    name: Install x64 app on Windows 11 ARM
+    needs: build
+    runs-on: windows-11-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          architecture: x64
+      - uses: actions/download-artifact@v4
+        with:
+          name: installer-windows-x64
+          path: downloads
+      - run: python scripts/smoke_native.py downloads/release/codex-auto-resume-0.8.0-windows-x64-setup.exe --install --report dist/smoke-windows-11-arm.json
+      - run: python -m unittest discover -s tests -v
+      - uses: actions/upload-artifact@v4
+        with:
+          name: smoke-windows-11-arm
+          path: dist/smoke-*.json
+  publish:
+    name: Publish verified installers
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, ubuntu-compatibility, windows-11]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python scripts/build.py
+      - name: Publish release assets after every platform passed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          mkdir -p release
+          find artifacts -type f \( -name '*.deb' -o -name '*.dmg' -o -name '*.exe' -o -name 'smoke-*.json' \) -exec cp {} release/ \;
+          cp dist/*.pyz dist/*-source.tar.gz release/
+          (cd release && sha256sum *.deb *.dmg *.exe *.pyz *.tar.gz > SHA256SUMS)
+          gh release create "$RELEASE_TAG" release/* --verify-tag --title "Codex Auto-Resume $RELEASE_TAG" --notes-file docs/RELEASE_NOTES.md --prerelease

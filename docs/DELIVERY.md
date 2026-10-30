@@ -1,40 +1,13 @@
-# Delivery summary — 0.7.0
+# Delivery — 0.8.0
 
-[Documentation index](README.md) · [Release history](CHANGELOG.md)
+Native download/install flows now bundle Python/Tk: Ubuntu DEB, per-user Windows NSIS wizard and separate macOS Intel/Apple silicon DMGs. Installers create an app with its icon and open the GUI without terminal arguments. [Installation](INSTALL.md) covers first use and unsigned-beta system prompts.
 
-## Implemented
+The release workflow builds on the target OS and checks the final installed package, its real Tk UI, icon, default-on setting, private SQLite state and isolated recovery simulation. It installs the same Ubuntu package across multiple releases and exercises the Windows x64 installer on Windows 11 ARM under emulation. Release publication is gated on every platform job. Reports identify exact hosts and timings; see [Testing](TESTING.md).
 
-The project includes a real same-thread continuation adapter, local reset scheduler, private SQLite state, native Tk control window, CLI, user-service template, installer, uninstaller and reproducible build scripts. The companion connects to the official persistent App Server over its local WebSocket socket.
+Standard desktop/runtime locations are discovered without relying on a shell PATH. Windows uses the official Codex raw byte proxy for the existing daemon; Unix platforms use the existing local WebSocket path. Frozen child-process library paths are restored before launching external programs. Linux sleep prevention uses a dedicated frozen entry command; Windows uses a scoped system-sleep request and macOS uses `caffeinate -i`.
 
-Global ON and explicit per-conversation arming are required. The controller waits for a confirmed five-hour usage-limit failure and fresh included allowance before reopening the original thread and sending one contextual continuation. It checks account/model/context identity, both quota windows, ordinary permission, credits, spend controls and provider/tier configuration. Weekly exhaustion disarms the task; approvals remain manual. A durable reservation and conservative uncertain-outcome handling prevent automatic retransmission.
+The guarded continuation behavior is preserved: explicit selection, same chat/model/project, fresh authoritative included usage, independent chats, durable per-chat reservations, stop on uncertainty and no blind resend. Opening the app checks the master switch; previously disarmed chats are not re-armed. Selecting an idle chat explicitly requests one literal `continue`.
 
-Version 0.2.1 fixes false cancellation when a separate reader reconstructs an unfinished external turn as interrupted. Such a turn can be armed for monitoring, while dispatch still requires a confirmed usage-limit failure. It also fixes Windows test cleanup and installation-manifest path portability.
+Live native-queue continuation was observed on Ubuntu/runtime 0.166 in a harmless authorized chat. Live Windows/macOS Codex integration, a full closed-desktop cold start, physical screen-lock continuation, security reputation prompts, forced suspend/reboot and repeated unattended quota-reset cycles remain unverified. These are not implied by installer/GUI tests.
 
-Desktop-owned chats cannot be restored by a separate App Server. The native heartbeat admission guard passed its first real scheduled wake-up and resumed saved research in the original desktop chat on 23 October 2026. Each wake-up is a normal model turn.
-
-Version 0.3.0 adds explicitly enabled context-checkpoint recovery, goal-budget checks and a distinction between an ended turn and a completed objective. A service-owned control panel can be closed while monitoring continues. See [Recovery modes](RECOVERY.md).
-
-Version 0.3.1 fixes stale acknowledged reservations during explicit rearming and loads saved IDs/settings from both GUI selection paths. Native bindings and running attempt counts are preserved; unknown delivery outcomes still block retries.
-
-## Verified
-
-| Evidence | Scope |
-| --- | --- |
-| [Local results](evidence/test-results.json) | 233 passing Ubuntu tests, including nineteen native GUI tests |
-| [Hosted 0.3.0 CI](evidence/ci-0.3.0.json) | All four Ubuntu/Windows and Python 3.10/3.13 jobs passed; headless skips are recorded |
-| [Real continuation](evidence/live-continuation.json) | Two authenticated model turns in a daemon-owned thread preserved context; desktop takeover was not tested |
-| [Post-reset native restart](evidence/limit-reset-recovery-0.4.0.json) | Actual scheduled restart after a genuine quota failure; guard first, matching reservation and interrupted work preserved |
-| [Native scheduled recovery](evidence/native-scheduled-recovery.json) | First native wake-up admitted and resumed original saved research; the turn was still running when recorded |
-| [Read-only arming probe](evidence/external-arm.json) | An externally running desktop turn could be armed without inference or thread mutations |
-
-The full quota-interruption/reset flow passes with controlled backend responses. This is separate from the genuine model execution check. One native restart after a genuine persisted usage-limit failure and renewed permission passed on 25 October; repeated unattended reset cycles remain unverified.
-
-## Use
-
-Install with `python3 scripts/install.py`, then open `~/.local/bin/codex-auto-resume ui`. Opening the app enables monitoring; click **Add conversation** and select the original task to arm it immediately. Use the [overnight background service recipe](INSTALL.md#overnight-operation-without-a-window) to wait without a control window, and keep Codex open and remain online. Ubuntu screen locking is allowed while the armed controller prevents sleep.
-
-Source and documentation are published at [Manouselis/codex-auto-resume](https://github.com/Manouselis/codex-auto-resume). The [verification report](TESTING.md) gives exact scope and reproduction commands.
-
-## Remaining validation
-
-Repeated native checkpoint cycles and unattended quota-reset cycles, cross-client approval routing, live Windows integration, Wayland and real suspend/reboot recovery remain unverified. The public API also leaves a short cross-client dispatch race and does not reserve future quota. See [Remaining limitations](LIMITATIONS.md).
+Windows Authenticode and Apple Developer ID/notarization are not configured. Downloads are an explicitly unsigned community beta. Source and installers are published separately; binaries and private state are not committed into Git history.

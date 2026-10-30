@@ -90,8 +90,7 @@ class PowerTests(unittest.TestCase):
             self.assertIn("unavailable", lease.status)
             self.assertIsNone(lease.process)
 
-    def test_inactive_or_non_linux_controller_never_takes_an_inhibitor(self):
+    def test_disabled_controller_never_takes_an_inhibitor(self):
         with patch("auto_resume.power.sys.platform", "win32"), patch("auto_resume.power.subprocess.Popen") as start:
-            AwakeLease().update(True)
             AwakeLease(enabled=False).update(True)
             self.assertFalse(start.called)

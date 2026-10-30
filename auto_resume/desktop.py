@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 
 from .domain import UnsafeError
+from .process import external_options
 
 
 def open_conversation(thread_id):
@@ -29,7 +30,7 @@ def open_conversation(thread_id):
             else:
                 raise OSError("No desktop URL handler")
         subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                         stderr=subprocess.DEVNULL, start_new_session=True)
+                         stderr=subprocess.DEVNULL, start_new_session=True, **external_options())
     except OSError as exc:
         raise UnsafeError("Could not open Codex. Install the desktop app and its codex:// URL handler.") from exc
 
@@ -40,23 +41,23 @@ def ensure_background(state_path):
         return False
     try:
         if subprocess.run(["systemctl", "--user", "is-active", "--quiet", "codex-auto-resume.service"],
-                          capture_output=True, timeout=5).returncode == 0:
+                          capture_output=True, timeout=5, **external_options()).returncode == 0:
             return True
         executable = Path(sys.argv[0]).resolve()
-        if executable.suffix != ".pyz" or not executable.is_file():
+        if (executable.suffix != ".pyz" and not getattr(sys, "frozen", False)) or not executable.is_file():
             return False
         # Installed units survive normal stops; the fallback also supports
         # an older installation whose only unit was transient.
         started = subprocess.run(["systemctl", "--user", "start", "codex-auto-resume.service"],
-                                 capture_output=True, timeout=10)
+                                 capture_output=True, timeout=10, **external_options())
         if started.returncode == 0:
             return True
         if not shutil.which("systemd-run"):
             return False
+        command = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, str(executable)]
         result = subprocess.run(["systemd-run", "--user", "--unit=codex-auto-resume",
             "--description=Codex Auto-Resume background recovery", "--property=Restart=on-failure",
-            "--property=RestartSec=5", "--property=UMask=0077", sys.executable,
-            str(executable), "--state", os.fspath(state_path), "run"], capture_output=True, timeout=10)
+            "--property=RestartSec=5", "--property=UMask=0077", *command, "--state", os.fspath(state_path), "run"], capture_output=True, timeout=10, **external_options())
         return result.returncode == 0
     except (OSError, subprocess.SubprocessError):
         return False

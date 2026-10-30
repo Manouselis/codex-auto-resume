@@ -1,46 +1,43 @@
 # <img src="auto_resume/assets/icon.png" width="42" alt=""> Codex Auto-Resume
 
-**Pick up where your Codex conversation stopped.**
+**Keep your Codex chats moving when included usage resets.**
 
-Resume explicitly armed chats after included usage resets, with optional recovery from saved context checkpoints. Your conversation, project and model stay together.
+A desktop companion that continues explicitly armed conversations in the same chat, with the same project and model. Multiple chats can recover independently.
 
-[![Checks](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml) · **v0.7.0** · Python 3.10+ · MIT
+[![Checks](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml)
+[![Desktop installers](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml) · **v0.8.0 beta** · MIT
+
+## Download and open
+
+**No terminal, Python installation or build tools required.** Install the official Codex desktop app and sign in to ChatGPT Plus first.
+
+| Your computer | Download | Install |
+| --- | --- | --- |
+| Ubuntu 22.04+ · x64 | [Ubuntu installer](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.0/codex-auto-resume-0.8.0-linux-x64.deb) | Open with Software Install, then find **Codex Auto-Resume** in Applications. |
+| Windows 11 · x64 / ARM with x64 emulation | [Windows installer](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.0/codex-auto-resume-0.8.0-windows-x64-setup.exe) | Open the installer, then launch from Start. |
+| macOS · Apple silicon, 14+ | [Apple silicon app](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.0/codex-auto-resume-0.8.0-macos-arm64.dmg) | Open the disk image and drag the app to Applications. |
+| macOS · Intel, 15+ | [Intel app](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.0/codex-auto-resume-0.8.0-macos-x64.dmg) | Open the disk image and drag the app to Applications. |
+
+These community beta installers are unsigned: Windows/macOS may ask for confirmation. See [installation help](docs/INSTALL.md), [checksums and release files](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.0), and the precise [compatibility test scope](docs/TESTING.md).
+
+1. Open Auto-Resume. **Continue automatically when the 5h limit resets** starts checked.
+2. Click **Add conversation**, then select a chat. Selection arms it and opens Codex. An idle chat receives one **`continue`**; a running chat keeps working.
+3. Click **Disarm** to remove a chat from the queue. Normal completion also removes it.
+
+Allowance refreshes every minute. Optional **Recover context checkpoints** continues unfinished work from saved checkpoints.
 
 | Dark mode | Light mode |
 | --- | --- |
 | ![Dark desktop control panel](docs/screenshots/dark.png) | ![Light desktop control panel](docs/screenshots/light.png) |
 
-Screenshots show the live desktop panel; allowance updates automatically every minute.
+## Designed for unattended recovery
 
-## Get started
+- Fresh included-usage permission is checked before every continuation. Weekly exhaustion, paid usage, unknown billing routes and approvals block work.
+- Lost acknowledgements pause that chat for inspection. Messages are never blindly resent.
+- Cancellations, task budgets, newer manual work and account changes remain stop conditions.
+- Screen locking is allowed. Armed work requests sleep prevention. Keep Codex open; on Windows/macOS, keep Auto-Resume open or minimized too.
+- Ubuntu uses a background controller when a user systemd session is available. Its status is shown in the app.
 
-Requires the installed Codex desktop app/runtime (verified with 0.166), signed in to ChatGPT Plus, Python 3.10+, and Tk (`python3-tk` on Ubuntu).
+Live continuation has been verified on Ubuntu with Codex runtime **0.166**. Packaged GUI/install checks use isolated test data; they do **not** establish live Codex integration on every OS or repeated unattended quota-reset cycles. [Evidence and limitations](docs/TESTING.md).
 
-```sh
-git clone https://github.com/Manouselis/codex-auto-resume.git
-cd codex-auto-resume
-python3 scripts/install.py
-~/.local/bin/codex-auto-resume ui
-```
-
-1. Open the app; the global checkbox starts **ON**.
-2. Click **Add conversation**, then select a chat. It is armed and opens in Codex. **Idle chats receive one `continue`; running chats keep working.**
-3. Select a queued chat and click **Disarm** to remove it.
-4. Enable **Recover context checkpoints** when unfinished work should continue after a context stop.
-
-Selected desktop chats use Codex’s native message queue, verified with runtime 0.166. The real picker-to-`CONTINUED` result is [recorded](docs/evidence/startup-0.7.0.json). Existing [guarded heartbeat bindings](docs/RECOVERY.md#native-desktop-recovery-experimental) are preserved. Unconfirmed sends pause for inspection rather than retrying.
-
-## What to expect
-
-- Fresh included-usage checks before continuing; weekly exhaustion, paid credits and unknown billing routes block work.
-- Selecting an idle chat is a fresh user request to continue it once. Normal completion afterward stops recovery.
-- Original chat and checkpoint preserved; newer cancellations, approvals and task budgets remain stop conditions.
-- Fresh arming is timestamped so the guard can distinguish it from older timer cancellations.
-- Lost acknowledgements pause for inspection. Automatic submissions are never blindly retried.
-- Multiple armed chats recover independently; duplicate and uncertain submissions are isolated per chat.
-- On Ubuntu, the app starts a background controller and prevents sleep while work is armed. **Super+L is supported**; screen locking stays enabled.
-- Native wake-ups use normal model turns. Keep Codex open and stay signed in.
-
-The control panel supports dark/light modes, remaining-allowance meters, single-selection arming, an active-only queue and an activity log. The local suite passes **233 tests**, including **19 GUI checks**. A real scheduled restart after a usage-limit interruption is [recorded](docs/evidence/limit-reset-recovery-0.4.0.json); repeated unattended reset cycles remain unverified. See [Testing](docs/TESTING.md).
-
-[Setup](docs/INSTALL.md) · [Recovery](docs/RECOVERY.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
+[Installation](docs/INSTALL.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Recovery](docs/RECOVERY.md) · [Building](docs/BUILDING.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)

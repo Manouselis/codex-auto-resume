@@ -11,38 +11,126 @@ import socket
 import stat
 import struct
 import threading
+import subprocess
+import sys
 from pathlib import Path
 
 from .domain import NotSentError, TransientError, UnsafeError, WriterConflictError
-from .protocol import READ_METHODS, start_daemon
+from .protocol import READ_METHODS, find_codex, start_daemon
+
+from .process import external_options
 
 MAX_MESSAGE = 16 * 1024 * 1024
 GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 
+class ProxyStream:
+    """Bounded raw-byte adapter around the official platform socket proxy."""
+    def __init__(self, path, timeout):
+        self.timeout = timeout
+        self.pending = bytearray()
+        self.chunks = queue.Queue(maxsize=256)
+        self.closed = threading.Event()
+        try:
+            self.process = subprocess.Popen([find_codex(), "app-server", "proxy", "--sock", str(path)],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                bufsize=0, **external_options())
+        except OSError as exc:
+            raise TransientError("Unable to open the official Codex socket proxy") from exc
+        threading.Thread(target=self._read, daemon=True).start()
+
+    def _read(self):
+        try:
+            while not self.closed.is_set():
+                chunk = self.process.stdout.read(65536)
+                while not self.closed.is_set():
+                    try:
+                        self.chunks.put(chunk, timeout=.2)
+                        break
+                    except queue.Full:
+                        pass
+                if not chunk:
+                    return
+        except (OSError, ValueError):
+            try:
+                self.chunks.put_nowait(b"")
+            except queue.Full:
+                pass
+
+    def recv(self, count):
+        if not self.pending:
+            if self.closed.is_set():
+                return b""
+            try:
+                self.pending.extend(self.chunks.get(timeout=self.timeout))
+            except queue.Empty as exc:
+                raise TransientError("Codex socket proxy timed out") from exc
+        part = bytes(self.pending[:count])
+        del self.pending[:count]
+        return part
+
+    def sendall(self, data):
+        view = memoryview(data)
+        while view:
+            written = self.process.stdin.write(view)
+            if not written:
+                raise OSError("Codex socket proxy disconnected")
+            view = view[written:]
+
+    def settimeout(self, timeout):
+        self.timeout = timeout
+
+    def shutdown(self, _how):
+        self.close()
+
+    def close(self):
+        if self.closed.is_set() and self.process.poll() is not None:
+            return
+        self.closed.set()
+        try:
+            self.chunks.put_nowait(b"")
+        except queue.Full:
+            pass
+        if self.process.poll() is None:
+            self.process.terminate()
+            try:
+                self.process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+                self.process.wait(timeout=2)
+        for stream in (self.process.stdin, self.process.stdout):
+            stream.close()
+
+
 class LocalWebSocket:
     def __init__(self, path, timeout=20):
-        if not hasattr(socket, "AF_UNIX"):
-            raise UnsafeError("This platform has no supported local App Server socket transport")
-        path = Path(path)
-        try:
-            info = path.stat()
-            if not stat.S_ISSOCK(info.st_mode) or (hasattr(os, "getuid") and info.st_uid != os.getuid()):
-                raise UnsafeError("The App Server socket is not owned by the current user")
-            self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            self.sock.settimeout(timeout)
-            self.sock.connect(str(path))
-        except OSError as exc:
-            if hasattr(self, "sock"):
-                self.sock.close()
-            raise TransientError("The local Codex connection is unavailable") from exc
+        if sys.platform == "win32":
+            # Codex's official byte proxy performs Windows rendezvous/ACL checks
+            # and connects to the same daemon. Its stdout is raw WebSocket bytes,
+            # NOT JSONL. Never launch a separate app-server writer here.
+            self.sock = ProxyStream(path, timeout)
+        else:
+            if not hasattr(socket, "AF_UNIX"):
+                raise UnsafeError("This platform has no supported local App Server socket transport")
+            path = Path(path)
+            try:
+                info = path.stat()
+                if not stat.S_ISSOCK(info.st_mode) or (hasattr(os, "getuid") and info.st_uid != os.getuid()):
+                    raise UnsafeError("The App Server socket is not owned by the current user")
+                self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                self.sock.settimeout(timeout)
+                self.sock.connect(str(path))
+            except OSError as exc:
+                if hasattr(self, "sock"):
+                    self.sock.close()
+                raise TransientError("The local Codex connection is unavailable") from exc
         self.send_lock = threading.Lock()
         key = base64.b64encode(os.urandom(16)).decode()
         request = ("GET / HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
                    f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n")
-        self.sock.sendall(request.encode("ascii"))
         header = bytearray()
         try:
+            self.sock.sendall(request.encode("ascii"))
             while not header.endswith(b"\r\n\r\n"):
                 if len(header) > 8192:
                     raise UnsafeError("Oversized App Server handshake")
@@ -147,7 +235,7 @@ class DaemonRpc:
         self.responses = queue.Queue()
         threading.Thread(target=self._read, args=(connection, self.responses), daemon=True).start()
         self._call("initialize", {"clientInfo": {"name": "codex_auto_resume", "title": "Codex Auto-Resume",
-                                                "version": "0.7.0"},
+                                                "version": "0.8.0"},
                                   "capabilities": {"experimentalApi": True}})
         self._write({"method": "initialized"})
 
