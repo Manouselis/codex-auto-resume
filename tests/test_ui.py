@@ -21,6 +21,7 @@ class UiTests(unittest.TestCase):
         self.root = tk.Tk()
         self.window = ControlWindow(self.root, self.engine, simulation=True)
         self.root.update()
+        self.pump()
 
     def tearDown(self):
         import gc
@@ -62,8 +63,15 @@ class UiTests(unittest.TestCase):
         finally:
             window.close()
 
-    def test_keyboard_entry_arm_and_disarm(self):
-        self.window.arm()
+    def test_single_selection_arms_immediately_then_disarm_removes_the_row(self):
+        import tkinter as tk
+        self.window.add_button.invoke()
+        picker = self.window.picker
+        self.root.update()
+        self.assertIsNotNone(picker)
+        listing = next(w for w in picker.winfo_children() if isinstance(w, tk.Listbox))
+        listing.selection_set(0)
+        listing.event_generate("<<ListboxSelect>>")
         self.pump()
         self.assertTrue(self.store.get("demo-task")["eligible"])
         # Pump the scheduled refresh instead of creating a second timer chain.
@@ -74,6 +82,10 @@ class UiTests(unittest.TestCase):
         self.window.tasks.selection_set("demo-task")
         self.window.disarm()
         self.assertFalse(self.store.get("demo-task")["eligible"])
+        self.assertFalse(self.window.tasks.exists("demo-task"))
+        self.window.refresh()
+        self.assertFalse(self.window.tasks.get_children())
+        self.assertTrue(self.store.history())
 
     def test_usage_check_and_themes(self):
         self.window.check_usage()
@@ -139,8 +151,8 @@ class UiTests(unittest.TestCase):
                     check(child)
         check(self.root)
 
-    def test_arm_and_disarm_are_adjacent_on_the_same_row(self):
-        arm, disarm = self.window.arm_button, self.window.disarm_button
+    def test_add_and_disarm_are_adjacent_on_the_same_row(self):
+        arm, disarm = self.window.add_button, self.window.disarm_button
         self.assertIs(arm.master, disarm.master)
         self.assertEqual(arm.winfo_rooty(), disarm.winfo_rooty())
         self.assertGreater(disarm.winfo_rootx(), arm.winfo_rootx())
@@ -150,7 +162,7 @@ class UiTests(unittest.TestCase):
         self.window.arm()
         self.pump()
         self.window.tasks.selection_remove(*self.window.tasks.selection())
-        self.window.disarm_button.invoke()
+        self.window.disarm()
         self.assertFalse(self.store.get("demo-task")["eligible"])
 
     def test_real_control_panel_fits_and_renders(self):
@@ -160,7 +172,7 @@ class UiTests(unittest.TestCase):
         from test_live import Backend
         store = Store(Path(self.tmp.name) / "real-panel.sqlite3")
         window_root = tk.Toplevel(self.root)
-        window = ControlWindow(window_root, Engine(store, LiveAdapter(Backend(self.tmp.name))), simulation=False)
+        window = ControlWindow(window_root, Engine(store, LiveAdapter(Backend(self.tmp.name))), simulation=False, background=True)
         try:
             window_root.geometry("720x720")
             self.root.update()
@@ -191,9 +203,9 @@ class UiTests(unittest.TestCase):
         backend.latest.update(status="interrupted", completedAt=None, error=None)
         store = Store(Path(self.tmp.name) / "external-panel.sqlite3")
         store.set_enabled(True, time.time())
-        window = ControlWindow(tk.Toplevel(self.root), Engine(store, LiveAdapter(backend)), simulation=False)
+        window = ControlWindow(tk.Toplevel(self.root), Engine(store, LiveAdapter(backend)), simulation=False, background=True)
         try:
-            window.thread_id.insert(0, "live-test")
+            window.selected_thread_id.set("live-test")
             window.arm()
             deadline = time.monotonic() + 3
             while window.busy and time.monotonic() < deadline:
@@ -201,7 +213,7 @@ class UiTests(unittest.TestCase):
                 time.sleep(0.01)
             self.root.update()
             self.assertTrue(store.get("live-test")["eligible"])
-            self.assertIn("armed", window.notice.get())
+            self.assertIn("armed", window.notice.get().lower())
             self.assertFalse(any(m in ("thread/resume", "turn/start") for m, _ in backend.calls))
         finally:
             window.close()
@@ -220,9 +232,9 @@ class UiTests(unittest.TestCase):
                                       "text": "Saved next action.\n" + CHECKPOINT_MARKER}])
         store = Store(Path(self.tmp.name) / "context-panel.sqlite3")
         store.set_enabled(True, time.time())
-        window = ControlWindow(tk.Toplevel(self.root), Engine(store, LiveAdapter(backend)), simulation=False)
+        window = ControlWindow(tk.Toplevel(self.root), Engine(store, LiveAdapter(backend)), simulation=False, background=True)
         try:
-            window.thread_id.insert(0, "live-test")
+            window.selected_thread_id.set("live-test")
             window.recover_context.set(True)
             window.arm()
             deadline = time.monotonic() + 3
@@ -231,7 +243,7 @@ class UiTests(unittest.TestCase):
                 time.sleep(0.01)
             self.root.update()
             self.assertTrue(json.loads(store.get("live-test")["context"])["recover_context"])
-            self.assertIn("context-budget recovery", window.notice.get())
+            self.assertTrue(store.get("live-test")["eligible"])
         finally:
             window.close()
             store.close()
@@ -240,46 +252,95 @@ class UiTests(unittest.TestCase):
         self.store.set_enabled(True, time.time())
         self.engine.register("demo-task", recover_context=True, native_heartbeat="saved-native")
         self.window.refresh()
-        self.window.thread_id.delete(0, "end")
+        self.window.selected_thread_id.set("")
         self.window.recover_context.set(False)
 
-    def test_clicking_saved_row_loads_id_and_mode_then_arm_succeeds(self):
+    def test_clicking_saved_row_preserves_native_settings(self):
         import json
         self.prepare_saved_native_task()
         self.window.tasks.selection_set("demo-task")
         self.root.update()
-        self.assertEqual(self.window.thread_id.get(), "demo-task")
+        self.assertEqual(self.window.selected_thread_id.get(), "demo-task")
         self.assertTrue(self.window.recover_context.get())
         self.window.arm()
         self.pump()
         context = json.loads(self.store.get("demo-task")["context"])
         self.assertEqual(context["native_heartbeat"], "saved-native")
-        self.assertIn("Native recovery armed", self.window.notice.get())
+        self.assertIn("armed", self.window.notice.get().lower())
         self.assertFalse(self.adapter.requests)
 
-    def test_chooser_restores_existing_native_settings_before_arm(self):
+    def test_picker_immediately_arms_and_restores_existing_native_settings(self):
         import tkinter as tk
         import json
         self.prepare_saved_native_task()
+        self.engine.disarm("demo-task")
         self.window.show_picker([{"id": "demo-task", "name": "Saved conversation"}])
         picker = next(w for w in self.root.winfo_children() if isinstance(w, tk.Toplevel))
+        self.root.update()
         listing = next(w for w in picker.winfo_children() if isinstance(w, tk.Listbox))
         listing.selection_set(0)
-        next(w for w in picker.winfo_children() if w.winfo_class() == "TButton").invoke()
-        self.assertEqual(self.window.thread_id.get(), "demo-task")
+        listing.event_generate("<<ListboxSelect>>")
+        self.root.update()
+        self.assertEqual(self.window.selected_thread_id.get(), "demo-task")
         self.assertTrue(self.window.recover_context.get())
-        self.window.arm()
         self.pump()
+        self.assertTrue(self.store.get("demo-task")["eligible"])
         self.assertEqual(json.loads(self.store.get("demo-task")["context"])["native_heartbeat"], "saved-native")
         self.assertFalse(self.adapter.requests)
 
-    def test_arm_uses_selected_row_when_entry_is_empty(self):
+    def test_ineligible_conversations_are_hidden_without_erasing_their_state(self):
+        self.engine.register("demo-task")
+        self.window.refresh()
+        self.assertTrue(self.window.tasks.exists("demo-task"))
+        self.store.set_enabled(False, time.time())
+        self.window.refresh()
+        self.assertFalse(self.window.tasks.get_children())
+        self.assertIsNotNone(self.store.get("demo-task"))
+        self.root.update()
+        self.assertTrue(self.window.empty_state.winfo_ismapped())
+
+    def test_allowance_timer_repeats_every_minute_without_a_refresh_button(self):
+        from unittest.mock import patch
+        self.pump()
+        if self.window.initial_check_id:
+            self.root.after_cancel(self.window.initial_check_id)
+            self.window.initial_check_id = None
+        with patch.object(self.window, "check_usage") as check, patch.object(self.root, "after", wraps=self.root.after) as after:
+            self.window.auto_refresh_allowance()
+            check.assert_called_once_with(quiet=True)
+            self.assertEqual(after.call_args.args[0], 60000)
+            self.root.after_cancel(self.window.allowance_timer_id)
+            self.window.auto_refresh_allowance()
+            self.assertEqual(check.call_count, 2)
+            self.assertEqual(after.call_args.args[0], 60000)
+        self.assertFalse(hasattr(self.window, "check"))
+
+    def test_selection_is_not_lost_when_an_allowance_check_is_in_progress(self):
+        import threading
+        import tkinter as tk
+        gate = threading.Event()
+        def allowance():
+            gate.wait(3)
+            return {"summary": "5h: 5% used", "remaining": [95, 80], "checked": "Last checked now"}
+        self.window.work(allowance, self.window.show_usage, quiet=True)
+        self.window.add_button.invoke()
+        self.root.update()
+        listing = next(w for w in self.window.picker.winfo_children() if isinstance(w, tk.Listbox))
+        listing.selection_set(0)
+        listing.event_generate("<<ListboxSelect>>")
+        self.assertTrue(self.window.pending_actions)
+        gate.set()
+        self.pump()
+        self.assertTrue(self.store.get("demo-task")["eligible"])
+        self.assertFalse(self.adapter.requests)
+
+    def test_arm_uses_selected_row_when_no_id_is_selected(self):
         self.prepare_saved_native_task()
         self.window.tasks.selection_set("demo-task")
         self.root.update()
-        self.window.thread_id.delete(0, "end")
+        self.window.selected_thread_id.set("")
         self.window.arm()
         self.pump()
-        self.assertEqual(self.window.thread_id.get(), "demo-task")
+        self.assertEqual(self.window.selected_thread_id.get(), "demo-task")
         self.assertTrue(self.store.get("demo-task")["eligible"])
         self.assertFalse(self.adapter.requests)

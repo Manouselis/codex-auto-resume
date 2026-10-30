@@ -4,13 +4,13 @@
 
 Resume explicitly armed chats after included usage resets, with optional recovery from saved context checkpoints. Your conversation, project and model stay together.
 
-[![Checks](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml) · **v0.5.0** · Python 3.10+ · MIT
+[![Checks](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml) · **v0.6.0** · Python 3.10+ · MIT
 
 | Dark mode | Light mode |
 | --- | --- |
 | ![Dark desktop control panel](docs/screenshots/dark.png) | ![Light desktop control panel](docs/screenshots/light.png) |
 
-Screenshots show the live desktop panel; allowance values are snapshots.
+Screenshots show the live desktop panel; allowance updates automatically every minute.
 
 ## Get started
 
@@ -23,11 +23,12 @@ python3 scripts/install.py
 ~/.local/bin/codex-auto-resume ui
 ```
 
-1. Opening the app turns the global checkbox **ON**. Each conversation still needs **Arm conversation**.
-2. Choose your conversation, then click **Arm conversation**. **Disarm** is right beside it.
-3. Enable **Recover context checkpoints** when unfinished work should continue after a context stop.
+1. Open the app; the global checkbox starts **ON**.
+2. Click **Add conversation**, then select a chat. It is **armed immediately**.
+3. Select a queued chat and click **Disarm** to remove it.
+4. Enable **Recover context checkpoints** when unfinished work should continue after a context stop.
 
-**Desktop chats need a [native recovery schedule](docs/RECOVERY.md#native-desktop-recovery-experimental).** A paused schedule shows **Schedule paused**. A missing or mismatched schedule stops recovery and shows **Needs attention**.
+**Desktop chats need a [native recovery schedule](docs/RECOVERY.md#native-desktop-recovery-experimental).** A paused schedule shows **Schedule paused**. A missing or mismatched schedule disarms the chat and records its reason in **Activity log**.
 
 ## What to expect
 
@@ -39,6 +40,6 @@ python3 scripts/install.py
 - On Ubuntu, the app starts a background controller and prevents sleep while work is armed. **Super+L is supported**; screen locking stays enabled.
 - Native wake-ups use normal model turns. Keep Codex open and stay signed in.
 
-The control panel supports dark/light modes, remaining-allowance meters, adjacent Arm/Disarm controls and an activity log. The local suite passes **210 tests**, including **16 GUI checks**. A real scheduled restart after a usage-limit interruption is [recorded](docs/evidence/limit-reset-recovery-0.4.0.json); repeated unattended reset cycles remain unverified. See [Testing](docs/TESTING.md).
+The control panel supports dark/light modes, remaining-allowance meters, single-selection arming, an active-only queue and an activity log. The local suite passes **213 tests**, including **19 GUI checks**. A real scheduled restart after a usage-limit interruption is [recorded](docs/evidence/limit-reset-recovery-0.4.0.json); repeated unattended reset cycles remain unverified. See [Testing](docs/TESTING.md).
 
 [Setup](docs/INSTALL.md) · [Recovery](docs/RECOVERY.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)

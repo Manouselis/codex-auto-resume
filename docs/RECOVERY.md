@@ -87,3 +87,5 @@ Explicit arming records its timestamp and monitored turn. The native prompt requ
 Version 0.4.1 accepts the context-checkpoint marker on the final line of a plain-text heartbeat XML `message`, before its closing tags. The envelope must contain exactly one automation ID, decision and message; malformed or nested markup is rejected. Completion and blocked markers still take precedence. Plain final responses retain the existing final-line rule.
 
 After diagnostic replies have become the latest turn, explicit Arm can reuse the exact earlier acknowledged native checkpoint only after reading and verifying it again. That arming records the current turn as its authorization boundary. It does not reopen completed objectives, accept an unverified checkpoint, or ignore manual activity arriving after arming. No extra “continue” message is needed before the next native wake-up.
+
+In the 0.6.0 desktop flow, click **Add conversation** and select the chat to arm it immediately. Saved native bindings and recovery settings are restored during selection. Only armed chats stay in the queue; use **Activity log** for disarmed chats and past stop reasons.

@@ -1,5 +1,9 @@
 # Troubleshooting
 
+## The active queue is empty or a conversation disappeared
+
+In 0.6.0 the queue shows only armed conversations. Click **Add conversation** and select an eligible chat; selection arms it immediately. **Disarm**, global OFF, completion or a safety stop removes a chat from the active list. Open **Activity log** to read past events and stop reasons. Removing a row preserves saved recovery settings and uncertain reservations.
+
 ## “Waiting for reset” keeps moving even though usage is available
 
 Version 0.4.1 could retain a completed native turn's global reservation and poll it every 30 seconds under the wrong reset label. Update to 0.5.0. Chats now have independent reservations, and a read-only audit retires a stale acknowledged reservation only after verifying that exact turn ended. Select a row or read its **Details** column for the actual reason. Connection failures show **Retrying connection**. Genuine quota waits still require fresh included-usage permission; a percentage or timer alone never authorizes continuation.

@@ -1,4 +1,6 @@
-# Testing and real verification — 0.5.0
+# Testing and real verification — 0.6.0
+
+The 0.6.0 UI regressions exercise a real picker-selection event that arms without a second button, saved native settings, queue removal without state deletion, a repeating 60-second timer, and a selection queued during an in-flight allowance check. GUI layout checks cover the visible Add/Disarm controls, the empty queue and both themes. These UI tests use controlled backend data and send no real model requests.
 
 Version 0.5.0 adds regressions for migration from the global reservation index, concurrent admitted chats, isolation of uncertain work, exact terminal-reservation cleanup, automatic daemon bootstrap, service reuse/start, a fresh ON window, icon packaging and the scoped sleep-inhibitor lifecycle. The actual Ubuntu inhibitor was acquired, listed through logind and released. The live stale reservation was verified terminal and retired with zero model requests. The sludge chat subsequently reported completion of its newer turn. Actual physical locking and a new uninterrupted quota-reset cycle have not been tested.
 
@@ -8,7 +10,7 @@ Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 30 October
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Full automated suite, including native GUI | PASS — 210 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
+| Full automated suite, including native GUI | PASS — 213 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
 | Hosted Ubuntu/Windows core and packaging CI, Python 3.10/3.13 | PASS — all four jobs at code commit `701b654`; exact pass/skip counts below | [Recorded CI evidence](evidence/ci-0.3.0.json), [GitHub run](https://github.com/Manouselis/codex-auto-resume/actions/runs/39905443617) |
 | Open turn owned by another runtime can be armed | PASS — monitors without loading the thread or sending inference; controlled later failure/reset submits once on a resumable daemon-owned fixture | 12 live-adapter regressions and one native control-panel regression |
 | Read-only reproduction against an active desktop conversation | PASS — external open turn arms and remains monitored, with zero thread mutations | [Sanitized arming probe](evidence/external-arm.json) |
@@ -31,7 +33,7 @@ Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 30 October
 
 The normal automated suite makes zero live model requests. The separately invoked live check made two genuine included-usage turns, in a dedicated harmless conversation, through the same production `_dispatch` method with an explicit manual-test trigger. It did not inject a fake quota or pretend that the real service had exhausted/reset. This confirms daemon-owned execution and context preservation. It did not test taking over the desktop writer, native scheduled recovery or a natural quota reset.
 
-The final full run includes sixteen GUI tests; headless runs intentionally skip them. The 2500-case randomized quota check is counted as one test. Earlier 0.1.0 results remain in Git history and do not describe this release's execution capability.
+The final full run includes nineteen GUI tests; headless runs intentionally skip them. The 2500-case randomized quota check is counted as one test. Earlier 0.1.0 results remain in Git history and do not describe this release's execution capability.
 
 ## Recorded 0.3.0 hosted CI results
 

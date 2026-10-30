@@ -22,13 +22,15 @@ Opening the app turns **Continue automatically when the 5h limit resets** ON, in
 ## Arm and monitor a conversation
 
 1. Open **Codex Auto-Resume** from the Ubuntu Applications menu. The switch is ON; the app starts or connects to its background controller and the official Codex daemon. Enabling alone starts no model work.
-2. Click **Choose…**, select the original conversation, and click **Arm conversation**. You can arm a running turn, or a structured usage-limit failure while the five-hour window still reports exhaustion.
+2. Click **Add conversation**, then select the original chat. Selection immediately arms it. You can arm a running turn, or a structured usage-limit failure while the five-hour window still reports exhaustion.
 3. Leave the controller running. It watches for a confirmed five-hour interruption, waits for the official reset time, and checks fresh included allowance before sending one continuation in the original conversation.
-4. Use **Disarm** for one task or switch OFF to disarm all tasks. Switching back ON does not rearm them.
+4. Use **Disarm** to remove a chat from the queue, or switch OFF to remove all armed chats. Switching back ON does not rearm them.
 
 To also recover a recognized context-budget checkpoint, select **Recover context checkpoints**, or use `arm THREAD_ID --recover-context`. This is separate from quota recovery and starts unchecked. Read [Recovery modes](RECOVERY.md) for its scope.
 
 A task running in another Codex runtime may show **Armed — waiting for a confirmed turn result**. Its history is available, but the companion cannot yet verify a terminal result. It continues monitoring without loading or interrupting the thread. This status alone can never authorize continuation.
+
+Allowance refreshes automatically on opening and every minute; no refresh button is needed. Only armed chats are shown. Disarmed and finished chats leave the queue, while their past events remain in **Activity log**.
 
 The table's **Next check** column shows the next scheduled check in local time, or **Native schedule** for a native-bound chat. For running or unresolved work it is a polling time; during a reset wait it includes the reset verification delay. It is not a guarantee that a new turn will start at that moment.
 

@@ -4,6 +4,7 @@ import json
 import threading
 import base64
 import time
+from collections import deque
 from importlib import resources
 from datetime import datetime
 
@@ -23,6 +24,10 @@ class ControlWindow:
         self.refresh_id = None
         self.worker = None
         self.initial_check_id = None
+        self.allowance_timer_id = None
+        self.pending_actions = deque()
+        self.picker = None
+        self.pending_selection = None
         self.scheduler = Scheduler(engine)
         self.owns_controller = False
         # Opening the app is the user's explicit request to enable monitoring.
@@ -45,8 +50,10 @@ class ControlWindow:
         self.recover_context = tk.BooleanVar(value=False)
         self.status = tk.StringVar(value="Enabled" if self.enabled.get() else "Paused")
         self.usage_text = tk.StringVar(value="Usage has not been checked")
-        self.quota_updated = tk.StringVar(value="Refresh to check your included allowance")
-        self.notice = tk.StringVar(value="Select a conversation to see recovery details.")
+        self.quota_updated = tk.StringVar(value="Checking allowance automatically…")
+        self.notice = tk.StringVar(value="Click Add conversation to start automatic recovery.")
+        self.selected_thread_id = tk.StringVar(value="demo-task" if simulation else "")
+        self.queue_title = tk.StringVar(value="Armed conversations · 0")
         self.power_status = tk.StringVar(value="Keep Codex open; screen locking is allowed.")
         self.names = {"demo-task": "Demo research conversation"} if simulation else {}
         self.remaining = [tk.StringVar(value="Not checked"), tk.StringVar(value="Not checked")]
@@ -70,11 +77,20 @@ class ControlWindow:
                                       style="Card.TCheckbutton", takefocus=True)
         self.toggle.pack(side="left")
         ttk.Label(setting, textvariable=self.status, style="Status.TLabel").pack(side="right", padx=(12, 0))
+        ttk.Label(frame, text="Choose what to continue", style="Section.TLabel").pack(anchor="w")
+        ttk.Label(frame, text="Add a conversation below. Selecting it arms recovery immediately.",
+                  style="Muted.TLabel").pack(anchor="w", pady=(4, 10))
+        controls = ttk.Frame(frame)
+        controls.pack(fill="x", pady=(0, 20))
+        self.add_button = ttk.Button(controls, text="+ Add conversation", command=self.choose, style="Primary.TButton")
+        self.add_button.pack(side="left")
+        self.disarm_button = ttk.Button(controls, text="Disarm", command=self.disarm, state="disabled")
+        self.disarm_button.pack(side="left", padx=(8, 0))
+        ttk.Checkbutton(controls, text="Recover context checkpoints", variable=self.recover_context).pack(side="right")
         quota_head = ttk.Frame(frame)
         quota_head.pack(fill="x", pady=(0, 10))
         ttk.Label(quota_head, text="Included allowance", style="Section.TLabel").pack(side="left")
-        self.check = ttk.Button(quota_head, text="Refresh allowance", command=self.check_usage)
-        self.check.pack(side="right")
+        ttk.Label(quota_head, text="Updates every minute", style="Muted.TLabel").pack(side="right")
         quotas = ttk.Frame(frame)
         quotas.pack(fill="x")
         quotas.columnconfigure((0, 1), weight=1, uniform="quota")
@@ -88,22 +104,7 @@ class ControlWindow:
             bar.bind("<Configure>", lambda _: self.draw_quotas())
             self.bars.append(bar)
         ttk.Label(frame, textvariable=self.quota_updated, style="Muted.TLabel").pack(anchor="w", pady=(7, 17))
-        ttk.Label(frame, text="Conversations", style="Section.TLabel").pack(anchor="w", pady=(0, 9))
-        entryrow = ttk.Frame(frame)
-        entryrow.pack(fill="x", pady=(0, 10))
-        self.thread_id = ttk.Entry(entryrow)
-        self.thread_id.pack(side="left", fill="x", expand=True, ipady=6)
-        self.thread_id.insert(0, "demo-task" if simulation else "")
-        self.thread_id.bind("<Return>", lambda _: self.arm())
-        if not simulation:
-            ttk.Button(entryrow, text="Choose…", command=self.choose).pack(side="left", padx=(10, 0))
-        controls = ttk.Frame(frame)
-        controls.pack(fill="x", pady=(0, 12))
-        self.arm_button = ttk.Button(controls, text="Arm conversation", command=self.arm, style="Primary.TButton")
-        self.arm_button.pack(side="left")
-        self.disarm_button = ttk.Button(controls, text="Disarm", command=self.disarm)
-        self.disarm_button.pack(side="left", padx=(8, 0))
-        ttk.Checkbutton(controls, text="Recover context checkpoints", variable=self.recover_context).pack(side="right")
+        ttk.Label(frame, textvariable=self.queue_title, style="Section.TLabel").pack(anchor="w", pady=(0, 9))
         table = ttk.Frame(frame, style="Card.TFrame", padding=1)
         table.pack(fill="both", expand=True)
         self.tasks = ttk.Treeview(table, columns=("state", "reset", "reason"), show="tree headings", height=2, selectmode="browse")
@@ -117,6 +118,8 @@ class ControlWindow:
         self.tasks.column("reason", width=270, minwidth=160)
         self.tasks.pack(fill="both", expand=True)
         self.tasks.bind("<<TreeviewSelect>>", self.show_reason)
+        self.empty_state = ttk.Label(table, text="No conversations armed yet\nClick Add conversation to get started.",
+                                     justify="center", style="CardMuted.TLabel")
         ttk.Label(frame, textvariable=self.notice, wraplength=700, style="Muted.TLabel").pack(anchor="w", fill="x", pady=(10, 10))
         if simulation:
             sims = ttk.Frame(frame)
@@ -142,13 +145,21 @@ class ControlWindow:
             except UnsafeError:
                 self.notice.set("Background controller connected. Closing this panel keeps recovery enabled.")
         self.refresh()
-        if not simulation:
-            self.initial_check_id = root.after(250, self.initial_check)
+        self.initial_check_id = root.after(250, self.initial_check)
 
     def initial_check(self):
         self.initial_check_id = None
-        if not self.closed and not self.busy:
-            self.check_usage()
+        self.auto_refresh_allowance()
+
+    def auto_refresh_allowance(self):
+        self.allowance_timer_id = None
+        if self.closed:
+            return
+        if self.busy or self.pending_actions:
+            self.allowance_timer_id = self.root.after(1000, self.auto_refresh_allowance)
+            return
+        self.check_usage(quiet=True)
+        self.allowance_timer_id = self.root.after(60000, self.auto_refresh_allowance)
 
     def theme(self):
         if self.dark.get():
@@ -211,23 +222,26 @@ class ControlWindow:
         if self.enabled.get() and not self.simulation:
             self.work(self.engine.adapter.ensure_daemon)
 
-    def work(self, action, callback=None):
+    def work(self, action, callback=None, *, quiet=False):
         if self.busy:
-            self.notice.set("A check is already running")
+            if not quiet:
+                self.pending_actions.append((action, callback))
+                self.notice.set("Finishing the current check…")
             return
         self.busy = True
-        self.notice.set("Checking…")
+        if not quiet:
+            self.notice.set("Checking…")
         results = self.results
         def run():
             try:
-                results.put((True, action(), callback))
+                results.put((True, action(), callback, quiet))
             except Exception as exc:
                 # UI exceptions are short local diagnostics; raw protocol errors are never passed through.
-                results.put((False, str(exc)[:180], None))
+                results.put((False, str(exc)[:180], None, quiet))
         self.worker = threading.Thread(target=run, daemon=True)
         self.worker.start()
 
-    def check_usage(self):
+    def check_usage(self, *, quiet=False):
         engine = self.engine
         def check():
             usage = engine.adapter.usage()
@@ -247,7 +261,7 @@ class ControlWindow:
                     remaining.append(None)
             return {"summary": " · ".join(values), "remaining": remaining,
                     "checked": "Last checked " + datetime.now().strftime("%H:%M")}
-        self.work(check, self.show_usage)
+        self.work(check, self.show_usage, quiet=quiet)
 
     def show_usage(self, result):
         self.usage_text.set(result["summary"])
@@ -255,11 +269,10 @@ class ControlWindow:
             self.remaining[i].set(f"{value:g}% remaining" if value is not None else "Unavailable")
             self.progress[i].set(value or 0)
         self.draw_quotas()
-        self.quota_updated.set(result["checked"])
-        self.notice.set("Included allowance refreshed.")
+        self.quota_updated.set(result["checked"] + " · refreshes every minute")
 
     def arm(self):
-        tid = self.thread_id.get().strip()
+        tid = self.selected_thread_id.get().strip()
         if not tid and self.tasks.selection():
             tid = self.tasks.selection()[0]
             self.select_conversation(tid)
@@ -274,43 +287,66 @@ class ControlWindow:
                 return "Native recovery armed; existing running work is preserved"
             return ("Conversation armed for usage-limit and context-budget recovery" if recover_context
                     else "Conversation explicitly armed")
-        self.work(arm)
+        def armed(message):
+            self.notice.set(message)
+            self.pending_selection = tid
+        self.work(arm, armed)
 
     def disarm(self):
         chosen = self.tasks.selection()
         if not chosen:
-            tid = self.thread_id.get().strip()
+            tid = self.selected_thread_id.get().strip()
             chosen = (tid,) if self.engine.store.get(tid) else ()
         if not chosen:
             self.notice.set("Choose a conversation to disarm.")
             return
         for tid in chosen:
             self.engine.disarm(tid)
+            if self.tasks.exists(tid):
+                self.tasks.delete(tid)
+        self.selected_thread_id.set("")
+        self.disarm_button.state(["disabled"])
         self.scheduler.wake.set()
-        self.notice.set("Selected conversation disarmed")
+        self.notice.set("Conversation disarmed and removed from the queue.")
 
     def choose(self):
-        self.work(self.engine.adapter.recent_threads, self.show_picker)
+        if self.picker is not None and self.picker.winfo_exists():
+            self.picker.lift()
+            return
+        if self.simulation:
+            self.show_picker([{"id": tid, "name": self.names.get(tid, tid)} for tid in self.engine.adapter.observations])
+        else:
+            self.work(self.engine.adapter.recent_threads, self.show_picker)
 
     def show_picker(self, conversations):
         import tkinter as tk
         from tkinter import ttk
         self.names.update({item["id"]: item["name"] for item in conversations})
         window = tk.Toplevel(self.root)
-        window.title("Choose a conversation")
+        self.picker = window
+        window.title("Add a conversation")
         window.geometry("660x360")
+        ttk.Label(window, text="Select a conversation to arm it", style="Section.TLabel").pack(anchor="w", padx=16, pady=(16, 4))
+        ttk.Label(window, text="Choose a running chat or one stopped by a usage limit. Selection arms it immediately.", style="Muted.TLabel").pack(anchor="w", padx=16)
         listing = tk.Listbox(window, font=("sans-serif", 11), exportselection=False)
         listing.pack(fill="both", expand=True, padx=16, pady=16)
         for item in conversations:
             listing.insert("end", item["name"] + " · " + item["id"][-8:])
+        if not conversations:
+            ttk.Label(window, text="No conversations found. Open a chat in Codex, then try again.").pack(pady=(0, 16))
+        accepted = False
         def select(*_):
+            nonlocal accepted
             selected = listing.curselection()
-            if selected:
+            if selected and not accepted:
+                accepted = True
                 self.select_conversation(conversations[selected[0]]["id"])
                 window.destroy()
+                self.picker = None
+                self.arm()
+        listing.bind("<<ListboxSelect>>", select)
         listing.bind("<Return>", select)
-        listing.bind("<Double-Button-1>", select)
-        ttk.Button(window, text="Use this conversation", command=select).pack(pady=(0, 16))
+        listing.focus_set()
 
     def show_reason(self, *_):
         chosen = self.tasks.selection()
@@ -319,12 +355,13 @@ class ControlWindow:
             if task:
                 self.select_conversation(chosen[0])
                 self.notice.set(task["reason"])
+                self.disarm_button.state(["!disabled"])
 
     def select_conversation(self, thread_id):
-        self.thread_id.delete(0, "end")
-        self.thread_id.insert(0, thread_id)
+        self.selected_thread_id.set(thread_id)
         task = self.engine.store.get(thread_id)
-        self.recover_context.set(json.loads(task["context"]).get("recover_context", False) if task else False)
+        if task:
+            self.recover_context.set(json.loads(task["context"]).get("recover_context", False))
 
     def history(self):
         import tkinter as tk
@@ -355,16 +392,19 @@ class ControlWindow:
         if self.closed:
             return
         while not self.results.empty():
-            ok, message, callback = self.results.get_nowait()
+            ok, message, callback, quiet = self.results.get_nowait()
             self.busy = False
             if ok and callback is not None:
                 callback(message)
-                if isinstance(message, list):
-                    self.notice.set("Choose a conversation, then click Arm conversation.")
                 continue
-            self.notice.set(message)
+            if quiet:
+                self.quota_updated.set("Allowance unavailable · retrying automatically")
+            else:
+                self.notice.set(message)
             if ok and "% used" in message:
                 self.usage_text.set(message)
+        if not self.busy and self.pending_actions:
+            self.work(*self.pending_actions.popleft())
         enabled = self.engine.store.enabled
         self.enabled.set(enabled)
         self.status.set("Enabled" if enabled else "Paused")
@@ -372,7 +412,18 @@ class ControlWindow:
         alive = time.time() - float(self.engine.store.value("controller_heartbeat")) < 20
         controller = "Window controller" if self.owns_controller else ("Background controller active" if alive else "Background controller starting")
         self.power_status.set(controller + " · " + (power if power != "Not requested" else "No armed work needs sleep protection."))
-        for task in self.engine.store.tasks():
+        active = [task for task in self.engine.store.tasks() if task["eligible"]]
+        visible = {task["thread_id"] for task in active}
+        for tid in self.tasks.get_children():
+            if tid not in visible:
+                self.tasks.delete(tid)
+        self.queue_title.set(f"Armed conversations · {len(active)}")
+        if active:
+            self.empty_state.place_forget()
+        else:
+            self.empty_state.place(relx=.5, rely=.55, anchor="center")
+        self.disarm_button.state(["!disabled"] if self.tasks.selection() else ["disabled"])
+        for task in active:
             reset = datetime.fromtimestamp(task["next_check"]).strftime("%d %b %H:%M") if task["next_check"] else "—"
             context = json.loads(task["context"])
             if context.get("native_heartbeat"):
@@ -388,9 +439,14 @@ class ControlWindow:
                 self.tasks.item(tid, text=name, values=values)
             else:
                 self.tasks.insert("", "end", iid=tid, text=name, values=values)
+        if self.pending_selection and self.tasks.exists(self.pending_selection):
+            self.tasks.selection_set(self.pending_selection)
+            self.tasks.focus(self.pending_selection)
+            self.pending_selection = None
+            self.disarm_button.state(["!disabled"])
         if self.scheduler.last_error:
             self.notice.set(self.scheduler.last_error)
-        self.refresh_id = self.root.after(500, self.refresh)
+        self.refresh_id = self.root.after(200, self.refresh)
 
     def close(self):
         if self.closed:
@@ -399,6 +455,10 @@ class ControlWindow:
         if self.initial_check_id is not None:
             self.root.after_cancel(self.initial_check_id)
             self.initial_check_id = None
+        if self.allowance_timer_id is not None:
+            self.root.after_cancel(self.allowance_timer_id)
+            self.allowance_timer_id = None
+        self.pending_actions.clear()
         if self.refresh_id is not None:
             self.root.after_cancel(self.refresh_id)
             self.refresh_id = None

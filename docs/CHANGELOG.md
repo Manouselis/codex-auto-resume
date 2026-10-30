@@ -2,6 +2,14 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
+## 0.6.0 — 30 October 2026
+
+- Replaced the loop/play logo with a simpler conversation icon.
+- Added an obvious **Add conversation** starting point, an explanation and an empty queue prompt. Raw conversation IDs and the separate Arm step are removed from the desktop flow.
+- Selecting a conversation arms it immediately, including saved native recovery settings. An in-progress allowance check cannot discard the selection.
+- Disarmed, disabled and otherwise ineligible chats disappear from the active queue. Their state, reservations and activity history are preserved.
+- Allowance refreshes automatically on opening and every minute. Removed the refresh button; quiet updates preserve user action messages and stop when the panel closes.
+- All 213 local tests pass, including 19 GUI checks.
 ## 0.5.0 — 30 October 2026
 
 - Multiple armed chats can run independently. The durable uniqueness constraint now applies per conversation; uncertain work in one chat cannot block another.

@@ -1,6 +1,6 @@
 # Architecture
 
-The 0.5.0 desktop launcher starts an installed per-user service. `desktop.py` reuses an active controller or starts the service; Tk remains a control panel. `power.py` takes a `systemd-inhibit --what=sleep` lease while recovery is enabled and any chat is eligible. The lease follows controller lifetime and never inhibits idle display handling, locking or shutdown. A private heartbeat records controller liveness.
+The 0.6.0 desktop launcher starts an installed per-user service. `desktop.py` reuses an active controller or starts the service; Tk remains a control panel. `power.py` takes a `systemd-inhibit --what=sleep` lease while recovery is enabled and any chat is eligible. The lease follows controller lifetime and never inhibits idle display handling, locking or shutdown. A private heartbeat records controller liveness.
 
 The former global `one_execution` index migrates to `one_execution_per_thread`. Submission checks use the chat ID in both external and native guards. API requests remain serialized on their RPC connection, while admitted model turns run independently. Each dispatch still reads fresh shared quota. A read-only audit releases only acknowledged running reservations whose exact turns have confirmed terminal metadata; unknown delivery stays blocked in its own chat.
 

@@ -1,3 +1,3 @@
 """Local, fail-closed continuation controller. No third-party runtime dependencies."""
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"

@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-30",
+  "version": "0.6.0",
+  "status": "PASS",
+  "real_automatic_allowance_refreshes": 2,
+  "refresh_interval_seconds": 59.49,
+  "inactive_rows_hidden_without_deletion": true,
+  "inactive_records_preserved": 2,
+  "new_icon_loaded": true,
+  "model_mutations_allowed": false,
+  "automated_tests": {
+    "total": 213,
+    "gui": 19,
+    "failures": 0,
+    "skipped": 0
+  },
+  "picker_selection_arms_immediately": "PASS with controlled backend",
+  "selection_during_allowance_check_is_preserved": "PASS with controlled backend"
+}
