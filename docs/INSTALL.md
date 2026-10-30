@@ -17,16 +17,16 @@ python3 scripts/install.py
 
 The installer creates the application, launcher, manifest and Applications-menu entry under `~/.local`. It does not enable a startup service. Use `--prefix /private/path` for a custom installation location; the service recipes below assume the default prefix.
 
-A fresh installation starts ON, with **Continue automatically when the 5h limit resets** checked. Updating preserves your saved ON/OFF choice and local task state. Individual conversations still require explicit arming.
+Opening the app turns **Continue automatically when the 5h limit resets** ON, including after a previous OFF choice. OFF still stops recovery immediately while the app is open. Previously disarmed conversations stay disarmed until explicitly armed again. The installer adds a branded application-menu entry and, on Linux, a user-service definition.
 
 ## Arm and monitor a conversation
 
-1. Turn the switch ON. The companion starts or connects to the official local App Server daemon and verifies the account. Enabling alone starts no model work.
+1. Open **Codex Auto-Resume** from the Ubuntu Applications menu. The switch is ON; the app starts or connects to its background controller and the official Codex daemon. Enabling alone starts no model work.
 2. Click **Choose…**, select the original conversation, and click **Arm conversation**. You can arm a running turn, or a structured usage-limit failure while the five-hour window still reports exhaustion.
 3. Leave the controller running. It watches for a confirmed five-hour interruption, waits for the official reset time, and checks fresh included allowance before sending one continuation in the original conversation.
-4. Use **Disarm selected** for one task or switch OFF to disarm all tasks. Switching back ON does not rearm them.
+4. Use **Disarm** for one task or switch OFF to disarm all tasks. Switching back ON does not rearm them.
 
-To also recover a recognized context-budget checkpoint, select **Also recover context-budget checkpoints for this arming**, or use `arm THREAD_ID --recover-context`. This is separate from quota recovery and starts unchecked. Read [Recovery modes](RECOVERY.md) for its scope.
+To also recover a recognized context-budget checkpoint, select **Recover context checkpoints**, or use `arm THREAD_ID --recover-context`. This is separate from quota recovery and starts unchecked. Read [Recovery modes](RECOVERY.md) for its scope.
 
 A task running in another Codex runtime may show **Armed — waiting for a confirmed turn result**. Its history is available, but the companion cannot yet verify a terminal result. It continues monitoring without loading or interrupting the thread. This status alone can never authorize continuation.
 
@@ -62,7 +62,7 @@ Confirm the task is eligible and the service is running:
 systemctl --user status codex-auto-resume.service
 ```
 
-Keep the computer awake, online and logged in, and leave Codex open. The service runs independently of the launching terminal, but it does not prevent suspend or wake the computer. This transient unit does not install a startup item or provide automatic rearming after reboot.
+Keep Codex open, stay logged in and keep the network connected. On Ubuntu the controller holds a sleep inhibitor only while at least one task is armed. Locking with **Super+L** and display blanking remain allowed. OFF or disarming all work releases the inhibitor within a scheduler tick. The footer reports whether sleep protection is available. This does not wake a suspended machine or guarantee rearming after reboot.
 
 Ordinary completion, confirmed cancellation, a superseding turn, pending approval, exhausted weekly usage, or an unverifiable safety check stops automatic continuation. A recognized context checkpoint is eligible only when that recovery mode was explicitly enabled. The default is at most three continuation attempts per arming. See [Safety](SAFETY.md) for the full conditions.
 

@@ -23,6 +23,15 @@ def find_codex() -> str:
     return found
 
 
+def start_daemon():
+    """Start the official per-user transport; this never starts a model turn."""
+    try:
+        subprocess.run([find_codex(), "app-server", "daemon", "start"], capture_output=True,
+                       timeout=30, check=True)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise TransientError("Unable to start the Codex connection; check the installed Codex runtime") from exc
+
+
 class ReadOnlyRpc:
     def __init__(self, command=None, *, timeout=10):
         self.command = command
@@ -47,7 +56,7 @@ class ReadOnlyRpc:
         self.reader = threading.Thread(target=self._read, args=(proc, responses, self.events), daemon=True)
         self.reader.start()
         self._call("initialize", {"clientInfo": {"name": "codex_auto_resume", "title": "Codex Auto-Resume",
-                                                "version": "0.4.1"},
+                                                "version": "0.5.0"},
                                   "capabilities": {"experimentalApi": True}})
         self._write({"method": "initialized"})
 

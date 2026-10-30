@@ -20,7 +20,7 @@ Context checkpoint recognition uses explicit model-reported outcomes and a narro
 
 ## Controller lifecycle
 
-Normal process stop and global OFF disarm tasks. Closing a window-owned controller disarms work; closing a service-owned control panel leaves monitoring enabled. A background service allows operation without an open control window; it does not prevent suspend, wake the computer or guarantee recovery after logout/reboot. Keep the machine awake, connected and logged in.
+Normal process stop and global OFF disarm tasks. Closing a window-owned controller disarms work; closing a service-owned control panel leaves monitoring enabled. On Ubuntu, the installed app starts a background service and holds a sleep inhibitor while work is armed. Screen locking remains allowed. The app cannot wake an already suspended computer or guarantee recovery after logout/reboot. Keep Codex open and remain connected and logged in. Sleep-inhibitor acquisition and release were verified on this host; a physical locked-session continuation has not been observed.
 
 A process crash can preserve a reset wait, but an uncertain submission is paused for inspection. An enabled service definition does not override those safety decisions. See the [operation guide](INSTALL.md) for the transient and installed user-service options.
 

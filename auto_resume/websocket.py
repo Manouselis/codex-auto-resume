@@ -14,7 +14,7 @@ import threading
 from pathlib import Path
 
 from .domain import NotSentError, TransientError, UnsafeError, WriterConflictError
-from .protocol import READ_METHODS
+from .protocol import READ_METHODS, start_daemon
 
 MAX_MESSAGE = 16 * 1024 * 1024
 GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -35,7 +35,7 @@ class LocalWebSocket:
         except OSError as exc:
             if hasattr(self, "sock"):
                 self.sock.close()
-            raise TransientError("Start the official Codex App Server daemon before enabling Auto-Resume") from exc
+            raise TransientError("The local Codex connection is unavailable") from exc
         self.send_lock = threading.Lock()
         key = base64.b64encode(os.urandom(16)).decode()
         request = ("GET / HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
@@ -138,12 +138,16 @@ class DaemonRpc:
         self.sequence = 0
 
     def _start(self):
-        connection = LocalWebSocket(self.socket_path, self.timeout)
+        try:
+            connection = LocalWebSocket(self.socket_path, self.timeout)
+        except TransientError:
+            start_daemon()
+            connection = LocalWebSocket(self.socket_path, self.timeout)
         self.connection = connection
         self.responses = queue.Queue()
         threading.Thread(target=self._read, args=(connection, self.responses), daemon=True).start()
         self._call("initialize", {"clientInfo": {"name": "codex_auto_resume", "title": "Codex Auto-Resume",
-                                                "version": "0.4.1"},
+                                                "version": "0.5.0"},
                                   "capabilities": {"experimentalApi": True}})
         self._write({"method": "initialized"})
 

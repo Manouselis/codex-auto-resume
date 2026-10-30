@@ -158,7 +158,9 @@ def main(argv=None):
             engine.disarm(args.thread_id)
         elif args.command == "ui":
             from .ui import launch
-            launch(engine, args.simulation)
+            from .desktop import ensure_background
+            background = not args.simulation and args.state is None and ensure_background(store.path)
+            launch(engine, args.simulation, background=background)
         elif args.command == "run":
             if not args.simulation:
                 adapter.ensure_daemon()

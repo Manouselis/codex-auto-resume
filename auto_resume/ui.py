@@ -2,6 +2,9 @@
 import queue
 import json
 import threading
+import base64
+import time
+from importlib import resources
 from datetime import datetime
 
 from .engine import Scheduler
@@ -9,7 +12,7 @@ from .domain import UnsafeError
 
 
 class ControlWindow:
-    def __init__(self, root, engine, simulation=False):
+    def __init__(self, root, engine, simulation=False, *, background=False):
         import tkinter as tk
         from tkinter import ttk
 
@@ -19,12 +22,22 @@ class ControlWindow:
         self.closed = False
         self.refresh_id = None
         self.worker = None
+        self.initial_check_id = None
         self.scheduler = Scheduler(engine)
         self.owns_controller = False
+        # Opening the app is the user's explicit request to enable monitoring.
+        # Previously disarmed conversations still require their own Arm action.
+        if not engine.store.enabled:
+            engine.store.set_enabled(True, engine.clock())
 
         root.title("Codex Auto-Resume" + (" · Demo" if simulation else ""))
         root.geometry("920x800")
         root.minsize(760, 760)
+        try:
+            self.icon = tk.PhotoImage(data=base64.b64encode(resources.files("auto_resume").joinpath("assets/icon.png").read_bytes()))
+            root.iconphoto(True, self.icon)
+        except (OSError, tk.TclError):
+            self.icon = None
         self.style = ttk.Style(root)
         self.style.theme_use("clam")
         self.dark = tk.BooleanVar(value=True)
@@ -34,6 +47,7 @@ class ControlWindow:
         self.usage_text = tk.StringVar(value="Usage has not been checked")
         self.quota_updated = tk.StringVar(value="Refresh to check your included allowance")
         self.notice = tk.StringVar(value="Select a conversation to see recovery details.")
+        self.power_status = tk.StringVar(value="Keep Codex open; screen locking is allowed.")
         self.names = {"demo-task": "Demo research conversation"} if simulation else {}
         self.remaining = [tk.StringVar(value="Not checked"), tk.StringVar(value="Not checked")]
         self.progress = [tk.DoubleVar(value=0), tk.DoubleVar(value=0)]
@@ -42,8 +56,13 @@ class ControlWindow:
         frame.pack(fill="both", expand=True)
         header = ttk.Frame(frame)
         header.pack(fill="x", pady=(0, 18))
-        ttk.Label(header, text="Auto-Resume", style="Title.TLabel").pack(anchor="w")
-        ttk.Label(header, text="Keep your work moving in the same conversation.", style="Muted.TLabel").pack(anchor="w", pady=(4, 0))
+        if self.icon:
+            self.brand_icon = self.icon.subsample(4, 4)
+            ttk.Label(header, image=self.brand_icon).pack(side="left", padx=(0, 14))
+        titles = ttk.Frame(header)
+        titles.pack(side="left")
+        ttk.Label(titles, text="Auto-Resume", style="Title.TLabel").pack(anchor="w")
+        ttk.Label(titles, text="Keep your work moving in the same conversation.", style="Muted.TLabel").pack(anchor="w", pady=(4, 0))
         setting = ttk.Frame(frame, style="Card.TFrame", padding=(18, 14))
         setting.pack(fill="x", pady=(0, 18))
         self.toggle = ttk.Checkbutton(setting, text="Continue automatically when the 5h limit resets",
@@ -87,13 +106,15 @@ class ControlWindow:
         ttk.Checkbutton(controls, text="Recover context checkpoints", variable=self.recover_context).pack(side="right")
         table = ttk.Frame(frame, style="Card.TFrame", padding=1)
         table.pack(fill="both", expand=True)
-        self.tasks = ttk.Treeview(table, columns=("state", "reset"), show="tree headings", height=2, selectmode="browse")
+        self.tasks = ttk.Treeview(table, columns=("state", "reset", "reason"), show="tree headings", height=2, selectmode="browse")
         self.tasks.heading("#0", text="Conversation", anchor="w")
         self.tasks.heading("state", text="Recovery", anchor="w")
         self.tasks.heading("reset", text="Next check", anchor="w")
-        self.tasks.column("#0", width=380, minwidth=230)
+        self.tasks.heading("reason", text="Details", anchor="w")
+        self.tasks.column("#0", width=260, minwidth=210)
         self.tasks.column("state", width=150, minwidth=130)
-        self.tasks.column("reset", width=190, minwidth=150)
+        self.tasks.column("reset", width=150, minwidth=125)
+        self.tasks.column("reason", width=270, minwidth=160)
         self.tasks.pack(fill="both", expand=True)
         self.tasks.bind("<<TreeviewSelect>>", self.show_reason)
         ttk.Label(frame, textvariable=self.notice, wraplength=700, style="Muted.TLabel").pack(anchor="w", fill="x", pady=(10, 10))
@@ -106,17 +127,28 @@ class ControlWindow:
         footer = self.footer = ttk.Frame(frame)
         footer.pack(fill="x")
         ttk.Button(footer, text="Activity log", command=self.history).pack(side="left")
-        ttk.Label(footer, text="Demo data · no model requests" if simulation else "Keep Codex open and your computer awake.", style="Muted.TLabel").pack(side="left", padx=14)
+        ttk.Label(footer, text="Demo data · no model requests" if simulation else "Keep Codex open · screen locking is allowed.", style="Muted.TLabel").pack(side="left", padx=14)
         ttk.Checkbutton(footer, text="Dark mode", variable=self.dark, command=self.theme).pack(side="right")
+        ttk.Label(frame, textvariable=self.power_status, style="Muted.TLabel").pack(anchor="w", pady=(7, 0))
         root.protocol("WM_DELETE_WINDOW", self.close)
         root.bind("<Control-q>", lambda _: self.close())
         self.theme()
-        try:
-            self.scheduler.start()
-            self.owns_controller = True
-        except UnsafeError:
+        if background:
             self.notice.set("Background controller connected. Closing this panel keeps recovery enabled.")
+        else:
+            try:
+                self.scheduler.start()
+                self.owns_controller = True
+            except UnsafeError:
+                self.notice.set("Background controller connected. Closing this panel keeps recovery enabled.")
         self.refresh()
+        if not simulation:
+            self.initial_check_id = root.after(250, self.initial_check)
+
+    def initial_check(self):
+        self.initial_check_id = None
+        if not self.closed and not self.busy:
+            self.check_usage()
 
     def theme(self):
         if self.dark.get():
@@ -336,6 +368,10 @@ class ControlWindow:
         enabled = self.engine.store.enabled
         self.enabled.set(enabled)
         self.status.set("Enabled" if enabled else "Paused")
+        power = self.engine.store.value("power_status")
+        alive = time.time() - float(self.engine.store.value("controller_heartbeat")) < 20
+        controller = "Window controller" if self.owns_controller else ("Background controller active" if alive else "Background controller starting")
+        self.power_status.set(controller + " · " + (power if power != "Not requested" else "No armed work needs sleep protection."))
         for task in self.engine.store.tasks():
             reset = datetime.fromtimestamp(task["next_check"]).strftime("%d %b %H:%M") if task["next_check"] else "—"
             context = json.loads(task["context"])
@@ -343,7 +379,9 @@ class ControlWindow:
                 reset = "Activate in Codex" if task["state"] == "WAITING_FOR_SCHEDULE" else "Native schedule"
             label = {"WAITING_FOR_SCHEDULE": "Schedule paused", "PAUSED_FOR_USER": "Needs attention",
                      "WAITING_FOR_RESET": "Waiting for reset"}.get(task["state"], task["state"].replace("_", " ").capitalize())
-            values = (label, reset)
+            if task["state"] == "WAITING_FOR_RESET" and task["reason"].startswith("Connection unavailable"):
+                label = "Retrying connection"
+            values = (label, reset, task["reason"])
             tid = task["thread_id"]
             name = self.names.get(tid) or context.get("name") or tid
             if self.tasks.exists(tid):
@@ -358,6 +396,9 @@ class ControlWindow:
         if self.closed:
             return
         self.closed = True
+        if self.initial_check_id is not None:
+            self.root.after_cancel(self.initial_check_id)
+            self.initial_check_id = None
         if self.refresh_id is not None:
             self.root.after_cancel(self.refresh_id)
             self.refresh_id = None
@@ -370,11 +411,11 @@ class ControlWindow:
         self.root.destroy()
 
 
-def launch(engine, simulation=False):
+def launch(engine, simulation=False, *, background=False):
     try:
         import tkinter as tk
-        root = tk.Tk()
+        root = tk.Tk(className="CodexAutoResume")
     except Exception as exc:
         raise ValueError("Desktop UI is unavailable. On Ubuntu install python3-tk and use a desktop session.") from exc
-    ControlWindow(root, engine, simulation)
+    ControlWindow(root, engine, simulation, background=background)
     root.mainloop()

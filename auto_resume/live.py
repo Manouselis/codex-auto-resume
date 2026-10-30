@@ -6,7 +6,6 @@ It is not a claim of atomic billing reservation or remote exactly-once execution
 import hashlib
 import json
 import queue
-import subprocess
 import threading
 import time
 import uuid
@@ -15,7 +14,7 @@ from pathlib import Path
 from .domain import Capabilities, NotSentError, Observation, Request, UnsafeError, Usage, WriterConflictError
 from .policy import evaluate
 from .protocol import READ_METHODS
-from .protocol import find_codex
+from .protocol import start_daemon
 from .websocket import DaemonRpc
 from .checkpoints import context_checkpoint, final_text
 
@@ -69,11 +68,7 @@ class LiveAdapter:
         return Usage(payload, self.clock(), "chatgpt")
 
     def ensure_daemon(self):
-        try:
-            subprocess.run([find_codex(), "app-server", "daemon", "start"], capture_output=True,
-                           timeout=30, check=True)
-        except (OSError, subprocess.SubprocessError) as exc:
-            raise UnsafeError("Unable to start the official local Codex App Server") from exc
+        start_daemon()
         self.usage()
         return "Codex connected. Choose the original conversation and arm it."
 

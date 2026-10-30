@@ -48,6 +48,20 @@ class UiTests(unittest.TestCase):
         self.window.close()
         self.assertFalse(self.store.enabled)
 
+    def test_opening_window_enables_monitoring_without_rearming_old_tasks(self):
+        import tkinter as tk
+        from auto_resume.ui import ControlWindow
+        self.engine.register("demo-task")
+        self.store.set_enabled(False, time.time())
+        window = ControlWindow(tk.Toplevel(self.root), self.engine, simulation=True)
+        try:
+            self.assertTrue(self.store.enabled)
+            self.assertIn("selected", window.toggle.state())
+            self.assertFalse(self.store.get("demo-task")["eligible"])
+            self.assertIsNotNone(window.icon)
+        finally:
+            window.close()
+
     def test_keyboard_entry_arm_and_disarm(self):
         self.window.arm()
         self.pump()

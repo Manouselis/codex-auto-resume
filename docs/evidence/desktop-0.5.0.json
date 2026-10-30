@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-30",
+  "version": "0.5.0",
+  "platform": "Ubuntu X11",
+  "status": "PASS",
+  "automated_tests": {
+    "total": 210,
+    "gui": 16,
+    "failures": 0,
+    "skipped": 0
+  },
+  "parallel_chat_recovery": {
+    "unique_reservation_per_thread": true,
+    "multiple_admitted_chats_regression": "PASS",
+    "uncertain_other_chat_does_not_block": "PASS",
+    "same_chat_duplicate_rejected": "PASS"
+  },
+  "live_checks": {
+    "acknowledged_stale_native_turn_verified_terminal": true,
+    "stale_reservation_released_without_resending": true,
+    "model_requests_sent_by_repair": 0,
+    "installed_application_icon_loaded": true,
+    "opening_after_off_enables_switch": true,
+    "independent_user_service_active": true,
+    "controller_heartbeat_advanced_with_all_panels_closed": true,
+    "closing_panels_preserves_enabled_setting": true,
+    "sleep_inhibitor_acquired_and_listed": true,
+    "sleep_inhibitor_released": true,
+    "screen_lock_settings_modified": false
+  },
+  "not_verified": [
+    "Physical Super+L locked-session continuation",
+    "New uninterrupted quota-exhaustion/wait/reset cycle",
+    "Live Windows integration"
+  ]
+}

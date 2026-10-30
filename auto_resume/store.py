@@ -51,8 +51,11 @@ class Store:
             CREATE TABLE IF NOT EXISTS submissions(
                 id TEXT PRIMARY KEY, thread_id TEXT NOT NULL, status TEXT NOT NULL,
                 turn_id TEXT, created_at REAL NOT NULL);
-            CREATE UNIQUE INDEX IF NOT EXISTS one_execution ON submissions((1))
+            DROP INDEX IF EXISTS one_execution;
+            CREATE UNIQUE INDEX IF NOT EXISTS one_execution_per_thread ON submissions(thread_id)
                 WHERE status IN ('reserved','running','uncertain');
+            INSERT OR IGNORE INTO meta VALUES('power_status','Not requested');
+            INSERT OR IGNORE INTO meta VALUES('controller_heartbeat','0');
             CREATE TABLE IF NOT EXISTS history(
                 id INTEGER PRIMARY KEY, at REAL NOT NULL, thread_id TEXT,
                 state TEXT NOT NULL, reason TEXT NOT NULL);

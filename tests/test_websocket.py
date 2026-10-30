@@ -35,6 +35,23 @@ def frame(data, opcode=1, final=True):
 
 
 class WebSocketTests(unittest.TestCase):
+    def test_missing_local_socket_starts_official_daemon_before_connecting(self):
+        from unittest.mock import Mock
+        rpc = DaemonRpc()
+        connection = Mock()
+        with patch("auto_resume.websocket.LocalWebSocket", side_effect=[TransientError("Unavailable"), connection]) as connect, patch("auto_resume.websocket.start_daemon") as start, patch.object(rpc, "_call", return_value={}), patch.object(rpc, "_write"), patch.object(rpc, "_read"):
+            rpc._start()
+            self.assertEqual(start.call_count, 1)
+            self.assertEqual(connect.call_count, 2)
+        rpc.close()
+
+    def test_untrusted_socket_is_not_bypassed_by_daemon_bootstrap(self):
+        rpc = DaemonRpc()
+        with patch("auto_resume.websocket.LocalWebSocket", side_effect=UnsafeError("Wrong owner")), patch("auto_resume.websocket.start_daemon") as start:
+            with self.assertRaises(UnsafeError):
+                rpc._start()
+            self.assertFalse(start.called)
+
     def rejected(self, method, message, *, code=-32600):
         rpc = DaemonRpc(timeout=1)
         rpc._write = lambda payload: None

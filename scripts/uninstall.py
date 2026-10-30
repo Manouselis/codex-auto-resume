@@ -19,7 +19,8 @@ def main(argv=None):
     if data.get("application") != "codex-auto-resume" or data.get("prefix") != str(prefix):
         raise ValueError("Invalid installation manifest")
     allowed = {"share/codex-auto-resume/codex-auto-resume.pyz", "bin/codex-auto-resume",
-               "bin/codex-auto-resume.cmd", "share/applications/codex-auto-resume.desktop"}
+               "bin/codex-auto-resume.cmd", "share/applications/codex-auto-resume.desktop",
+               "share/codex-auto-resume/icon.png", "share/systemd/user/codex-auto-resume.service"}
     if not isinstance(data.get("files"), list) or not set(data["files"]) <= allowed:
         raise ValueError("Manifest contains unexpected paths")
     for name in data["files"]:

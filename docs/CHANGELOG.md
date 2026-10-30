@@ -2,6 +2,15 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
+## 0.5.0 — 30 October 2026
+
+- Multiple armed chats can run independently. The durable uniqueness constraint now applies per conversation; uncertain work in one chat cannot block another.
+- Reconcile acknowledged terminal reservations, including disarmed native tasks. The stale global reservation that produced an endlessly moving “Waiting for reset” row is removed only after its exact turn is confirmed ended.
+- Opening the app enables the global switch. Previously disarmed chats are not silently rearmed.
+- Added a logo, window icon, Ubuntu application launcher and installed user-service definition. Opening the installed app starts its background controller; closing the panel leaves it running.
+- The controller holds a Linux sleep inhibitor while work is armed, without disabling screen locking. The footer reports live protection status. Acquisition and release passed on Ubuntu; a physical locked-session continuation has not yet been observed.
+- Missing local Codex connections automatically start the official daemon before reconnecting. No failed model write is retried.
+- Added visible per-chat reasons and connection-retry labels. All 210 local tests pass, including 16 GUI checks.
 ## 0.4.1 — 25 October 2026
 
 - Recognize a checkpoint marker on the last line of a native heartbeat's XML message. The closing XML tags no longer cause the next wake-up to reject an unfinished checkpoint.

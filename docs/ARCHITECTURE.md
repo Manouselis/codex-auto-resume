@@ -1,6 +1,10 @@
 # Architecture
 
-Version 0.4.0, regression checks on 25 October 2026. The daemon-owned model verification is from 19 October 2026; the first native scheduled desktop continuation passed on 23 October 2026. The implementation is a standalone native Tk companion with a shared CLI/background controller. It does not inject a control into Codex Settings.
+The 0.5.0 desktop launcher starts an installed per-user service. `desktop.py` reuses an active controller or starts the service; Tk remains a control panel. `power.py` takes a `systemd-inhibit --what=sleep` lease while recovery is enabled and any chat is eligible. The lease follows controller lifetime and never inhibits idle display handling, locking or shutdown. A private heartbeat records controller liveness.
+
+The former global `one_execution` index migrates to `one_execution_per_thread`. Submission checks use the chat ID in both external and native guards. API requests remain serialized on their RPC connection, while admitted model turns run independently. Each dispatch still reads fresh shared quota. A read-only audit releases only acknowledged running reservations whose exact turns have confirmed terminal metadata; unknown delivery stays blocked in its own chat.
+
+Version 0.5.0, regression checks on 30 October 2026. The daemon-owned model verification is from 19 October 2026; the first native scheduled desktop continuation passed on 23 October 2026. The implementation is a standalone native Tk companion with a shared CLI/background controller. It does not inject a control into Codex Settings.
 
 ## Real integration
 
@@ -29,7 +33,7 @@ Disconnecting closes the companion's socket, not the daemon or its active Codex 
 | `ui.py`, `cli.py` | Native control, task chooser and local commands |
 | `adapters.py`, `protocol.py` | Optional isolated simulator and read-only JSON-lines observer |
 
-Running tasks are checked every 30 seconds. A `notLoaded` reader can reconstruct an open external turn as interrupted without an error or completion timestamp. That case is marked unresolved and may be explicitly armed for monitoring; only a confirmed later result changes it to completion, cancellation or usage-limit recovery. It cannot pass dispatch preflight. Reset waits use official epoch timestamps; the scheduler wakes locally without model calls. Waiting tasks get a lightweight quota audit at most every five minutes, then a fresh read at reset. Delayed backend recovery gets bounded read-only retries. Every automatic submission requires fresh checks again.
+Running tasks are checked every 30 seconds; the controller loop wakes every five seconds. A `notLoaded` reader can reconstruct an open external turn as interrupted without an error or completion timestamp. That case is marked unresolved and may be explicitly armed for monitoring; only a confirmed later result changes it to completion, cancellation or usage-limit recovery. It cannot pass dispatch preflight. Reset waits use official epoch timestamps; the scheduler wakes locally without model calls. Waiting tasks get a lightweight quota audit at most every five minutes, then a fresh read at reset. Delayed backend recovery gets bounded read-only retries. Every automatic submission requires fresh checks again.
 
 SQLite commits a unique reservation before dispatch. A lost acknowledgement or crash after reservation pauses the queue, with no automatic retransmission. `clientUserMessageId` is an attribution/deduplication marker, not a claimed server idempotency contract.
 
@@ -62,7 +66,7 @@ Confirmed preflight/restoration failures before model dispatch are recorded as `
 
 ## Native scheduled desktop mode (experimental)
 
-A native heartbeat runs in the original desktop writer. Its stored prompt calls `native-claim` before research, changes or experiments. The guard verifies its exact heartbeat marker, pinned arming identity, prior checkpoint or quota failure, intervening turns, goal budget, fresh quota and financial configuration. A SQLite transaction admits at most ten work turns and blocks external outstanding or uncertain submissions. Repeated claims check fresh guards but do not consume another attempt. The local scheduler skips native bindings.
+A native heartbeat runs in the original desktop writer. Its stored prompt calls `native-claim` before research, changes or experiments. The guard verifies its exact heartbeat marker, pinned arming identity, prior checkpoint or quota failure, intervening turns, goal budget, fresh quota and financial configuration. A SQLite transaction admits at most ten work turns and blocks outstanding or uncertain submissions in that same conversation. Other chats have independent reservations. Repeated claims check fresh guards but do not consume another attempt. The local scheduler skips native bindings.
 
 `native-finish` records a checkpoint, objective completion or block. Only checkpoints remain armed; the native prompt pauses its heartbeat on completion, cancellation, OFF, approvals or other blocked work. A restarted companion leaves acknowledged native slots for a subsequent terminal-history check; it never retransmits a native turn. A manual intervening turn stops automatic research.
 

@@ -338,18 +338,19 @@ class EngineTests(unittest.TestCase):
         self.engine.tick()
         self.assertEqual(len(self.adapter.requests), 0)
 
-    def test_35_multiple_tasks_serialize_and_refresh_weekly(self):
+    def test_35_multiple_tasks_resume_independently_and_refresh_weekly(self):
         self.wait()
         self.adapter.observations["second-task"] = replace(self.adapter.observe("demo-task"), thread_id="second-task")
         self.engine.register("second-task")
         self.engine.tick()
         self.reset()
         self.engine.tick()
-        self.assertEqual(len(self.adapter.requests), 1)
+        self.assertEqual(len(self.adapter.requests), 2)
         self.adapter.payload["rateLimitsByLimitId"]["codex"]["secondary"]["usedPercent"] = 100
+        self.engine.usage_changed(self.adapter.usage())
         self.clock.advance(31)
         self.engine.tick()
-        self.assertEqual(len(self.adapter.requests), 1)
+        self.assertEqual(len(self.adapter.requests), 2)
         self.assertEqual(self.store.get("second-task")["state"], State.WEEKLY_LIMIT_REACHED)
 
     def test_36_38_48_bounded_transient_retries(self):
@@ -501,7 +502,7 @@ class EngineTests(unittest.TestCase):
         for _ in range(10):
             self.engine.tick()
 
-    def test_uncertain_submission_blocks_other_tasks(self):
+    def test_uncertain_submission_is_isolated_to_its_own_chat(self):
         self.wait()
         self.adapter.observations["second-task"] = replace(self.adapter.observe("demo-task"), thread_id="second-task")
         self.engine.register("second-task")
@@ -515,8 +516,9 @@ class EngineTests(unittest.TestCase):
         self.engine.tick()
         self.clock.advance(31)
         self.engine.tick()
-        self.assertEqual(len(self.adapter.requests), 1)
-        self.assertEqual(self.store.get("second-task")["state"], State.WAITING_FOR_RESET)
+        self.assertEqual(len(self.adapter.requests), 2)
+        self.assertEqual({r.thread_id for r in self.adapter.requests}, {"demo-task", "second-task"})
+        self.assertEqual(self.store.get("second-task")["state"], State.PAUSED_FOR_USER)
 
     def test_separate_controllers_reserve_only_once(self):
         self.wait()

@@ -8,7 +8,7 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-VERSION = "0.4.1"
+VERSION = "0.5.0"
 
 
 def build_app(root=ROOT):
@@ -17,6 +17,8 @@ def build_app(root=ROOT):
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         files = {"__main__.py": b"from auto_resume.cli import main\nraise SystemExit(main())\n"}
         files.update({p.relative_to(root).as_posix(): p.read_bytes() for p in sorted((root / "auto_resume").glob("*.py"))})
+        files.update({p.relative_to(root).as_posix(): p.read_bytes() for p in sorted((root / "auto_resume/assets").glob("*"))
+                      if p.suffix in {".png", ".svg"}})
         for name, data in sorted(files.items()):
             info = zipfile.ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
             info.external_attr = 0o644 << 16
@@ -29,7 +31,7 @@ def source_files(root=ROOT):
     excluded = {".git", "dist", "__pycache__", ".pytest_cache", ".venv", ".ruff_cache"}
     directories = {"auto_resume", "tests", "scripts", "docs", "packaging", ".github"}
     top_files = {"README.md", "LICENSE", "CONTRIBUTING.md", "SECURITY.md", "pyproject.toml", ".gitignore"}
-    extensions = {".py", ".md", ".json", ".png", ".service", ".toml", ".yml", ".yaml"}
+    extensions = {".py", ".md", ".json", ".png", ".svg", ".desktop", ".service", ".toml", ".yml", ".yaml"}
     for p in sorted(root.rglob("*")):
         relative = p.relative_to(root)
         allowed = (relative.as_posix() in top_files or

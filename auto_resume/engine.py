@@ -26,6 +26,7 @@ class Engine:
         self.max_attempts, self.max_retries = max_attempts, max_retries
         self.lock = threading.Lock()
         self.last_quota_audit = 0
+        self.last_reservation_audit = 0
         self.native_schedule_check = native_schedule_check
 
     def register(self, thread_id: str, *, recover_context=None, native_heartbeat=None, native_max_attempts=None):
@@ -143,6 +144,9 @@ class Engine:
         try:
             if not self.store.enabled:
                 return
+            if self.clock() - self.last_reservation_audit >= 60:
+                self._reconcile_terminal_reservations()
+                self.last_reservation_audit = self.clock()
             if (getattr(self.adapter, "live_execution", False)
                     and self.clock() - self.last_quota_audit >= 300
                     and any(t["eligible"] for t in self.store.tasks())):
@@ -158,6 +162,29 @@ class Engine:
                     self._tick_task(task)
         finally:
             self.lock.release()
+
+    def _reconcile_terminal_reservations(self):
+        """Release only positively acknowledged turns proven terminal by Codex."""
+        confirm = getattr(self.adapter, "confirmed_terminal_turn", None)
+        if not confirm:
+            return
+        with self.store.lock:
+            rows = self.store.db.execute("SELECT * FROM submissions WHERE status='running' AND turn_id IS NOT NULL").fetchall()
+        for row in rows:
+            task = self.store.get(row["thread_id"])
+            if not task or (task["continuation_id"], task["ack_turn"]) != (row["id"], row["turn_id"]):
+                continue
+            try:
+                ended = confirm(row["thread_id"], row["turn_id"])
+            except (TransientError, UnsafeError):
+                continue
+            if ended:
+                with self.store.transaction():
+                    changed = self.store.db.execute("UPDATE submissions SET status='finished' WHERE id=? AND thread_id=? AND turn_id=? AND status='running'",
+                        (row["id"], row["thread_id"], row["turn_id"])).rowcount
+                    if changed:
+                        self.store.log(row["thread_id"], State(task["state"]),
+                            "Acknowledged automatic turn confirmed ended; reservation released without resending", self.clock())
 
     def _tick_task(self, task):
         # The desktop owns native scheduled turns. This controller only audits
@@ -348,8 +375,8 @@ class Engine:
                 return
             if current["state"] != State.VERIFYING_ALLOWANCE:
                 return
-            if self.store.db.execute("SELECT 1 FROM submissions WHERE status IN ('reserved','running','uncertain')").fetchone():
-                self.store.update(tid, State.WAITING_FOR_RESET, "Another automatic task is working", now, next_check=now + 30)
+            if self.store.db.execute("SELECT 1 FROM submissions WHERE thread_id=? AND status IN ('reserved','running','uncertain')", (tid,)).fetchone():
+                self.store.update(tid, State.PAUSED_FOR_USER, "This conversation already has an outstanding or uncertain submission; inspect it before retrying", now, eligible=False, next_check=None)
                 return
             self.store.db.execute("INSERT INTO submissions VALUES(?,?,?,NULL,?)", (cid, tid, "reserved", now))
             self.store.update(tid, State.RESUMING, "Resuming previous task", now,
@@ -405,6 +432,8 @@ class Scheduler:
         self.thread = threading.Thread(target=self._run, name="auto-resume-scheduler", daemon=True)
         self.last_error = None
         self.controller_lock = ControllerLock(engine.store.path)
+        from .power import AwakeLease
+        self.awake = AwakeLease(enabled=bool(getattr(engine.adapter, "live_execution", False)))
 
     def start(self):
         self.controller_lock.acquire()
@@ -414,14 +443,20 @@ class Scheduler:
     def _run(self):
         while not self.stopped.is_set():
             try:
+                armed = self.engine.store.enabled and any(t["eligible"] for t in self.engine.store.tasks())
+                self.awake.update(armed)
+                with self.engine.store.transaction():
+                    self.engine.store.db.execute("UPDATE meta SET value=? WHERE key='power_status'", (self.awake.status,))
+                    self.engine.store.db.execute("UPDATE meta SET value=? WHERE key='controller_heartbeat'", (str(self.engine.clock()),))
                 self.engine.tick()
             except Exception:
                 # Unexpected failures stop scheduling, but leave Codex itself alone.
                 self.last_error = "Background controller stopped after an unexpected error"
                 self.engine.store.set_enabled(False, self.engine.clock())
                 self.stopped.set()
-            self.wake.wait(30)
+            self.wake.wait(5)
             self.wake.clear()
+        self.awake.close()
 
     def stop(self):
         self.stopped.set()
@@ -429,4 +464,5 @@ class Scheduler:
         if self.thread.is_alive():
             self.thread.join(timeout=2)
         if not self.thread.is_alive():
+            self.awake.close()
             self.controller_lock.release()

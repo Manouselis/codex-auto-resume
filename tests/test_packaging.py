@@ -33,10 +33,14 @@ class PackagingTests(unittest.TestCase):
         app = self.prefix / "share/codex-auto-resume/codex-auto-resume.pyz"
         metadata = json.loads((app.parent / "installation.json").read_text())
         expected = ["share/codex-auto-resume/codex-auto-resume.pyz",
-                    "bin/codex-auto-resume.cmd" if os.name == "nt" else "bin/codex-auto-resume"]
+                    "bin/codex-auto-resume.cmd" if os.name == "nt" else "bin/codex-auto-resume",
+                    "share/codex-auto-resume/icon.png"]
         if os.name != "nt":
             expected.append("share/applications/codex-auto-resume.desktop")
+        if sys.platform.startswith("linux"):
+            expected.append("share/systemd/user/codex-auto-resume.service")
         self.assertEqual(metadata["files"], expected)
+        self.assertTrue((app.parent / "icon.png").read_bytes().startswith(b'\x89PNG'))
         result = subprocess.run([sys.executable, str(app), "demo"], capture_output=True, text=True, check=True)
         self.assertEqual(json.loads(result.stdout)["automatic_continuations"], 1)
         self.run_script("install.py", "--prefix", self.prefix)

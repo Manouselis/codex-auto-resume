@@ -18,7 +18,7 @@ The App Server can report a context-checkpoint stop as a normally completed turn
 
 ## Enable context recovery explicitly
 
-In the control window, select **Also recover context-budget checkpoints for this arming**, then arm the original conversation. The option starts unchecked and applies to that registration only. Global ON does not enable it for every conversation.
+In the control window, select **Recover context checkpoints**, then arm the original conversation. The option starts unchecked and applies to that registration only. Global ON does not enable it for every conversation.
 
 The CLI equivalent is:
 
@@ -48,7 +48,7 @@ A mention of context budgets in an explanation, quoted example or tool output is
 
 When a background controller already owns scheduling, closing its control panel leaves armed work enabled. Use the global OFF switch or `disable` to stop it. When the window owns the only controller, closing it still disables and disarms work. The panel identifies a connected background controller when opened.
 
-Keep the computer awake, online and logged in. A background controller does not prevent suspend or wake the computer.
+On Ubuntu, opening the installed app starts a background controller. It prevents sleep while tasks are armed, and allows screen locking with Super+L. Stay logged in and online, and keep Codex open. It cannot wake a computer that has already suspended.
 
 ## Desktop writer ownership
 

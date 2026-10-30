@@ -49,7 +49,11 @@ def main(argv=None):
     app = folder / "codex-auto-resume.pyz"
     launcher = prefix / "bin" / ("codex-auto-resume.cmd" if os.name == "nt" else "codex-auto-resume")
     desktop = prefix / "share/applications/codex-auto-resume.desktop"
-    files = [app, launcher] + ([] if os.name == "nt" else [desktop])
+    icon = folder / "icon.png"
+    unit = prefix / "share/systemd/user/codex-auto-resume.service"
+    files = [app, launcher, icon] + ([] if os.name == "nt" else [desktop])
+    if sys.platform.startswith("linux"):
+        files.append(unit)
     if any(not p.parent.resolve().is_relative_to(prefix) for p in [*files, marker]):
         raise ValueError("Refusing installation through a symlink outside the selected prefix")
     if not marker.exists() and any(p.exists() for p in files):
@@ -74,7 +78,8 @@ Type=Application
 Name=Codex Auto-Resume
 Comment=Continue armed Codex tasks after included-usage reset
 Exec={cmd} ui
-Icon=view-refresh
+Icon={icon}
+StartupWMClass=CodexAutoResume
 Terminal=false
 Categories=Development;Utility;
 Actions=Toggle;Simulation;
@@ -89,9 +94,17 @@ Exec={cmd} --simulation ui
 """
     atomic_write(app, build_app())
     atomic_write(launcher, script.encode(), 0o755)
+    atomic_write(icon, (Path(__file__).resolve().parent.parent / "auto_resume/assets/icon.png").read_bytes())
     if desktop_text:
         atomic_write(desktop, desktop_text.encode())
-    metadata = {"application": "codex-auto-resume", "version": "0.4.1", "prefix": str(prefix),
+    if sys.platform.startswith("linux"):
+        def unit_quote(value):
+            return '"' + value.replace('\\', '\\\\').replace('"', '\\"').replace('%', '%%').replace('$', '$$') + '"'
+        service = ("[Unit]\nDescription=Codex Auto-Resume background recovery\nAfter=graphical-session.target\n"
+                   "\n[Service]\nType=simple\nExecStart=" + unit_quote(sys.executable) + " " + unit_quote(str(app)) +
+                   " run\nRestart=on-failure\nRestartSec=5\nUMask=0077\n\n[Install]\nWantedBy=default.target\n")
+        atomic_write(unit, service.encode())
+    metadata = {"application": "codex-auto-resume", "version": "0.5.0", "prefix": str(prefix),
                 "files": [p.relative_to(prefix).as_posix() for p in files]}
     atomic_write(marker, (json.dumps(metadata, indent=2) + "\n").encode())
     print("Installed:", launcher)

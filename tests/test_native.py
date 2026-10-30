@@ -207,11 +207,28 @@ class NativeTests(unittest.TestCase):
         self.assertEqual(result["action"], "pause")
         self.assertIn("paid credits", result["reason"])
 
-    def test_unrelated_uncertain_submission_blocks_native_work(self):
+    def test_unrelated_uncertain_submission_does_not_block_native_work(self):
         self.wake()
         self.store.db.execute("INSERT INTO submissions VALUES(?,?,?,?,?)", ("unknown", "other", "uncertain", None, self.clock()))
-        self.assertEqual(self.claim()["action"], "wait")
-        self.assertEqual(self.store.get("live-test")["attempts"], 0)
+        self.assertEqual(self.claim()["action"], "continue")
+        self.assertEqual(self.store.get("live-test")["attempts"], 1)
+
+    def test_terminal_reservation_is_reconciled_even_when_its_chat_is_disarmed(self):
+        self.wake()
+        self.claim()
+        self.engine.disarm("live-test")
+        self.backend.latest.update(status="completed", completedAt=int(self.clock()))
+        self.engine.tick()
+        self.assertEqual(self.store.db.execute("SELECT status FROM submissions").fetchone()[0], "finished")
+        self.assertFalse(self.store.get("live-test")["eligible"])
+        self.assertFalse(any(m in ("thread/resume", "turn/start") for m, _ in self.backend.calls))
+
+    def test_open_native_reservation_is_not_released_by_reconciliation(self):
+        self.wake()
+        self.claim()
+        self.engine.disarm("live-test")
+        self.engine.tick()
+        self.assertEqual(self.store.db.execute("SELECT status FROM submissions").fetchone()[0], "running")
 
     def test_native_work_turn_cap_is_enforced(self):
         task = self.store.get("live-test")

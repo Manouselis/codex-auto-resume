@@ -1,12 +1,14 @@
-# Testing and real verification — 0.4.1
+# Testing and real verification — 0.5.0
 
-Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 25 October 2026. The daemon-owned model execution evidence is from 19 October 2026. The first native scheduled desktop continuation passed on 23 October 2026.
+Version 0.5.0 adds regressions for migration from the global reservation index, concurrent admitted chats, isolation of uncertain work, exact terminal-reservation cleanup, automatic daemon bootstrap, service reuse/start, a fresh ON window, icon packaging and the scoped sleep-inhibitor lifecycle. The actual Ubuntu inhibitor was acquired, listed through logind and released. The live stale reservation was verified terminal and retired with zero model requests. The sludge chat subsequently reported completion of its newer turn. Actual physical locking and a new uninterrupted quota-reset cycle have not been tested.
+
+Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 30 October 2026. The daemon-owned model execution evidence is from 19 October 2026. The first native scheduled desktop continuation passed on 23 October 2026.
 
 ## Results
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Full automated suite, including native GUI | PASS — 198 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
+| Full automated suite, including native GUI | PASS — 210 tests, zero failures/errors/skips | [Recorded results](evidence/test-results.json) |
 | Hosted Ubuntu/Windows core and packaging CI, Python 3.10/3.13 | PASS — all four jobs at code commit `701b654`; exact pass/skip counts below | [Recorded CI evidence](evidence/ci-0.3.0.json), [GitHub run](https://github.com/Manouselis/codex-auto-resume/actions/runs/39905443617) |
 | Open turn owned by another runtime can be armed | PASS — monitors without loading the thread or sending inference; controlled later failure/reset submits once on a resumable daemon-owned fixture | 12 live-adapter regressions and one native control-panel regression |
 | Read-only reproduction against an active desktop conversation | PASS — external open turn arms and remains monitored, with zero thread mutations | [Sanitized arming probe](evidence/external-arm.json) |
@@ -29,7 +31,7 @@ Automated regression checks: Ubuntu 22.04.5 LTS, X11, Python 3.10.12, 25 October
 
 The normal automated suite makes zero live model requests. The separately invoked live check made two genuine included-usage turns, in a dedicated harmless conversation, through the same production `_dispatch` method with an explicit manual-test trigger. It did not inject a fake quota or pretend that the real service had exhausted/reset. This confirms daemon-owned execution and context preservation. It did not test taking over the desktop writer, native scheduled recovery or a natural quota reset.
 
-The final full run includes fifteen GUI tests; headless runs intentionally skip them. The 2500-case randomized quota check is counted as one test. Earlier 0.1.0 results remain in Git history and do not describe this release's execution capability.
+The final full run includes sixteen GUI tests; headless runs intentionally skip them. The 2500-case randomized quota check is counted as one test. Earlier 0.1.0 results remain in Git history and do not describe this release's execution capability.
 
 ## Recorded 0.3.0 hosted CI results
 
@@ -63,7 +65,7 @@ The 0.3.0 suite adds context-marker recognition, rejection of explanations/quote
 
 ## Native guard regressions
 
-Thirty-seven tests cover external-scheduler exclusion, native heartbeat and thread identity, fresh allowance on repeated claims, idempotent reservation, checkpoint turnover, terminal-history reconciliation after companion restart, ordinary completion, cancellation, OFF, paid balances, weekly reserve, goal budgets, unknown external submissions, the native cap and intervening manual turns. They use controlled metadata. Separately, the [23 October live check](evidence/native-scheduled-recovery.json) observed the actual scheduled heartbeat, its successful guard command, a matching reservation and subsequent research commands in the original desktop chat. The turn was still running when recorded. The [25 October post-reset restart](evidence/limit-reset-recovery-0.4.0.json) separately passed after a genuine persisted usage-limit failure. Repeated checkpoint recoveries and uninterrupted unattended reset cycles remain unverified.
+Thirty-nine tests cover external-scheduler exclusion, native heartbeat and thread identity, fresh allowance on repeated claims, idempotent reservation, checkpoint turnover, terminal-history reconciliation after companion restart, ordinary completion, cancellation, OFF, paid balances, weekly reserve, goal budgets, unknown external submissions, the native cap and intervening manual turns. They use controlled metadata. Separately, the [23 October live check](evidence/native-scheduled-recovery.json) observed the actual scheduled heartbeat, its successful guard command, a matching reservation and subsequent research commands in the original desktop chat. The turn was still running when recorded. The [25 October post-reset restart](evidence/limit-reset-recovery-0.4.0.json) separately passed after a genuine persisted usage-limit failure. Repeated checkpoint recoveries and uninterrupted unattended reset cycles remain unverified.
 
 ## Rearming regressions in 0.3.1
 
@@ -103,7 +105,7 @@ PASS below means the corresponding local/mock scenario passed. It does not mean 
 | 32 missing history | PASS — pause |
 | 33 missing project | PASS — pause |
 | 34 outstanding approval | PASS — pause; transport never answers interactive requests |
-| 35 multiple waiting tasks | PASS — serialization and fresh quota check; uncertainty blocks queue |
+| 35 multiple waiting tasks | PASS — independent per-chat reservations, fresh quota checks and uncertainty isolated to its chat |
 | 36 network unavailable | PASS — bounded retry and transport disconnect tests |
 | 37 expired authentication | PASS — pause |
 | 38 temporary App Server failure | PASS — read reconnect and retry bounds |

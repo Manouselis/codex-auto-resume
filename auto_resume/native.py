@@ -151,8 +151,8 @@ class NativeController:
             # A prior admitted native turn is known terminal before its slot is
             # released. Unknown external dispatch outcomes continue to block.
             self.store.db.execute("UPDATE submissions SET status='finished' WHERE thread_id=? AND turn_id=? AND id LIKE 'native-%' AND status='running'", (thread_id, tracked_turn))
-            if self.store.db.execute("SELECT 1 FROM submissions WHERE status IN ('reserved','running','uncertain')").fetchone():
-                return {"action": "wait", "reason": "Another automatic submission is outstanding or uncertain"}
+            if self.store.db.execute("SELECT 1 FROM submissions WHERE thread_id=? AND status IN ('reserved','running','uncertain')", (thread_id,)).fetchone():
+                return {"action": "wait", "reason": "This conversation has an outstanding or uncertain submission"}
             self.store.db.execute("INSERT INTO submissions VALUES(?,?,?,?,?)", (native_id, thread_id, "running", obs.turn_id, self.clock()))
             self.store.update(thread_id, State.VERIFYING_ALLOWANCE, "Native included-usage guard passed", self.clock())
             self.store.update(thread_id, State.RESUMING, "Admitting the existing native heartbeat work turn", self.clock())

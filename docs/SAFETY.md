@@ -27,7 +27,7 @@ An open turn owned by another runtime is a separate monitoring case. When a `not
 
 The controller checks state again after `thread/resume`, then sends one contextual continuation. There is a short remaining cross-client read/submission race because the API has no conditional revision argument. Do not use the same armed conversation concurrently in another client. If user activity is observed, automatic continuation stops. Different projects/conversations remain usable normally.
 
-SQLite uses full durability, atomic transactions and a unique outstanding-submission reservation. A crash/lost acknowledgement never causes a submission retry. Uncertain outcomes block further automatic dispatch until inspected. This trades availability for avoiding duplicated operations; it is not a claim of remote exactly-once delivery.
+SQLite uses full durability, atomic transactions and a unique outstanding-submission reservation per conversation. A crash/lost acknowledgement never causes a submission retry. Uncertain outcomes block further automatic dispatch in that conversation until inspected; other chats remain independent. This trades availability for avoiding duplicated operations; it is not a claim of remote exactly-once delivery.
 
 ## Opt-in context checkpoint recovery
 
@@ -41,7 +41,7 @@ The guard pins the heartbeat identity and original task configuration, checks th
 
 ## Operational defaults
 
-The external engine allows up to three automatic continuation attempts per arming. Native mode allows at most ten admitted work turns, configurable downward to one. Transient read failures receive up to three bounded retries; a submission is never retried automatically. The scheduler wakes every 30 seconds and schedules reset verification with a five-second buffer. These are engine defaults, not exposed GUI settings. Normally stopping the controller disarms tasks. Closing a window-owned controller also disarms; closing a service-owned control panel leaves background work enabled. OFF always disarms. The companion does not prevent suspend or provide verified automatic rearming after reboot.
+The external engine allows up to three automatic continuation attempts per arming. Native mode allows at most ten admitted work turns, configurable downward to one. Transient read failures receive up to three bounded retries; a submission is never retried automatically. The scheduler wakes every five seconds and schedules reset verification with a five-second buffer. These are engine defaults, not exposed GUI settings. Normally stopping the controller disarms tasks. Closing a window-owned controller also disarms; closing a service-owned control panel leaves background work enabled. OFF always disarms. On Linux, an armed controller holds a sleep inhibitor, without inhibiting screen locking or shutdown. It releases the inhibitor when recovery is OFF or no tasks remain armed. Actual suspend/reboot recovery remains unverified.
 
 ## Approvals and local data
 

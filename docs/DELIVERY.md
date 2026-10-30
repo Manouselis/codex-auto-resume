@@ -1,4 +1,4 @@
-# Delivery summary — 0.4.1
+# Delivery summary — 0.5.0
 
 [Documentation index](README.md) · [Release history](CHANGELOG.md)
 
@@ -20,7 +20,7 @@ Version 0.3.1 fixes stale acknowledged reservations during explicit rearming and
 
 | Evidence | Scope |
 | --- | --- |
-| [Local results](evidence/test-results.json) | 198 passing Ubuntu tests, including fifteen native GUI tests |
+| [Local results](evidence/test-results.json) | 210 passing Ubuntu tests, including sixteen native GUI tests |
 | [Hosted 0.3.0 CI](evidence/ci-0.3.0.json) | All four Ubuntu/Windows and Python 3.10/3.13 jobs passed; headless skips are recorded |
 | [Real continuation](evidence/live-continuation.json) | Two authenticated model turns in a daemon-owned thread preserved context; desktop takeover was not tested |
 | [Post-reset native restart](evidence/limit-reset-recovery-0.4.0.json) | Actual scheduled restart after a genuine quota failure; guard first, matching reservation and interrupted work preserved |
@@ -31,7 +31,7 @@ The full quota-interruption/reset flow passes with controlled backend responses.
 
 ## Use
 
-Install with `python3 scripts/install.py`, then open `~/.local/bin/codex-auto-resume ui`. Enable, choose the original task and arm it. Use the [overnight background service recipe](INSTALL.md#overnight-operation-without-a-window) to wait without a control window, and keep the computer awake and online.
+Install with `python3 scripts/install.py`, then open `~/.local/bin/codex-auto-resume ui`. Opening the app enables monitoring; choose the original task and arm it. Use the [overnight background service recipe](INSTALL.md#overnight-operation-without-a-window) to wait without a control window, and keep Codex open and remain online. Ubuntu screen locking is allowed while the armed controller prevents sleep.
 
 Source and documentation are published at [Manouselis/codex-auto-resume](https://github.com/Manouselis/codex-auto-resume). The [verification report](TESTING.md) gives exact scope and reproduction commands.
 

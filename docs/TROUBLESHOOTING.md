@@ -1,5 +1,17 @@
 # Troubleshooting
 
+## “Waiting for reset” keeps moving even though usage is available
+
+Version 0.4.1 could retain a completed native turn's global reservation and poll it every 30 seconds under the wrong reset label. Update to 0.5.0. Chats now have independent reservations, and a read-only audit retires a stale acknowledged reservation only after verifying that exact turn ended. Select a row or read its **Details** column for the actual reason. Connection failures show **Retrying connection**. Genuine quota waits still require fresh included-usage permission; a percentage or timer alone never authorizes continuation.
+
+## Codex is open but Auto-Resume cannot find its daemon
+
+The desktop window and the local daemon transport are separate. Version 0.5.0 starts the official daemon automatically when its local socket is unavailable, then connects again. This bootstrap sends no model work and does not replay failed submissions. If it fails, check the installed runtime and sign-in with `doctor --connect`.
+
+## Working with Ubuntu locked
+
+Open the installed application once, arm the desired chats, and confirm **Background controller active** in the footer. While work is armed, the footer should also report **sleep prevented**. You may lock with Super+L and let the screen blank. Keep Codex open and stay logged in. If sleep protection is unavailable, keep the laptop awake until the reported host issue is resolved. OFF or disarming every chat releases sleep protection; forced suspend and reboot are not supported recovery guarantees.
+
 ## A saved native checkpoint is rejected and the next guard says disarmed
 
 Update to 0.4.1. A 0.4.0 parser bug rejected a valid checkpoint when Codex wrapped its final message in heartbeat XML. The first wake-up disarmed recovery; later attempts then reported the misleading combined OFF/disarmed message even though the global switch remained ON. Version 0.4.1 recognizes the final marker inside a valid heartbeat message and reports the precise saved disarm reason. Explicitly rearm after the repair; a legitimate OFF choice or user cancellation is never automatically undone.

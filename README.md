@@ -1,10 +1,10 @@
-# Codex Auto-Resume
+# <img src="auto_resume/assets/icon.png" width="42" alt=""> Codex Auto-Resume
 
 **Pick up where your Codex conversation stopped.**
 
 Resume explicitly armed chats after included usage resets, with optional recovery from saved context checkpoints. Your conversation, project and model stay together.
 
-[![Checks](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml) · **v0.4.1** · Python 3.10+ · MIT
+[![Checks](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml) · **v0.5.0** · Python 3.10+ · MIT
 
 | Dark mode | Light mode |
 | --- | --- |
@@ -23,7 +23,7 @@ python3 scripts/install.py
 ~/.local/bin/codex-auto-resume ui
 ```
 
-1. The global checkbox starts **ON**; saved choices are remembered.
+1. Opening the app turns the global checkbox **ON**. Each conversation still needs **Arm conversation**.
 2. Choose your conversation, then click **Arm conversation**. **Disarm** is right beside it.
 3. Enable **Recover context checkpoints** when unfinished work should continue after a context stop.
 
@@ -35,8 +35,10 @@ python3 scripts/install.py
 - Original chat and checkpoint preserved; newer cancellations, approvals and task budgets remain stop conditions.
 - Fresh arming is timestamped so the guard can distinguish it from older timer cancellations.
 - Lost acknowledgements pause for inspection. Automatic submissions are never blindly retried.
-- Native wake-ups use normal model turns. Keep Codex open and the computer awake.
+- Multiple armed chats recover independently; duplicate and uncertain submissions are isolated per chat.
+- On Ubuntu, the app starts a background controller and prevents sleep while work is armed. **Super+L is supported**; screen locking stays enabled.
+- Native wake-ups use normal model turns. Keep Codex open and stay signed in.
 
-The control panel supports dark/light modes, remaining-allowance meters, adjacent Arm/Disarm controls and an activity log. The local suite passes **198 tests**, including **15 GUI checks**. A real scheduled restart after a usage-limit interruption is [recorded](docs/evidence/limit-reset-recovery-0.4.0.json); repeated unattended reset cycles remain unverified. See [Testing](docs/TESTING.md).
+The control panel supports dark/light modes, remaining-allowance meters, adjacent Arm/Disarm controls and an activity log. The local suite passes **210 tests**, including **16 GUI checks**. A real scheduled restart after a usage-limit interruption is [recorded](docs/evidence/limit-reset-recovery-0.4.0.json); repeated unattended reset cycles remain unverified. See [Testing](docs/TESTING.md).
 
 [Setup](docs/INSTALL.md) · [Recovery](docs/RECOVERY.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
