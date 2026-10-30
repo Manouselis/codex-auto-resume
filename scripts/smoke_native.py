@@ -20,6 +20,13 @@ def run(*args, **kwargs):
     return subprocess.run([os.fspath(a) for a in args], check=True, timeout=120, **kwargs)
 
 
+def nsis(binary, option, path):
+    # NSIS deliberately requires an unquoted final directory, including spaces.
+    # Pass a Windows command line directly to CreateProcess, never to a shell.
+    command = subprocess.list2cmdline([os.fspath(binary), '/S']) + ' ' + option + os.fspath(path)
+    return subprocess.run(command, check=True, timeout=120, shell=False)
+
+
 def smoke(binary, report):
     start = time.monotonic()
     run(binary, '--package-smoke', report)
@@ -55,14 +62,15 @@ def main():
                 result = smoke(folder / 'opt/codex-auto-resume/codex-auto-resume', report)
         elif package.suffix == '.exe' and args.install:
             target = folder / 'Installed App'
-            run(package, '/S', '/D=' + str(target))  # NSIS /D must be last and unquoted.
+            nsis(package, '/D=', target)
             try:
                 assert (target / 'Uninstall.exe').is_file()
                 result = smoke(target / 'codex-auto-resume.exe', report)
                 # Verify the uninstaller preserves files it does not own.
                 (target / 'unrelated.txt').write_text('preserve me')
             finally:
-                run(target / 'Uninstall.exe', '/S', '_?=' + str(target))
+                if (target / 'Uninstall.exe').exists():
+                    nsis(target / 'Uninstall.exe', '_?=', target)
             assert not (target / 'codex-auto-resume.exe').exists()
             assert (target / 'unrelated.txt').read_text() == 'preserve me'
         elif package.suffix == '.dmg':

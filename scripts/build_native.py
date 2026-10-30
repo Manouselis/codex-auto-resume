@@ -94,7 +94,7 @@ StartupWMClass=CodexAutoResume
         run('dpkg-deb', '--root-owner-group', '--build', package, release / f'{stem}-linux-{arch}.deb')
     elif sys.platform == 'win32':
         compiler = shutil.which('makensis') or r'C:\Program Files (x86)\NSIS\makensis.exe'
-        run(compiler, f'/DVERSION={VERSION}', f'/DBUNDLE={output / name}', f'/DICON={work / "icon.ico"}',
+        run(compiler, '/WX', f'/DVERSION={VERSION}', f'/DBUNDLE={output / name}', f'/DICON={work / "icon.ico"}',
             f'/DLICENSE={ROOT / "LICENSE"}', f'/DOUTPUT={release / (stem + "-windows-" + arch + "-setup.exe")}',
             ROOT / 'packaging/windows.nsi')
     elif sys.platform == 'darwin':
