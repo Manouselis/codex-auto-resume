@@ -98,6 +98,60 @@ class SelectionTests(unittest.TestCase):
         self.assertFalse(self.start()["eligible"])
         self.assertFalse(self.queued())
 
+    def usage_limited_goal(self, **changes):
+        self.backend.goal = {"status": "usageLimited", "tokenBudget": 100, "tokensUsed": 10,
+                             "objective": "Finish the test task", "createdAt": 1, **changes}
+        self.backend.latest.update(status="failed", error={"codexErrorInfo": "usageLimitExceeded"})
+
+    def test_usage_limited_goal_stays_armed_and_follows_manual_resume(self):
+        self.usage_limited_goal()
+        self.backend.payload = fake_payload(self.clock())
+        task = self.start()
+        self.assertEqual(task["state"], State.WAITING_FOR_GOAL)
+        self.assertTrue(task["eligible"])
+        self.assertIn("wait for included usage", task["reason"])
+        self.assertFalse(self.queued())
+
+        self.now[0] = task["next_check"]
+        self.backend.payload = fake_payload(self.clock(), five=5, ordinary=True)
+        self.engine.tick()
+        task = self.store.get("live-test")
+        self.assertTrue(task["eligible"])
+        self.assertIn("Resume goal", task["reason"])
+        self.assertFalse(self.queued())
+
+        self.now[0] = task["next_check"]
+        self.backend.goal["status"] = "active"
+        self.backend.latest.update(id="resumed-in-codex", status="inProgress", error=None, completedAt=None)
+        self.engine.tick()
+        task = self.store.get("live-test")
+        self.assertEqual(task["state"], State.RUNNING)
+        self.assertEqual(json.loads(task["context"])["turn_id"], "resumed-in-codex")
+        self.assertFalse(self.queued())
+
+    def test_usage_limited_goal_with_exhausted_budget_cannot_arm(self):
+        self.usage_limited_goal(tokensUsed=100)
+        self.assertFalse(self.start()["eligible"])
+        self.assertFalse(self.queued())
+
+    def test_replaced_goal_does_not_inherit_arming(self):
+        self.usage_limited_goal()
+        task = self.start()
+        self.now[0] = task["next_check"]
+        self.backend.goal.update(status="active", objective="Different task")
+        self.backend.latest.update(id="different-turn", status="inProgress", error=None, completedAt=None)
+        self.engine.tick()
+        self.assertFalse(self.store.get("live-test")["eligible"])
+        self.assertFalse(self.queued())
+
+    def test_usage_limited_goal_does_not_override_weekly_exhaustion(self):
+        self.usage_limited_goal()
+        self.backend.payload = fake_payload(self.clock(), five=5, weekly=100, ordinary=True)
+        task = self.start()
+        self.assertEqual(task["state"], State.WEEKLY_LIMIT_REACHED)
+        self.assertFalse(task["eligible"])
+        self.assertFalse(self.queued())
+
     def test_pending_approval_never_receives_continue(self):
         self.backend.thread["status"] = {"type": "active", "activeFlags": ["waitingOnApproval"]}
         with self.assertRaises(UnsafeError):

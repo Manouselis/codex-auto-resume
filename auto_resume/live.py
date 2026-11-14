@@ -152,18 +152,38 @@ class LiveAdapter:
                 break
         return False
 
-    def goal_allows_continuation(self, thread_id):
+    def _goal(self, thread_id):
         response = self.rpc.call("thread/goal/get", {"threadId": thread_id})
         if not isinstance(response, dict) or "goal" not in response:
             raise UnsafeError("Cannot verify the conversation goal state")
         goal = response["goal"]
-        if goal is None:
-            return True
-        if not isinstance(goal, dict):
+        if goal is not None and not isinstance(goal, dict):
             raise UnsafeError("Cannot verify the conversation goal state")
+        return goal
+
+    @staticmethod
+    def _goal_has_budget(goal):
         budget, spent = goal.get("tokenBudget"), goal.get("tokensUsed")
-        return goal.get("status") == "active" and (budget is None or (
-            type(budget) is int and budget > 0 and type(spent) is int and 0 <= spent < budget))
+        return budget is None or (type(budget) is int and budget > 0 and type(spent) is int and 0 <= spent < budget)
+
+    def goal_allows_continuation(self, thread_id):
+        goal = self._goal(thread_id)
+        return goal is None or (goal.get("status") == "active" and self._goal_has_budget(goal))
+
+    def goal_for_usage_recovery(self, thread_id):
+        goal = self._goal(thread_id)
+        if goal is None:
+            return None, None
+        status = goal.get("status")
+        if not isinstance(status, str):
+            raise UnsafeError("Cannot verify the conversation goal state")
+        if not self._goal_has_budget(goal):
+            return "budgetLimited", None
+        objective, created = goal.get("objective"), goal.get("createdAt")
+        if not isinstance(objective, str) or not objective or type(created) is not int:
+            return status, None
+        identity = json.dumps([created, objective, goal.get("tokenBudget")])
+        return status, hashlib.sha256(identity.encode()).hexdigest()
 
     def observe(self, thread_id):
         with self.guard:
@@ -178,7 +198,7 @@ class LiveAdapter:
             error = latest.get("error") or {}
             if not isinstance(error, dict):
                 raise UnsafeError("Original turn error metadata is invalid")
-            checkpoint = context_checkpoint(latest)
+            checkpoint = error.get("codexErrorInfo") != "usageLimitExceeded" and context_checkpoint(latest)
             goal_blocked = False
             if checkpoint:
                 goal_blocked = not self.goal_allows_continuation(thread_id)
@@ -241,6 +261,8 @@ class LiveAdapter:
             if request.trigger == "usage_limit":
                 if obs.turn_status != "failed" or obs.error_code != "usageLimitExceeded":
                     raise UnsafeError("Only a structured usage-limit interruption may automatically continue")
+                if not self.goal_allows_continuation(request.thread_id):
+                    raise UnsafeError("Check the original goal in Codex before continuing")
             elif request.trigger == "context_budget":
                 if obs.stop_reason != "context_budget" or obs.turn_status not in ("completed", "failed"):
                     raise UnsafeError("The context-budget checkpoint is no longer confirmed")

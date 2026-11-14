@@ -353,6 +353,8 @@ class ControlWindow:
                 if task["state"] == "COMPLETED":
                     return "The selected chat has finished its turn"
                 raise UnsafeError(task["reason"])
+            if task["state"] == "WAITING_FOR_GOAL":
+                return task["reason"]
             if task["state"] == "RUNNING":
                 return "Conversation armed · continue sent" if json.loads(task["context"]).get("user_start_pending") else "Conversation armed · already working"
             if json.loads(task["context"]).get("user_start_pending") and not task["ack_turn"]:
@@ -516,6 +518,7 @@ class ControlWindow:
             if context.get("native_heartbeat"):
                 reset = "Activate in Codex" if task["state"] == "WAITING_FOR_SCHEDULE" else "Native schedule"
             label = {"WAITING_FOR_SCHEDULE": "Schedule paused", "PAUSED_FOR_USER": "Needs attention",
+                     "WAITING_FOR_GOAL": "Goal recovery",
                      "WAITING_FOR_RESET": "Waiting for reset"}.get(task["state"], task["state"].replace("_", " ").capitalize())
             if task["state"] == "WAITING_FOR_RESET" and task["reason"].startswith("Connection unavailable"):
                 label = "Retrying connection"

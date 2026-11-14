@@ -8,6 +8,10 @@ In 0.6.0 the queue shows only armed conversations. Click **Add conversation** an
 
 Version 0.4.1 could retain a completed native turn's global reservation and poll it every 30 seconds under the wrong reset label. Update to 0.5.0. Chats now have independent reservations, and a read-only audit retires a stale acknowledged reservation only after verifying that exact turn ended. Select a row or read its **Details** column for the actual reason. Connection failures show **Retrying connection**. Genuine quota waits still require fresh included-usage permission; a percentage or timer alone never authorizes continuation.
 
+## An existing goal hit the usage limit
+
+In 0.8.2, select the chat again to arm **Goal recovery**. Once the row reports that included usage is available, choose **Resume goal** in the original Codex chat. Auto-Resume detects the resumed turn and monitors it. A manual pause, a changed goal, or an exhausted goal budget still requires your attention.
+
 ## Codex is open but Auto-Resume cannot find its daemon
 
 The desktop window and the local daemon transport are separate. Version 0.5.0 starts the official daemon automatically when its local socket is unavailable, then connects again. This bootstrap sends no model work and does not replay failed submissions. If it fails, check the installed runtime and sign-in with `doctor --connect`.

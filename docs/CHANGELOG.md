@@ -2,6 +2,10 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
+## 0.8.2 — 14 November 2026
+
+- Keep chats with a usage-limited Codex goal armed while checking included allowance. After reset, show when to resume the goal in the original Codex chat, then monitor that goal's new turn.
+
 ## 0.8.1 — 14 November 2026
 
 - Find the registered Microsoft Store Codex runtime and the selected standalone or daemon package from Windows Start-menu launches.

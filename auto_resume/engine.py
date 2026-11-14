@@ -223,7 +223,7 @@ class Engine:
             return
         generation = self.store.generation
         state = State(task["state"])
-        if state not in (State.ARMED, State.RUNNING, State.WAITING_FOR_RESET):
+        if state not in (State.ARMED, State.RUNNING, State.WAITING_FOR_RESET, State.WAITING_FOR_GOAL):
             return
         try:
             obs = self.adapter.observe(tid)
@@ -238,6 +238,9 @@ class Engine:
             if any(getattr(obs, key) != context[key] for key in keys) or tuple(context["bucket_ids"]) != obs.bucket_ids:
                 self._pause(tid, "Conversation, account, model, project, or permissions changed")
                 return
+            if state == State.WAITING_FOR_GOAL:
+                self._watch_usage_limited_goal(task, obs, context, generation)
+                return
             expected_turn = task["ack_turn"] or context["turn_id"]
             if obs.turn_id != expected_turn:
                 self._pause(tid, "A different turn started; the task may have been superseded")
@@ -248,6 +251,21 @@ class Engine:
                 else:
                     self._change(tid, state, "Armed — waiting for a confirmed turn result", next_check=now + 30)
                 return
+            goal_check = getattr(self.adapter, "goal_for_usage_recovery", None)
+            if goal_check and not native_id and obs.turn_status == "failed" and obs.error_code == "usageLimitExceeded":
+                goal_status, goal_identity = goal_check(tid)
+                if goal_status == "usageLimited" and goal_identity:
+                    if (selected_start or state == State.WAITING_FOR_RESET) and obs.revision != context["revision"]:
+                        self._pause(tid, "Conversation changed while waiting; rearm after inspection")
+                        return
+                    self._finish_reservation(task)
+                    context.update(turn_id=obs.turn_id, revision=obs.revision,
+                                   waiting_goal_identity=goal_identity, user_start_pending=False)
+                    self._watch_usage_limited_goal(task, obs, context, generation, goal=(goal_status, goal_identity))
+                    return
+                if goal_status not in (None, "active"):
+                    self._pause(tid, "Check the original goal and its budget in Codex before continuing")
+                    return
             if selected_start:
                 if obs.revision != context["revision"]:
                     self._pause(tid, "The chat changed after selection; no continue was sent")
@@ -339,6 +357,48 @@ class Engine:
             self._retry(task)
         except (UnsafeError, ValueError, KeyError, TypeError):
             self._pause(tid, "Unable to verify usage or conversation safely; inspect diagnostics")
+
+    def _watch_usage_limited_goal(self, task, obs, context, generation, *, goal=None):
+        tid, now = task["thread_id"], self.clock()
+        status, identity = goal or self.adapter.goal_for_usage_recovery(tid)
+        if not identity or identity != context["waiting_goal_identity"] or status not in ("usageLimited", "active"):
+            self._pause(tid, "The original goal changed or stopped; inspect it in Codex")
+            return
+        state = State.WAITING_FOR_GOAL
+        next_check = now + 30
+        if status == "active" and obs.turn_id != context["turn_id"] and obs.turn_status in ("inProgress", "unresolved"):
+            context.pop("waiting_goal_identity")
+            context.update(turn_id=obs.turn_id, revision=obs.revision)
+            state, reason = State.RUNNING, "Goal resumed in Codex; Auto-Resume is monitoring it"
+        elif obs.turn_id != context["turn_id"] or obs.revision != context["revision"]:
+            self._pause(tid, "Conversation changed while waiting for the goal; inspect it in Codex")
+            return
+        else:
+            decision = evaluate(self.adapter.usage(), context["account_id"], tuple(context["bucket_ids"]),
+                                self.clock(), reserve=self.reserve)
+            if decision.kind == "weekly":
+                self._pause(tid, decision.reason, State.WEEKLY_LIMIT_REACHED)
+                return
+            if decision.kind == "pause":
+                if decision.reason.startswith(("Usage still reports exhaustion after reset", "Quota windows have expired",
+                                               "Unable to verify usage: ordinary included usage")):
+                    self._retry(task)
+                else:
+                    self._pause(tid, decision.reason)
+                return
+            if decision.kind == "wait":
+                next_check = decision.reset_at + self.delay
+                reason = "Goal hit the 5h limit; wait for included usage to reset"
+            else:
+                reason = "Included usage is available. Choose Resume goal in the original Codex chat."
+        with self.store.transaction():
+            current = self.store.get(tid)
+            if not self.store.enabled or self.store.generation != generation or not current["eligible"]:
+                return
+            if state != current["state"]:
+                self.store.db.execute("UPDATE tasks SET context=? WHERE thread_id=?", (json.dumps(context), tid))
+            self.store.update(tid, state, reason, now, ack_turn=None, continuation_id=None,
+                              next_check=next_check, retries=0)
 
     def _finish_reservation(self, task):
         if task["continuation_id"]:
