@@ -72,7 +72,21 @@ Section "Application"
 SectionEnd
 Section "Uninstall"
   ; Only files owned by this app are removed. Local recovery history survives.
+  ; Windows can briefly retain DLL handles after the application exits.
+  StrCpy $0 20
+  remove_runtime:
+  IfFileExists "$INSTDIR\_internal\*.*" 0 runtime_removed
+  ClearErrors
   RMDir /r "$INSTDIR\_internal"
+  IfErrors 0 runtime_removed
+  IntOp $0 $0 - 1
+  IntCmp $0 0 runtime_busy
+  Sleep 500
+  Goto remove_runtime
+  runtime_busy:
+  SetErrorLevel 1
+  Abort "Could not remove the bundled runtime. Close Auto-Resume and try again."
+  runtime_removed:
   Delete "$INSTDIR\codex-auto-resume.exe"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir "$INSTDIR"

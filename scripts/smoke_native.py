@@ -76,6 +76,7 @@ def main():
                 if (target / 'Uninstall.exe').exists():
                     nsis(target / 'Uninstall.exe', '_?=', target)
             assert not (target / 'codex-auto-resume.exe').exists()
+            assert not (target / '_internal').exists(), 'The bundled Windows runtime was not removed'
             assert (target / 'unrelated.txt').read_text() == 'preserve me'
         elif package.suffix == '.dmg':
             mount = folder / 'mount'
