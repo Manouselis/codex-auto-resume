@@ -8,6 +8,7 @@ import threading
 import sys
 from pathlib import Path
 
+from . import __version__
 from .domain import TransientError, UnsafeError
 from .process import external_options
 
@@ -15,11 +16,40 @@ READ_METHODS = frozenset({"initialize", "account/read", "account/rateLimits/read
                           "thread/read", "thread/turns/list", "model/list"})
 
 
+def _windows_store_runtimes():
+    """Resolve the current user's Store installation without browsing WindowsApps."""
+    import ctypes
+    from ctypes import wintypes
+
+    kernel = ctypes.WinDLL("kernel32")
+    family = "OpenAI.Codex_2p2nqsd0c76g0"
+    packages = kernel.GetPackagesByPackageFamily
+    packages.argtypes = (wintypes.LPCWSTR, ctypes.POINTER(wintypes.UINT),
+                         ctypes.POINTER(wintypes.LPWSTR), ctypes.POINTER(wintypes.UINT), wintypes.LPWSTR)
+    get_path = kernel.GetPackagePathByFullName
+    get_path.argtypes = (wintypes.LPCWSTR, ctypes.POINTER(wintypes.UINT), wintypes.LPWSTR)
+    count, length = wintypes.UINT(), wintypes.UINT()
+    insufficient_buffer = 122
+    if packages(family, ctypes.byref(count), None, ctypes.byref(length), None) != insufficient_buffer:
+        return
+    names = (wintypes.LPWSTR * count.value)()
+    buffer = ctypes.create_unicode_buffer(length.value)
+    if packages(family, ctypes.byref(count), names, ctypes.byref(length), buffer) != 0:
+        return
+    # MSIX package names contain four numeric version components before architecture.
+    for name in sorted(names, key=lambda name: tuple(map(int, name.split("_")[1].split("."))), reverse=True):
+        size = wintypes.UINT()
+        if get_path(name, ctypes.byref(size), None) == insufficient_buffer:
+            path = ctypes.create_unicode_buffer(size.value)
+            if get_path(name, ctypes.byref(size), path) == 0:
+                yield Path(path.value) / "app/resources/codex.exe"
+
+
 def find_codex() -> str:
     # Desktop launches do not inherit shell PATH customizations. Search only
     # standard per-user/system installation roots; never execute from a project.
     home = Path.home()
-    codex_home = Path(os.environ.get("CODEX_HOME", home / ".codex"))
+    codex_home = Path(os.environ.get("CODEX_HOME") or home / ".codex")
     candidates = []
     if sys.platform == "darwin":
         for base in (Path("/Applications"), home / "Applications"):
@@ -44,6 +74,17 @@ def find_codex() -> str:
     for candidate in candidates:
         if candidate.is_file() and os.access(candidate, os.X_OK):
             return str(candidate)
+    if sys.platform == "win32":
+        # Use the selected package even when a Start-menu launch has no shell PATH.
+        candidates = [codex_home / "packages/app-server-daemon/current/bin/codex.exe",
+                      codex_home / "packages/standalone/current/bin/codex.exe",
+                      codex_home / "packages/standalone/current/codex.exe"]
+        for candidate in candidates:
+            if candidate.is_file():
+                return str(candidate)
+        for candidate in _windows_store_runtimes():
+            if candidate.is_file():
+                return str(candidate)
     found = shutil.which(executable)
     if found:
         return found
@@ -61,6 +102,11 @@ def start_daemon():
     try:
         subprocess.run([find_codex(), "app-server", "daemon", "start"], capture_output=True,
                        timeout=30, check=True, **external_options())
+    except subprocess.CalledProcessError as exc:
+        if sys.platform == "win32" and b"no complete local package" in (exc.stderr or b""):
+            raise TransientError("Codex is installed. Install the official standalone Codex CLI for Windows "
+                                 "to enable its local connection, then reopen Auto-Resume.") from exc
+        raise TransientError("Unable to start the Codex connection; check the installed Codex runtime") from exc
     except (OSError, subprocess.SubprocessError) as exc:
         raise TransientError("Unable to start the Codex connection; check the installed Codex runtime") from exc
 
@@ -89,7 +135,7 @@ class ReadOnlyRpc:
         self.reader = threading.Thread(target=self._read, args=(proc, responses, self.events), daemon=True)
         self.reader.start()
         self._call("initialize", {"clientInfo": {"name": "codex_auto_resume", "title": "Codex Auto-Resume",
-                                                "version": "0.8.0"},
+                                                "version": __version__},
                                   "capabilities": {"experimentalApi": True}})
         self._write({"method": "initialized"})
 

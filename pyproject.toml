@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "codex-auto-resume"
-version = "0.8.0"
+dynamic = ["version"]
 description = "Real included-usage reset continuation for explicitly armed Codex tasks"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -15,6 +15,9 @@ codex-auto-resume = "auto_resume.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["auto_resume*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "auto_resume.__version__"}
 
 [tool.setuptools.package-data]
 auto_resume = ["assets/*.png", "assets/*.svg"]

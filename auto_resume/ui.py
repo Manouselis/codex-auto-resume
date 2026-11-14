@@ -11,6 +11,7 @@ from datetime import datetime
 from .engine import Scheduler
 from .domain import UnsafeError
 from .desktop import open_conversation
+from . import update
 
 
 class ControlWindow:
@@ -26,6 +27,8 @@ class ControlWindow:
         self.worker = None
         self.initial_check_id = None
         self.allowance_timer_id = None
+        self.update_timer_id = None
+        self.update_results = queue.Queue()
         self.pending_actions = deque()
         self.picker = None
         self.pending_selection = None
@@ -131,8 +134,13 @@ class ControlWindow:
         footer = self.footer = ttk.Frame(frame)
         footer.pack(fill="x")
         ttk.Button(footer, text="Activity log", command=self.history).pack(side="left")
-        ttk.Label(footer, text="Demo data · no model requests" if simulation else "Keep Codex open · screen locking is allowed.", style="Muted.TLabel").pack(side="left", padx=14)
         ttk.Checkbutton(footer, text="Dark mode", variable=self.dark, command=self.theme).pack(side="right")
+        if not simulation and update.installed_windows_app():
+            self.update_button = ttk.Button(footer, text="Check for updates", command=self.check_update)
+            self.update_button.pack(side="right", padx=12)
+            self.update_timer_id = root.after(3000, lambda: self.check_update(automatic=True))
+        elif simulation:
+            ttk.Label(footer, text="Demo data · no model requests", style="Muted.TLabel").pack(side="left", padx=14)
         ttk.Label(frame, textvariable=self.power_status, style="Muted.TLabel").pack(anchor="w", pady=(7, 0))
         root.protocol("WM_DELETE_WINDOW", self.close)
         root.bind("<Control-q>", lambda _: self.close())
@@ -161,6 +169,60 @@ class ControlWindow:
             return
         self.check_usage(quiet=True)
         self.allowance_timer_id = self.root.after(60000, self.auto_refresh_allowance)
+
+    def update_work(self, action, on_success, on_error=None):
+        self.update_button.state(["disabled"])
+        results = self.update_results
+
+        def run():
+            try:
+                result = action()
+            except (OSError, ValueError, TypeError, AttributeError):
+                if on_error is not None:
+                    results.put((on_error, None))
+            else:
+                results.put((on_success, result))
+            finally:
+                results.put((lambda _: self.update_button.state(["!disabled"]), None))
+
+        threading.Thread(target=run, daemon=True).start()
+
+    def check_update(self, *, automatic=False):
+        if self.update_timer_id is not None:
+            self.root.after_cancel(self.update_timer_id)
+        self.update_timer_id = self.root.after(6 * 60 * 60 * 1000, lambda: self.check_update(automatic=True))
+        if self.update_button.instate(["disabled"]):
+            return
+
+        def checked(release):
+            if release:
+                self.update_button.configure(text=f"Update to {release.version}", command=lambda: self.install_update(release))
+            elif not automatic:
+                self.notice.set("Auto-Resume is up to date.")
+
+        if not automatic:
+            self.notice.set("Checking for updates…")
+        self.update_work(update.check_for_update, checked,
+                         None if automatic else lambda _: self.notice.set("Could not check for updates. Try again."))
+
+    def install_update(self, release):
+        from tkinter import messagebox
+
+        if not messagebox.askyesno("Update Auto-Resume", f"Download and install Auto-Resume {release.version}? "
+                                   "Auto-Resume will briefly close and reopen.", parent=self.root):
+            return
+
+        def downloaded(installer):
+            try:
+                update.start_installer(installer)
+            except OSError:
+                self.notice.set("Could not open the update installer. Try again.")
+                return
+            self.close(for_update=True)
+
+        self.notice.set(f"Downloading Auto-Resume {release.version}…")
+        self.update_work(lambda: update.download_update(release), downloaded,
+                         lambda _: self.notice.set("The update could not be downloaded or verified. Try again."))
 
     def theme(self):
         if self.dark.get():
@@ -405,6 +467,11 @@ class ControlWindow:
     def refresh(self):
         if self.closed:
             return
+        while not self.update_results.empty():
+            callback, value = self.update_results.get_nowait()
+            callback(value)
+            if self.closed:
+                return
         while not self.results.empty():
             ok, message, callback, quiet = self.results.get_nowait()
             self.busy = False
@@ -412,7 +479,7 @@ class ControlWindow:
                 callback(message)
                 continue
             if quiet:
-                self.quota_updated.set("Allowance unavailable · retrying automatically")
+                self.quota_updated.set(message)
             else:
                 self.notice.set(message)
             if ok and "% used" in message:
@@ -468,7 +535,7 @@ class ControlWindow:
             self.notice.set(self.scheduler.last_error)
         self.refresh_id = self.root.after(200, self.refresh)
 
-    def close(self):
+    def close(self, *, for_update=False):
         if self.closed:
             return
         self.closed = True
@@ -478,11 +545,14 @@ class ControlWindow:
         if self.allowance_timer_id is not None:
             self.root.after_cancel(self.allowance_timer_id)
             self.allowance_timer_id = None
+        if self.update_timer_id is not None:
+            self.root.after_cancel(self.update_timer_id)
+            self.update_timer_id = None
         self.pending_actions.clear()
         if self.refresh_id is not None:
             self.root.after_cancel(self.refresh_id)
             self.refresh_id = None
-        if self.owns_controller:
+        if self.owns_controller and not for_update:
             self.engine.store.set_enabled(False, self.engine.clock())
         self.engine.adapter.close()
         self.scheduler.stop()

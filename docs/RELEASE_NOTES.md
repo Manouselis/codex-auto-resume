@@ -6,6 +6,8 @@ Download the installer for your computer below. Python and Tk are included; no t
 
 Opening the app enables the master checkbox. Add conversation → select a chat arms it immediately; an idle chat receives one `continue`. Multiple chats recover independently. Disarm removes a chat from the queue. Allowance updates every minute.
 
+Windows now finds the Microsoft Store installation without a shell PATH. If Codex needs its local daemon initialized, the app directs you to the official standalone CLI. Install this release once to get future Windows updates directly in Auto-Resume.
+
 This community beta is unsigned (macOS uses an ad-hoc bundle signature). SmartScreen/Gatekeeper may ask for confirmation; see the installation guide. Live Codex continuation is verified on Ubuntu with runtime 0.166. Automated installer/GUI tests on other OSes use isolated invented data; live cross-platform Codex integration, downloaded-app security prompts and repeated unattended quota-reset cycles remain unverified.
 
 Included smoke JSON reports identify the exact tested hosts and timings. `SHA256SUMS` covers the downloadable installers, source and developer zipapp. The `.pyz` is the optional developer build, not the graphical installer.

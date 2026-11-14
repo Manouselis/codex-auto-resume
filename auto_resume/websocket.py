@@ -15,6 +15,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from . import __version__
 from .domain import NotSentError, TransientError, UnsafeError, WriterConflictError
 from .protocol import READ_METHODS, find_codex, start_daemon
 
@@ -142,6 +143,9 @@ class LocalWebSocket:
                     or headers.get("upgrade", "").lower() != "websocket"):
                 raise UnsafeError("The local App Server rejected the WebSocket handshake")
             self.sock.settimeout(None)  # Idle waiting is unbounded; RPC waits remain bounded.
+        except OSError as exc:
+            self.close()
+            raise TransientError("The local Codex connection is unavailable") from exc
         except Exception:
             self.close()
             raise
@@ -235,7 +239,7 @@ class DaemonRpc:
         self.responses = queue.Queue()
         threading.Thread(target=self._read, args=(connection, self.responses), daemon=True).start()
         self._call("initialize", {"clientInfo": {"name": "codex_auto_resume", "title": "Codex Auto-Resume",
-                                                "version": "0.8.0"},
+                                                "version": __version__},
                                   "capabilities": {"experimentalApi": True}})
         self._write({"method": "initialized"})
 

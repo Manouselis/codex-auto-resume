@@ -37,7 +37,7 @@ class RpcTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         path = Path(self.tmp.name) / "mock_server.py"
         path.write_text(MOCK)
-        self.rpc = ReadOnlyRpc([sys.executable, "-u", str(path)], timeout=0.3)
+        self.rpc = ReadOnlyRpc([sys.executable, "-u", str(path)], timeout=3)
 
     def tearDown(self):
         self.rpc.close()
@@ -79,8 +79,13 @@ class RpcTests(unittest.TestCase):
         self.assertEqual(self.rpc.call("account/read")["account"]["planType"], "plus")
 
     def test_timeout_then_reconnect(self):
-        with self.assertRaises(TransientError):
-            self.rpc.call("thread/read", {"threadId": "timeout"})
+        self.rpc.call("account/read")  # Allow time for the subprocess and handshake to start.
+        self.rpc.timeout = 0.3
+        try:
+            with self.assertRaises(TransientError):
+                self.rpc.call("thread/read", {"threadId": "timeout"})
+        finally:
+            self.rpc.timeout = 3
         self.assertEqual(self.rpc.call("account/read")["account"]["type"], "chatgpt")
 
     def test_backend_error_text_is_not_exposed(self):

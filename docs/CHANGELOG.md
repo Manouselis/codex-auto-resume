@@ -2,6 +2,12 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
+## 0.8.1 — 14 November 2026
+
+- Find the registered Microsoft Store Codex runtime and the selected standalone or daemon package from Windows Start-menu launches.
+- Show when Codex is installed and the local daemon needs the official standalone CLI. Verified the live Windows connection for allowance and recent chat reads.
+- Check for newer Windows releases while running. After confirmation, verify the installer against GitHub's SHA-256 digest and install in place.
+
 ## 0.8.0 — 30 October 2026
 
 - Standalone Ubuntu DEB, Windows installer and macOS Intel/Apple silicon DMGs: bundled Python/Tk, app icon and graphical launch with no terminal setup.

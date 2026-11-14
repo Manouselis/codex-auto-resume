@@ -1,6 +1,6 @@
 # Install Codex Auto-Resume
 
-Download your installer from the [v0.8.0 release](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.0). Python and Tk are bundled; there is no terminal setup. The official Codex desktop app is a separate prerequisite. Open it and sign in to ChatGPT Plus before adding conversations.
+Download your installer from the [v0.8.1 release](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.1). Python and Tk are bundled. Open the official Codex desktop app and sign in to ChatGPT Plus before adding conversations.
 
 ## Ubuntu
 
@@ -24,6 +24,8 @@ Keep Auto-Resume open/minimized while recovery is armed. The app requests preven
 
 Uninstall using **Settings → Apps → Installed apps → Codex Auto-Resume → Uninstall**. Close the app first.
 
+If Auto-Resume finds the Store app but asks for the standalone runtime, install the [official Codex CLI for Windows](https://developers.openai.com/codex/cli) and reopen Auto-Resume. The standalone CLI can initialize the local Codex daemon using your existing sign-in.
+
 ## macOS
 
 Choose **macos-arm64.dmg** for Apple silicon (macOS 14+) or **macos-x64.dmg** for Intel (macOS 15+).
@@ -44,7 +46,9 @@ The app discovers standard Codex desktop/CLI install locations and the desktop's
 
 ## Updates and data
 
-Download the new installer, close Auto-Resume, and install it over the previous version. Installer updates are manual; the app makes no background update requests.
+On Windows, install version 0.8.1 once over the existing app. From then on, Auto-Resume checks GitHub at startup and every six hours while open. You can also select **Check for updates**. When a release appears, choose **Update to** and confirm. Auto-Resume downloads and verifies the installer, briefly closes, then reopens after installation. Review the queue after reopening if a continuation was in flight.
+
+On Ubuntu and macOS, close the app and install the newer package over the previous version.
 
 Recovery metadata is preserved across upgrades/uninstall. It contains chat/account/project identifiers and guard state, not credentials or message text. Defaults:
 

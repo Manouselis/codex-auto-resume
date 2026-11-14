@@ -1,6 +1,6 @@
 # Security
 
-Version 0.8.0 sends real continuation requests only while globally enabled, after explicit per-task arming and current included-usage checks. Opening the GUI checks the master switch; previously disarmed chats remain disarmed. Preserve all refusal paths and the no-resend behavior for uncertain acknowledgements. Unresolved history from another runtime permits monitoring only and cannot authorize dispatch.
+Auto-Resume sends real continuation requests only while globally enabled, after explicit per-task arming and current included-usage checks. Opening the GUI checks the master switch; previously disarmed chats remain disarmed. Preserve all refusal paths and the no-resend behavior for uncertain acknowledgements. Unresolved history from another runtime permits monitoring only and cannot authorize dispatch.
 
 Never add billing purchases, API-key fallback, reset redemption, automatic approvals or implicit account changes. Changes to dispatch require tests for weekly exhaustion, missing ordinary permission, paid/unknown credits, concurrent work, cancellation and lost acknowledgements.
 
@@ -13,3 +13,5 @@ Context-checkpoint recovery requires explicit per-arming opt-in. It must not ove
 ## Download integrity
 
 Native release assets include SHA-256 checksums and per-host installer smoke reports. The release workflow publishes only after its platform checks pass. Windows/macOS downloads are currently an unsigned community beta (macOS bundles have an ad-hoc signature); no production signing/notarization credentials are configured. Install only assets from this repository's release page. The app never downloads a Codex runtime or handles its credentials.
+
+The Windows updater reads this repository's public GitHub releases without credentials. It installs only after user confirmation and verifies the expected Windows asset name, size and GitHub-provided SHA-256 digest. The digest verifies the downloaded bytes against GitHub's release metadata.
