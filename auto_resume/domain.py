@@ -24,7 +24,7 @@ TRANSITIONS = {
     State.DISABLED: {State.ARMED},
     State.ARMED: {State.WAITING_FOR_SCHEDULE, State.WAITING_FOR_GOAL, State.RUNNING, State.FIVE_HOUR_LIMIT_REACHED, State.VERIFYING_ALLOWANCE, State.COMPLETED},
     State.WAITING_FOR_SCHEDULE: {State.ARMED, State.VERIFYING_ALLOWANCE},
-    State.WAITING_FOR_GOAL: {State.RUNNING},
+    State.WAITING_FOR_GOAL: {State.RUNNING, State.VERIFYING_ALLOWANCE},
     State.RUNNING: {State.ARMED, State.WAITING_FOR_SCHEDULE, State.WAITING_FOR_GOAL, State.FIVE_HOUR_LIMIT_REACHED, State.VERIFYING_ALLOWANCE, State.COMPLETED},
     State.FIVE_HOUR_LIMIT_REACHED: {State.WAITING_FOR_RESET},
     State.WAITING_FOR_RESET: {State.VERIFYING_ALLOWANCE, State.WAITING_FOR_GOAL, State.COMPLETED},
@@ -108,6 +108,7 @@ class Request:
         "objectives, preserve the original requirements, and stop when the task is genuinely complete."
     )
     trigger: str = "usage_limit"
+    goal_identity: str | None = None
 
 
 class TransientError(Exception):

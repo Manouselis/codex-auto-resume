@@ -8,7 +8,7 @@ Opening the app enables the master checkbox. Add conversation → select a chat 
 
 Windows now finds the Microsoft Store installation without a shell PATH. If Codex needs its local daemon initialized, the app directs you to the official standalone CLI. Install this release once to get future Windows updates directly in Auto-Resume.
 
-Auto-Resume keeps chats with a usage-limited goal armed while it checks included allowance. When allowance is available, use **Resume goal** in the original Codex chat. Auto-Resume monitors the resumed goal.
+Auto-Resume keeps explicitly armed usage-limited desktop goals in the queue. Once included allowance is available, it reactivates the goal and wakes the original Codex chat. **Running** appears after the app confirms the new turn.
 
 This community beta is unsigned (macOS uses an ad-hoc bundle signature). SmartScreen/Gatekeeper may ask for confirmation; see the installation guide. Live Codex continuation is verified on Ubuntu with runtime 0.166. Automated installer/GUI tests on other OSes use isolated invented data; live cross-platform Codex integration, downloaded-app security prompts and repeated unattended quota-reset cycles remain unverified.
 

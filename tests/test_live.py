@@ -49,6 +49,9 @@ class Backend:
             return {"config": self.config}
         if method == "thread/goal/get":
             return {"goal": self.goal}
+        if method == "thread/goal/set":
+            self.goal["status"] = params["status"]
+            return {"goal": {**self.goal, "threadId": params["threadId"]}}
         if method == "thread/read":
             return {"thread": copy.deepcopy(self.thread)}
         if method == "thread/turns/list":

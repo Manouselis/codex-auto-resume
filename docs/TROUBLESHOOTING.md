@@ -10,7 +10,7 @@ Version 0.4.1 could retain a completed native turn's global reservation and poll
 
 ## An existing goal hit the usage limit
 
-In 0.8.2, select the chat again to arm **Goal recovery**. Once the row reports that included usage is available, choose **Resume goal** in the original Codex chat. Auto-Resume detects the resumed turn and monitors it. A manual pause, a changed goal, or an exhausted goal budget still requires your attention.
+In 0.8.3, **Goal recovery** waits for included usage and restarts the original goal through the desktop's conversation queue. Keep Codex open. **Running** means Auto-Resume confirmed a new turn in the original chat. If the app reports an uncertain continuation, inspect the original chat for pending work before rearming. A manual pause, a changed goal, or an exhausted goal budget still requires your attention.
 
 ## Codex is open but Auto-Resume cannot find its daemon
 

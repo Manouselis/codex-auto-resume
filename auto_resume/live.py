@@ -12,13 +12,14 @@ import uuid
 from pathlib import Path
 
 from .domain import Capabilities, NotSentError, Observation, Request, UnsafeError, Usage, WriterConflictError
+from .desktop import wake_queued_conversation
 from .policy import evaluate
 from .protocol import READ_METHODS
 from .websocket import DaemonRpc
 from .checkpoints import context_checkpoint, final_text
 
 
-LIVE_METHODS = READ_METHODS | {"config/read", "thread/list", "thread/loaded/list", "thread/goal/get", "thread/resume", "turn/start",
+LIVE_METHODS = READ_METHODS | {"config/read", "thread/list", "thread/loaded/list", "thread/goal/get", "thread/goal/set", "thread/resume", "turn/start",
                              "thread/items/list", "thread/queue/add", "thread/queue/list"}
 
 
@@ -258,10 +259,14 @@ class LiveAdapter:
         if obs.turn_status == "inProgress":
             raise UnsafeError("Another turn is active; no continuation will be sent")
         if automatic:
-            if request.trigger == "usage_limit":
+            if request.trigger in ("usage_limit", "goal_usage_limit"):
                 if obs.turn_status != "failed" or obs.error_code != "usageLimitExceeded":
                     raise UnsafeError("Only a structured usage-limit interruption may automatically continue")
-                if not self.goal_allows_continuation(request.thread_id):
+                if request.trigger == "goal_usage_limit":
+                    status, identity = self.goal_for_usage_recovery(request.thread_id)
+                    if not identity or identity != request.goal_identity or status != "usageLimited":
+                        raise UnsafeError("The original usage-limited goal or its budget changed")
+                elif not self.goal_allows_continuation(request.thread_id):
                     raise UnsafeError("Check the original goal in Codex before continuing")
             elif request.trigger == "context_budget":
                 if obs.stop_reason != "context_budget" or obs.turn_status not in ("completed", "failed"):
@@ -351,22 +356,68 @@ class LiveAdapter:
                 reason = str(exc) if isinstance(exc, UnsafeError) else "Native queue preflight failed; no message was sent"
                 raise NotSentError(reason) from exc
             self.on_dispatch_stage("Sending continue through the original Codex writer" if request.trigger == "user_continue" else "Queuing the guarded continuation in Codex")
-            result = self.rpc.call("thread/queue/add", {"threadId": request.thread_id,
-                "clientUserMessageId": request.continuation_id,
-                "input": [{"type": "text", "text": request.text}]})
-            acknowledgement = result.get("queuedSubmission") or {}
-            if acknowledgement.get("clientUserMessageId") != request.continuation_id or not acknowledgement.get("id"):
-                raise UnsafeError("Native queue acknowledgement is uncertain; do not retry")
-            self.on_dispatch_stage("Continue queued; waiting for Codex to confirm its turn")
-            deadline = time.monotonic() + 20
-            while time.monotonic() < deadline:
-                turn_id = self.queued_turn(request)
-                if turn_id:
-                    return turn_id
-                time.sleep(.5)
-            raise UnsafeError("Continue was queued but its turn is not confirmed; inspect Codex before retrying")
+            return self._queue_continuation(request, request.text)
+
+    def _queue_continuation(self, request, text, *, wake=False):
+        result = self.rpc.call("thread/queue/add", {"threadId": request.thread_id,
+            "clientUserMessageId": request.continuation_id, "input": [{"type": "text", "text": text}]})
+        acknowledgement = result.get("queuedSubmission") or {}
+        if acknowledgement.get("clientUserMessageId") != request.continuation_id or not acknowledgement.get("id"):
+            raise UnsafeError("Native queue acknowledgement is uncertain; do not retry")
+        if wake:
+            wake_queued_conversation(request.thread_id)
+        self.on_dispatch_stage("Continue queued; waiting for Codex to confirm its turn")
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            turn_id = self.queued_turn(request)
+            if turn_id:
+                return turn_id
+            time.sleep(.5)
+        raise UnsafeError("Continue was queued but its turn is not confirmed; inspect Codex before retrying")
+
+    def _dispatch_goal(self, request):
+        """Reactivate the original goal and wake its desktop owner through the native queue."""
+        with self.guard:
+            tid = request.thread_id
+            try:
+                self._preflight(request)
+                if self.rpc.call("thread/queue/list", {"threadId": tid, "limit": 1}).get("data") != []:
+                    raise UnsafeError("This chat already has a queued message; inspect it in Codex")
+                self._preflight(request)
+                self.on_dispatch_stage("Reactivating the usage-limited goal")
+                if (self.goal_for_usage_recovery(tid) != ("usageLimited", request.goal_identity)
+                        or not self.check_enabled()):
+                    raise UnsafeError("Goal or arming changed; no resume request was sent")
+            except (UnsafeError, TransientError, OSError) as exc:
+                reason = str(exc) if isinstance(exc, UnsafeError) else "Cannot verify the goal; no resume request was sent"
+                raise NotSentError(reason) from exc
+            result = self.rpc.call("thread/goal/set", {"threadId": tid, "status": "active", "origin": "automatic"})
+            goal = result.get("goal") or {}
+            status, identity = self.goal_for_usage_recovery(tid)
+            if goal.get("threadId") != tid or goal.get("status") != "active" or (status, identity) != ("active", request.goal_identity):
+                raise UnsafeError("The goal reactivation could not be confirmed; inspect Codex before retrying")
+            if not self.check_enabled():
+                raise UnsafeError("Arming changed after goal reactivation; inspect Codex before retrying")
+            current = self.observe(tid)
+            if (current.revision != request.expected_revision or current.approval_pending
+                    or current.cancelled or current.user_work_active or not current.project_exists
+                    or current.account_id != request.expected_account_id or current.model != request.expected_model
+                    or current.config_hash != request.expected_config_hash or current.bucket_ids != request.bucket_ids):
+                raise UnsafeError("Codex changed the turn during goal reactivation; inspect the original chat")
+            self._financial_config(current.cwd)
+            if self.rpc.call("thread/queue/list", {"threadId": tid, "limit": 1}).get("data") != []:
+                raise UnsafeError("The desktop queue changed during goal reactivation; inspect Codex")
+            usage = self.usage()
+            if (evaluate(usage, request.expected_account_id, request.bucket_ids, self.clock()).kind != "ready"
+                    or self.goal_for_usage_recovery(tid) != ("active", request.goal_identity)
+                    or not self.check_enabled()):
+                raise UnsafeError("Included usage or arming changed during goal reactivation; inspect Codex")
+            self.on_dispatch_stage("Waking the original goal in Codex")
+            return self._queue_continuation(request, "Continue the existing Codex goal from its current progress.", wake=True)
 
     def submit(self, request):
+        if request.trigger == "goal_usage_limit":
+            return self._dispatch_goal(request)
         return self._dispatch_queue(request) if request.desktop_queue else self._dispatch(request)
 
     def recent_threads(self):

@@ -14,7 +14,17 @@ def open_conversation(thread_id):
     """Open the selected chat via the desktop's documented URL handler."""
     if not isinstance(thread_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", thread_id):
         raise ValueError("Invalid conversation ID")
-    url = "codex://threads/" + thread_id
+    _open_codex_url("codex://threads/" + thread_id)
+
+
+def wake_queued_conversation(thread_id):
+    """Ask the desktop to load a queued chat without changing the visible chat."""
+    if not re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", thread_id):
+        raise ValueError("A Codex conversation UUID is required")
+    _open_codex_url("codex://threads/wake/" + thread_id)
+
+
+def _open_codex_url(url):
     try:
         if os.name == "nt":
             os.startfile(url)

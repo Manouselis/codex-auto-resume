@@ -389,6 +389,11 @@ class Engine:
             if decision.kind == "wait":
                 next_check = decision.reset_at + self.delay
                 reason = "Goal hit the 5h limit; wait for included usage to reset"
+            elif status == "usageLimited" and context.get("desktop_queue"):
+                if task["attempts"] >= self.max_attempts:
+                    self._pause(tid, "Maximum automatic continuations reached")
+                    return
+                state, reason = State.VERIFYING_ALLOWANCE, "Verifying allowance to resume the original goal"
             else:
                 reason = "Included usage is available. Choose Resume goal in the original Codex chat."
         with self.store.transaction():
@@ -399,6 +404,8 @@ class Engine:
                 self.store.db.execute("UPDATE tasks SET context=? WHERE thread_id=?", (json.dumps(context), tid))
             self.store.update(tid, state, reason, now, ack_turn=None, continuation_id=None,
                               next_check=next_check, retries=0)
+        if state == State.VERIFYING_ALLOWANCE:
+            self._submit(self.store.get(tid), obs, generation, trigger="goal_usage_limit")
 
     def _finish_reservation(self, task):
         if task["continuation_id"]:
@@ -486,7 +493,7 @@ class Engine:
             request = replace(request, text="continue")
         elif context.get("recover_context") is True:
             request = replace(request, text=request.text + CHECKPOINT_INSTRUCTIONS)
-        request = replace(request, trigger=trigger)
+        request = replace(request, trigger=trigger, goal_identity=context.get("waiting_goal_identity"))
         try:
             if not self.store.enabled or not self.store.get(tid)["eligible"] or self.store.generation != generation:
                 raise UnsafeError("Disarmed before dispatch")

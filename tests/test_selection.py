@@ -2,6 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from auto_resume.adapters import fake_payload
 from auto_resume.domain import State, UnsafeError
@@ -103,7 +104,7 @@ class SelectionTests(unittest.TestCase):
                              "objective": "Finish the test task", "createdAt": 1, **changes}
         self.backend.latest.update(status="failed", error={"codexErrorInfo": "usageLimitExceeded"})
 
-    def test_usage_limited_goal_stays_armed_and_follows_manual_resume(self):
+    def test_usage_limited_goal_waits_for_reset_then_restarts_once_through_desktop(self):
         self.usage_limited_goal()
         self.backend.payload = fake_payload(self.clock())
         task = self.start()
@@ -114,19 +115,52 @@ class SelectionTests(unittest.TestCase):
 
         self.now[0] = task["next_check"]
         self.backend.payload = fake_payload(self.clock(), five=5, ordinary=True)
-        self.engine.tick()
+        with patch("auto_resume.live.wake_queued_conversation") as wake:
+            self.engine.tick()
+        wake.assert_called_once_with("live-test")
         task = self.store.get("live-test")
         self.assertTrue(task["eligible"])
-        self.assertIn("Resume goal", task["reason"])
+        self.assertEqual(task["state"], State.RUNNING)
+        self.assertEqual(task["ack_turn"], "native-queued-1")
+        self.assertEqual(self.backend.goal["status"], "active")
+        self.assertEqual([p for m, p in self.backend.calls if m == "thread/goal/set"],
+                         [{"threadId": "live-test", "status": "active", "origin": "automatic"}])
+        self.assertEqual(len(self.queued()), 1)
+        self.assertFalse(any(m in ("thread/resume", "turn/start") for m, _ in self.backend.calls))
+        self.engine.tick()
+        self.assertEqual(len(self.queued()), 1)
+
+    def test_usage_limited_goal_with_existing_queue_does_not_reactivate(self):
+        self.usage_limited_goal()
+        self.backend.queued.append({"id": "manual"})
+        self.assertFalse(self.start()["eligible"])
+        self.assertEqual(self.backend.goal["status"], "usageLimited")
         self.assertFalse(self.queued())
 
-        self.now[0] = task["next_check"]
-        self.backend.goal["status"] = "active"
-        self.backend.latest.update(id="resumed-in-codex", status="inProgress", error=None, completedAt=None)
-        self.engine.tick()
-        task = self.store.get("live-test")
-        self.assertEqual(task["state"], State.RUNNING)
-        self.assertEqual(json.loads(task["context"])["turn_id"], "resumed-in-codex")
+    def test_goal_wake_lost_acknowledgement_never_retries(self):
+        self.usage_limited_goal()
+        self.backend.queue_add_lost_ack = True
+        with patch("auto_resume.live.wake_queued_conversation") as wake:
+            self.assertFalse(self.start()["eligible"])
+            self.engine.tick()
+        wake.assert_not_called()
+        self.assertEqual(len(self.queued()), 1)
+        self.assertEqual(self.store.db.execute("SELECT status FROM submissions").fetchone()[0], "uncertain")
+
+    def test_goal_paused_during_recovery_is_never_reactivated(self):
+        self.usage_limited_goal()
+        change = self.engine._change
+
+        def pause_on_dispatch(thread_id, state, reason, **values):
+            if reason == "Reactivating the usage-limited goal":
+                self.backend.goal["status"] = "paused"
+            return change(thread_id, state, reason, **values)
+
+        with patch.object(self.engine, "_change", side_effect=pause_on_dispatch):
+            task = self.start()
+        self.assertFalse(task["eligible"])
+        self.assertEqual(self.backend.goal["status"], "paused")
+        self.assertFalse(any(m == "thread/goal/set" for m, _ in self.backend.calls))
         self.assertFalse(self.queued())
 
     def test_usage_limited_goal_with_exhausted_budget_cannot_arm(self):
@@ -136,6 +170,7 @@ class SelectionTests(unittest.TestCase):
 
     def test_replaced_goal_does_not_inherit_arming(self):
         self.usage_limited_goal()
+        self.backend.payload = fake_payload(self.clock())
         task = self.start()
         self.now[0] = task["next_check"]
         self.backend.goal.update(status="active", objective="Different task")

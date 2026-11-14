@@ -2,6 +2,10 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
+## 0.8.3 — 14 November 2026
+
+- Automatically resume explicitly armed desktop goals that hit the five-hour limit. After verifying included usage and the original goal, wake its desktop owner and confirm the continuation in the original chat.
+
 ## 0.8.2 — 14 November 2026
 
 - Keep chats with a usage-limited Codex goal armed while checking included allowance. After reset, show when to resume the goal in the original Codex chat, then monitor that goal's new turn.
