@@ -14,7 +14,6 @@ from pathlib import Path
 from .domain import Capabilities, NotSentError, Observation, Request, UnsafeError, Usage, WriterConflictError
 from .policy import evaluate
 from .protocol import READ_METHODS
-from .protocol import start_daemon
 from .websocket import DaemonRpc
 from .checkpoints import context_checkpoint, final_text
 
@@ -68,7 +67,6 @@ class LiveAdapter:
         return Usage(payload, self.clock(), "chatgpt")
 
     def ensure_daemon(self):
-        start_daemon()
         self.usage()
         return "Codex connected. Choose the original conversation and arm it."
 

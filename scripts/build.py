@@ -3,12 +3,14 @@
 import gzip
 import hashlib
 import io
+import sys
 import tarfile
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-VERSION = "0.8.0"
+sys.path.insert(0, str(ROOT))
+from auto_resume import __version__ as VERSION
 
 
 def build_app(root=ROOT):

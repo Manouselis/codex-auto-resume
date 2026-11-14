@@ -1,5 +1,6 @@
 Unicode true
 !include "MUI2.nsh"
+!include "FileFunc.nsh"
 !ifndef VERSION
   !error "VERSION is required"
 !endif
@@ -26,9 +27,36 @@ SetCompressor /SOLID lzma
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "English"
+Var UpdatePID
+
+Function .onInit
+  ${GetParameters} $0
+  ClearErrors
+  ${GetOptions} $0 "/UPDATEPID=" $UpdatePID
+  IfErrors no_update
+  ; Wait until the window and its Python/Tk runtime release their files.
+  System::Call 'kernel32::OpenProcess(i 0x00100000, i 0, i $UpdatePID) p .r1'
+  StrCmp $1 0 no_update
+  System::Call 'kernel32::WaitForSingleObject(p r1, i 60000) i .r2'
+  System::Call 'kernel32::CloseHandle(p r1)'
+  StrCmp $2 0 no_update
+  MessageBox MB_ICONSTOP "Auto-Resume is still running. Close it and try the update again."
+  SetErrorLevel 1
+  Abort
+  no_update:
+FunctionEnd
+
+Function .onInstSuccess
+  StrCmp $UpdatePID "" +2
+  Exec '"$INSTDIR\codex-auto-resume.exe"'
+FunctionEnd
+
 Section "Application"
   SetOutPath "$INSTDIR"
   File /r "${BUNDLE}\*"
+  IfErrors 0 +3
+  SetErrorLevel 1
+  Abort "Could not replace Auto-Resume's application files. Close any other copies and run the installer again."
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   CreateDirectory "$SMPROGRAMS\Codex Auto-Resume"
   CreateShortcut "$SMPROGRAMS\Codex Auto-Resume\Codex Auto-Resume.lnk" "$INSTDIR\codex-auto-resume.exe"

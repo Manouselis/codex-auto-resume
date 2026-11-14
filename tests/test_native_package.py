@@ -39,8 +39,38 @@ class RuntimeDiscoveryTests(unittest.TestCase):
             binary.parent.mkdir(parents=True)
             binary.write_bytes(b'fixture')
             binary.chmod(0o755)
-            with patch('auto_resume.protocol.sys.platform', 'win32'), patch.dict(os.environ, {'CODEX_HOME': str(home), 'LOCALAPPDATA': str(home)}), patch('auto_resume.protocol.Path.home', return_value=home), patch('auto_resume.protocol.shutil.which', return_value=None):
+            with (patch('auto_resume.protocol.sys.platform', 'win32'),
+                  patch.dict(os.environ, {'CODEX_HOME': str(home), 'LOCALAPPDATA': str(home)}),
+                  patch('auto_resume.protocol.Path.home', return_value=home),
+                  patch('auto_resume.protocol.shutil.which', return_value=None),
+                  patch('auto_resume.protocol._windows_store_runtimes', return_value=iter(()))):
                 self.assertEqual(find_codex(), str(binary))
+
+    def test_windows_store_runtime_without_shell_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            binary = home / 'WindowsApps/OpenAI.Codex_fixture/app/resources/codex.exe'
+            binary.parent.mkdir(parents=True)
+            binary.write_bytes(b'fixture')
+            with (patch('auto_resume.protocol.sys.platform', 'win32'),
+                  patch.dict(os.environ, {'CODEX_HOME': str(home), 'LOCALAPPDATA': str(home)}),
+                  patch('auto_resume.protocol.Path.home', return_value=home),
+                  patch('auto_resume.protocol.shutil.which', return_value=None),
+                  patch('auto_resume.protocol._windows_store_runtimes', return_value=iter([binary]))):
+                self.assertEqual(find_codex(), str(binary))
+
+    def test_windows_selected_daemon_takes_precedence_over_store_runtime(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            binary = home / 'packages/app-server-daemon/current/bin/codex.exe'
+            binary.parent.mkdir(parents=True)
+            binary.write_bytes(b'fixture')
+            with (patch('auto_resume.protocol.sys.platform', 'win32'),
+                  patch.dict(os.environ, {'CODEX_HOME': str(home), 'LOCALAPPDATA': str(home)}),
+                  patch('auto_resume.protocol.Path.home', return_value=home),
+                  patch('auto_resume.protocol._windows_store_runtimes') as store):
+                self.assertEqual(find_codex(), str(binary))
+                store.assert_not_called()
 
 
 class ProxyTransportTests(unittest.TestCase):

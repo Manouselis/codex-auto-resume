@@ -18,7 +18,7 @@ jobs:
             target: linux-x64
           - os: windows-2025
             target: windows-x64
-          - os: macos-14
+          - os: macos-15
             target: macos-arm64
           - os: macos-15-intel
             target: macos-x64
@@ -47,13 +47,13 @@ jobs:
       - run: python scripts/build_native.py
       - name: Install, launch bundled GUI, uninstall (Linux)
         if: runner.os == 'Linux'
-        run: xvfb-run -a python scripts/smoke_native.py dist/release/codex-auto-resume-0.8.0-linux-x64.deb --install --report dist/smoke-${{ matrix.target }}.json
+        run: xvfb-run -a python scripts/smoke_native.py dist/release/*-linux-x64.deb --install --report dist/smoke-${{ matrix.target }}.json
       - name: Install, launch bundled GUI, uninstall (Windows)
         if: runner.os == 'Windows'
-        run: python scripts/smoke_native.py dist/release/codex-auto-resume-0.8.0-windows-x64-setup.exe --install --report dist/smoke-${{ matrix.target }}.json
+        run: python scripts/smoke_native.py (Get-Item dist/release/*-windows-x64-setup.exe).FullName --install --report dist/smoke-${{ matrix.target }}.json
       - name: Mount DMG, copy app, launch bundled GUI (macOS)
         if: runner.os == 'macOS'
-        run: python scripts/smoke_native.py dist/release/codex-auto-resume-0.8.0-${{ matrix.target }}.dmg --report dist/smoke-${{ matrix.target }}.json
+        run: python scripts/smoke_native.py dist/release/*-${{ matrix.target }}.dmg --report dist/smoke-${{ matrix.target }}.json
       - uses: actions/upload-artifact@v4
         with:
           name: installer-${{ matrix.target }}
@@ -80,7 +80,7 @@ jobs:
           name: installer-linux-x64
           path: downloads
       - run: sudo apt-get update && sudo apt-get install -y xvfb xauth libxft2
-      - run: xvfb-run -a python scripts/smoke_native.py downloads/release/codex-auto-resume-0.8.0-linux-x64.deb --install --report dist/smoke-${{ matrix.os }}.json
+      - run: xvfb-run -a python scripts/smoke_native.py downloads/release/*-linux-x64.deb --install --report dist/smoke-${{ matrix.os }}.json
       - uses: actions/upload-artifact@v4
         with:
           name: smoke-${{ matrix.os }}
@@ -100,7 +100,7 @@ jobs:
         with:
           name: installer-windows-x64
           path: downloads
-      - run: python scripts/smoke_native.py downloads/release/codex-auto-resume-0.8.0-windows-x64-setup.exe --install --report dist/smoke-windows-11-arm.json
+      - run: python scripts/smoke_native.py (Get-Item downloads/release/*-windows-x64-setup.exe).FullName --install --report dist/smoke-windows-11-arm.json
       - run: python -m unittest discover -s tests -v
       - uses: actions/upload-artifact@v4
         with:
@@ -128,6 +128,7 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         shell: bash
         run: |
+          test "$RELEASE_TAG" = "$(python -m auto_resume --version | sed 's/^/v/')"
           mkdir -p release
           find artifacts -type f \( -name '*.deb' -o -name '*.dmg' -o -name '*.exe' -o -name 'smoke-*.json' \) -exec cp {} release/ \;
           cp dist/*.pyz dist/*-source.tar.gz release/
