@@ -75,6 +75,17 @@ def main():
             finally:
                 if (target / 'Uninstall.exe').exists():
                     nsis(target / 'Uninstall.exe', '_?=', target)
+                    # _?= runs the uninstaller in place, so it cannot delete itself.
+                    # Windows can briefly retain a handle even after the process exits.
+                    deadline = time.monotonic() + 10
+                    while True:
+                        try:
+                            (target / 'Uninstall.exe').unlink(missing_ok=True)
+                            break
+                        except PermissionError:
+                            if time.monotonic() >= deadline:
+                                raise
+                            time.sleep(0.25)
             assert not (target / 'codex-auto-resume.exe').exists()
             assert not (target / '_internal').exists(), 'The bundled Windows runtime was not removed'
             assert (target / 'unrelated.txt').read_text() == 'preserve me'
