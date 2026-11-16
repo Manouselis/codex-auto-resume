@@ -18,7 +18,7 @@ jobs:
             target: linux-x64
           - os: windows-2025
             target: windows-x64
-          - os: macos-15
+          - os: macos-26
             target: macos-arm64
           - os: macos-15-intel
             target: macos-x64
@@ -45,9 +45,17 @@ jobs:
         if: runner.os != 'Linux'
         run: python scripts/verify.py --gui
       - run: python scripts/build_native.py
-      - name: Install, launch bundled GUI, uninstall (Linux)
+      - &previous-deb
+        name: Download the published 0.8.2 Ubuntu package
         if: runner.os == 'Linux'
-        run: xvfb-run -a python scripts/smoke_native.py dist/release/*-linux-x64.deb --install --report dist/smoke-${{ matrix.target }}.json
+        run: |
+          curl --fail --silent --show-error --location --retry 2 --max-time 60 \
+            https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.2/codex-auto-resume-0.8.2-linux-x64.deb \
+            --output codex-auto-resume-0.8.2-linux-x64.deb
+          echo 'cf0a1b77e9efc9c73c66a1680e58e9387ade3afb4559758655fc77509994e29d  codex-auto-resume-0.8.2-linux-x64.deb' | sha256sum --check --strict
+      - name: Upgrade, launch bundled GUI, uninstall (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python scripts/smoke_native.py dist/release/*-linux-x64.deb --install --upgrade-from codex-auto-resume-0.8.2-linux-x64.deb --report dist/smoke-${{ matrix.target }}.json
       - name: Install, launch bundled GUI, uninstall (Windows)
         if: runner.os == 'Windows'
         run: python scripts/smoke_native.py (Get-Item dist/release/*-windows-x64-setup.exe).FullName --install --report dist/smoke-${{ matrix.target }}.json
@@ -80,14 +88,9 @@ jobs:
           name: installer-linux-x64
           path: downloads
       - run: sudo apt-get update && sudo apt-get install -y xvfb xauth libxft2
+      - *previous-deb
       - name: Upgrade the published 0.8.2 DEB in place with APT
-        run: |
-          curl --fail --silent --show-error --location --retry 2 --max-time 60 \
-            https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.2/codex-auto-resume-0.8.2-linux-x64.deb \
-            --output codex-auto-resume-0.8.2-linux-x64.deb
-          echo 'cf0a1b77e9efc9c73c66a1680e58e9387ade3afb4559758655fc77509994e29d  codex-auto-resume-0.8.2-linux-x64.deb' | sha256sum --check --strict
-          xvfb-run -a python scripts/smoke_native.py downloads/release/*-linux-x64.deb --install \
-            --upgrade-from codex-auto-resume-0.8.2-linux-x64.deb --report dist/smoke-${{ matrix.os }}.json
+        run: xvfb-run -a python scripts/smoke_native.py downloads/release/*-linux-x64.deb --install --upgrade-from codex-auto-resume-0.8.2-linux-x64.deb --report dist/smoke-${{ matrix.os }}.json
       - uses: actions/upload-artifact@v4
         with:
           name: smoke-${{ matrix.os }}
