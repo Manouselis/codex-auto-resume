@@ -44,6 +44,24 @@ class DesktopTests(unittest.TestCase):
         with patch("auto_resume.desktop.sys.platform", "linux"), patch("auto_resume.desktop.shutil.which", return_value="/usr/bin/systemctl"), patch("auto_resume.desktop.subprocess.run", side_effect=OSError("No user bus")):
             self.assertFalse(ensure_background(Path("state.sqlite3")))
 
+    def test_native_app_starts_its_own_service_instead_of_legacy_zipapp(self):
+        with tempfile.TemporaryDirectory() as folder:
+            app = Path(folder) / "codex-auto-resume"
+            app.touch()
+            with (patch("auto_resume.desktop.sys.platform", "linux"),
+                  patch("auto_resume.desktop.sys.frozen", True, create=True),
+                  patch("auto_resume.desktop.sys.executable", str(app)),
+                  patch("auto_resume.desktop.sys.argv", [str(app)]),
+                  patch("auto_resume.desktop.shutil.which", return_value="/usr/bin/systemctl"),
+                  patch("auto_resume.desktop.subprocess.run", side_effect=[SimpleNamespace(returncode=3),
+                                                                          SimpleNamespace(returncode=0)]) as run):
+                state = Path(folder) / "state.sqlite3"
+                self.assertTrue(ensure_background(state))
+                checks, launch = [call.args[0] for call in run.call_args_list]
+                self.assertEqual(checks[-2:], ["codex-auto-resume-native.service", "codex-auto-resume.service"])
+                self.assertIn("--unit=codex-auto-resume-native.service", launch)
+                self.assertEqual(launch[-4:], [str(app), "--state", str(state), "run"])
+
     def test_legacy_global_index_migrates_to_one_reservation_per_chat(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "state.sqlite3"

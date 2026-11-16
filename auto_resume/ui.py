@@ -9,6 +9,7 @@ from importlib import resources
 from datetime import datetime
 
 from .engine import Scheduler
+from . import __version__
 from .domain import UnsafeError
 from .desktop import open_conversation
 from . import update
@@ -494,6 +495,8 @@ class ControlWindow:
         power = self.engine.store.value("power_status")
         alive = time.time() - float(self.engine.store.value("controller_heartbeat")) < 20
         controller = "Window controller" if self.owns_controller else ("Background controller active" if alive else "Background controller starting")
+        if alive and not self.owns_controller and self.engine.store.value("controller_version") != __version__:
+            controller = "Older background controller active. Restart it after upgrading."
         self.power_status.set(controller + " · " + (power if power != "Not requested" else "No armed work needs sleep protection."))
         saved_tasks = self.engine.store.tasks()
         saved_by_id = {task["thread_id"]: task for task in saved_tasks}

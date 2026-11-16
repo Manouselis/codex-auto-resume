@@ -8,9 +8,11 @@ import json
 import os
 import platform
 import shutil
+import sqlite3
 import subprocess
 import tempfile
 import time
+from contextlib import closing
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -44,21 +46,69 @@ def smoke(binary, report):
     return result
 
 
+def apt_install(package):
+    run('sudo', 'apt-get', '-y', '--no-install-recommends', '-o', 'DPkg::Lock::Timeout=30', 'install', package)
+
+
+def upgrade_deb(previous, package, folder, report):
+    old_binary = Path('/opt/codex-auto-resume/codex-auto-resume')
+    new_binary = Path('/usr/bin/codex-auto-resume')
+    apt_install(previous)
+    try:
+        old_version = run(old_binary, '--version', capture_output=True, text=True).stdout.strip()
+        state = folder / 'existing-state.sqlite3'
+        command = [str(old_binary), '--simulation', '--state', str(state)]
+        run(*command, 'arm', 'demo-task', capture_output=True, text=True)
+        with subprocess.Popen([*command, 'run'], stdout=subprocess.DEVNULL) as controller:
+            try:
+                deadline = time.monotonic() + 10
+                with closing(sqlite3.connect(state)) as database:
+                    while database.execute("SELECT value FROM meta WHERE key='controller_heartbeat'").fetchone()[0] == '0':
+                        if controller.poll() is not None or time.monotonic() >= deadline:
+                            raise RuntimeError('Previous controller did not start')
+                        time.sleep(0.1)
+                start = time.monotonic()
+                apt_install(package)
+                upgrade_seconds = round(time.monotonic() - start, 3)
+                assert controller.poll() is None, 'Upgrade interrupted the previous controller'
+                installed = run('dpkg-query', '-W', '-f=${Version}', 'codex-auto-resume',
+                                capture_output=True, text=True).stdout.strip()
+                result = smoke(new_binary, report)
+                assert installed == result['version'] and installed != old_version, result
+                status = run(new_binary, '--simulation', '--state', state, 'status', capture_output=True, text=True)
+                assert [task['thread_id'] for task in json.loads(status.stdout)['tasks']] == ['demo-task']
+                with closing(sqlite3.connect(state)) as database:
+                    assert database.execute('SELECT thread_id, eligible FROM tasks').fetchall() == [('demo-task', 1)]
+            finally:
+                if controller.poll() is None:
+                    controller.terminate()
+                    controller.wait(timeout=10)
+        result.update(upgraded_from=old_version, apt_upgrade_seconds=upgrade_seconds, existing_state_preserved=True)
+        return result
+    finally:
+        run('sudo', 'dpkg', '-r', 'codex-auto-resume')
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('package', type=Path)
     p.add_argument('--report', type=Path, default=ROOT / 'dist/package-smoke.json')
     p.add_argument('--install', action='store_true', help='Install, test and uninstall on disposable CI hosts only')
+    p.add_argument('--upgrade-from', type=Path, help='Install this older DEB before upgrading it in place')
     args = p.parse_args()
     package = args.package.resolve()
+    if args.upgrade_from and (not args.install or package.suffix != '.deb'):
+        p.error('--upgrade-from requires a DEB and --install')
     with tempfile.TemporaryDirectory(prefix='auto-resume-install-') as temporary:
         folder = Path(temporary)
         report = folder / 'gui.json'
         if package.suffix == '.deb':
-            if args.install:
-                run('sudo', 'dpkg', '-i', package)
+            if args.upgrade_from:
+                result = upgrade_deb(args.upgrade_from.resolve(), package, folder, report)
+            elif args.install:
+                apt_install(package)
                 try:
-                    result = smoke(Path('/opt/codex-auto-resume/codex-auto-resume'), report)
+                    result = smoke(Path('/usr/bin/codex-auto-resume'), report)
                 finally:
                     run('sudo', 'dpkg', '-r', 'codex-auto-resume')
             else:

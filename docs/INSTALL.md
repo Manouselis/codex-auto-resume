@@ -1,6 +1,6 @@
 # Install Codex Auto-Resume
 
-Download your installer from the [v0.8.1 release](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.1). Python and Tk are bundled. Open the official Codex desktop app and sign in to ChatGPT Plus before adding conversations.
+Download your installer from the [v0.8.3 release](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.3). Python and Tk are bundled. Open the official Codex desktop app and sign in to ChatGPT Plus before adding conversations.
 
 ## Ubuntu
 
@@ -10,7 +10,18 @@ Use the **linux-x64.deb** on Ubuntu 22.04 or later, on an x64 computer.
 2. Click **Install** and approve Ubuntu's normal installation prompt.
 3. Open **Codex Auto-Resume** from Applications. Pin it to your dock if desired.
 
-The application lives in `/opt/codex-auto-resume`. Its installed runtime does not need system Python. A per-user systemd controller is started on demand; closing the panel leaves recovery enabled when the app reports that its background controller is connected. Without a user systemd session, keep the panel open/minimized.
+The application lives in `/opt/codex-auto-resume` and is available at `/usr/bin/codex-auto-resume`. Its installed runtime does not need system Python. A per-user systemd controller starts on demand. Closing the panel leaves recovery enabled when a background controller is active. Without a user systemd session, keep the panel open or minimized.
+
+### Upgrade an existing Ubuntu installation
+
+Close Software Install if it is stalled. From the folder containing the new package, install it over the old version with APT. This also works if App Center only shows **Installed**.
+
+```sh
+sudo apt install ./codex-auto-resume-0.8.3-linux-x64.deb
+dpkg-query -W codex-auto-resume
+```
+
+Quit the older window and launch `/usr/bin/codex-auto-resume`. This path also avoids a shortcut left by a source install. If the new window reports **Older background controller active**, close it and stop the active Auto-Resume service before relaunching. Use `systemctl --user stop codex-auto-resume.service` for older releases or `systemctl --user stop codex-auto-resume-native.service` for a previous native controller. Stopping the controller disarms its queue, so select the chats you want to monitor again. The upgrade preserves saved recovery history.
 
 Screen locking with Super+L is allowed. The sleep inhibitor is held only while at least one eligible chat is armed. Power off, forced suspension and lid policies can still stop execution; the status line reports when sleep prevention is unavailable. Login is required; this release does not install an always-on boot service.
 
@@ -48,7 +59,7 @@ The app discovers standard Codex desktop/CLI install locations and the desktop's
 
 On Windows, install version 0.8.1 once over the existing app. From then on, Auto-Resume checks GitHub at startup and every six hours while open. You can also select **Check for updates**. When a release appears, choose **Update to** and confirm. Auto-Resume downloads and verifies the installer, briefly closes, then reopens after installation. Review the queue after reopening if a continuation was in flight.
 
-On Ubuntu and macOS, close the app and install the newer package over the previous version.
+On Ubuntu, use the [APT upgrade steps](#upgrade-an-existing-ubuntu-installation). On macOS, quit the app before replacing it in Applications.
 
 Recovery metadata is preserved across upgrades/uninstall. It contains chat/account/project identifiers and guard state, not credentials or message text. Defaults:
 

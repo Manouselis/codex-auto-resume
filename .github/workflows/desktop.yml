@@ -80,7 +80,14 @@ jobs:
           name: installer-linux-x64
           path: downloads
       - run: sudo apt-get update && sudo apt-get install -y xvfb xauth libxft2
-      - run: xvfb-run -a python scripts/smoke_native.py downloads/release/*-linux-x64.deb --install --report dist/smoke-${{ matrix.os }}.json
+      - name: Upgrade the published 0.8.2 DEB in place with APT
+        run: |
+          curl --fail --silent --show-error --location --retry 2 --max-time 60 \
+            https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.2/codex-auto-resume-0.8.2-linux-x64.deb \
+            --output codex-auto-resume-0.8.2-linux-x64.deb
+          echo 'cf0a1b77e9efc9c73c66a1680e58e9387ade3afb4559758655fc77509994e29d  codex-auto-resume-0.8.2-linux-x64.deb' | sha256sum --check --strict
+          xvfb-run -a python scripts/smoke_native.py downloads/release/*-linux-x64.deb --install \
+            --upgrade-from codex-auto-resume-0.8.2-linux-x64.deb --report dist/smoke-${{ matrix.os }}.json
       - uses: actions/upload-artifact@v4
         with:
           name: smoke-${{ matrix.os }}

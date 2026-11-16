@@ -56,6 +56,7 @@ class Store:
                 WHERE status IN ('reserved','running','uncertain');
             INSERT OR IGNORE INTO meta VALUES('power_status','Not requested');
             INSERT OR IGNORE INTO meta VALUES('controller_heartbeat','0');
+            INSERT OR IGNORE INTO meta VALUES('controller_version','');
             CREATE TABLE IF NOT EXISTS history(
                 id INTEGER PRIMARY KEY, at REAL NOT NULL, thread_id TEXT,
                 state TEXT NOT NULL, reason TEXT NOT NULL);

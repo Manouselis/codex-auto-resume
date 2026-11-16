@@ -82,6 +82,9 @@ VarFileInfo([VarStruct('Translation',[1033,1200])])])
         application = package / 'opt/codex-auto-resume'
         application.parent.mkdir(parents=True)
         shutil.copytree(output / name, application, symlinks=True)
+        launcher = package / 'usr/bin/codex-auto-resume'
+        launcher.parent.mkdir(parents=True)
+        launcher.symlink_to('/opt/codex-auto-resume/codex-auto-resume')
         (package / 'DEBIAN').mkdir()
         size = sum(p.stat().st_size for p in application.rglob('*') if p.is_file()) // 1024
         (package / 'DEBIAN/control').write_text(f'''Package: codex-auto-resume
@@ -102,7 +105,7 @@ Description: Resume armed Codex chats when included usage resets
 Type=Application
 Name=Codex Auto-Resume
 Comment=Continue armed Codex chats after included usage resets
-Exec=/opt/codex-auto-resume/codex-auto-resume
+Exec=/usr/bin/codex-auto-resume
 Icon=codex-auto-resume
 Terminal=false
 Categories=Utility;

@@ -1,6 +1,6 @@
-Download the installer for your computer below. Python and Tk are included; no terminal setup is required. Install the official Codex desktop app and sign in to ChatGPT Plus first.
+Download the installer for your computer below. Python and Tk are included. Install the official Codex desktop app and sign in to ChatGPT Plus first.
 
-- Ubuntu x64: open the `.deb` with Software Install.
+- Ubuntu x64: use Software Install for a fresh install. To upgrade an existing installation, run `sudo apt install ./codex-auto-resume-0.8.3-linux-x64.deb` from the download folder, then relaunch Auto-Resume.
 - Windows 11: open `windows-x64-setup.exe` and follow the wizard (also runs on Windows 11 ARM through x64 emulation).
 - macOS: choose `macos-arm64.dmg` for Apple silicon (14+) or `macos-x64.dmg` for Intel (15+); drag the app to Applications.
 

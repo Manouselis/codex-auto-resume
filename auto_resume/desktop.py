@@ -49,23 +49,25 @@ def ensure_background(state_path):
     """Return whether systemd owns the controller. Non-Linux uses the window."""
     if not sys.platform.startswith("linux") or not shutil.which("systemctl"):
         return False
+    legacy_unit = "codex-auto-resume.service"
+    frozen = getattr(sys, "frozen", False)
+    units = ("codex-auto-resume-native.service", legacy_unit) if frozen else (legacy_unit,)
     try:
-        if subprocess.run(["systemctl", "--user", "is-active", "--quiet", "codex-auto-resume.service"],
+        if subprocess.run(["systemctl", "--user", "is-active", "--quiet", *units],
                           capture_output=True, timeout=5, **external_options()).returncode == 0:
             return True
         executable = Path(sys.argv[0]).resolve()
-        if (executable.suffix != ".pyz" and not getattr(sys, "frozen", False)) or not executable.is_file():
+        if (executable.suffix != ".pyz" and not frozen) or not executable.is_file():
             return False
-        # Installed units survive normal stops; the fallback also supports
-        # an older installation whose only unit was transient.
-        started = subprocess.run(["systemctl", "--user", "start", "codex-auto-resume.service"],
-                                 capture_output=True, timeout=10, **external_options())
-        if started.returncode == 0:
+        # A source install can leave a user unit pointing to an older zipapp.
+        # Native installs start their own executable once any old controller exits.
+        if not frozen and subprocess.run(["systemctl", "--user", "start", legacy_unit],
+                                         capture_output=True, timeout=10, **external_options()).returncode == 0:
             return True
         if not shutil.which("systemd-run"):
             return False
-        command = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, str(executable)]
-        result = subprocess.run(["systemd-run", "--user", "--unit=codex-auto-resume",
+        command = [sys.executable] if frozen else [sys.executable, str(executable)]
+        result = subprocess.run(["systemd-run", "--user", "--unit=" + units[0],
             "--description=Codex Auto-Resume background recovery", "--property=Restart=on-failure",
             "--property=RestartSec=5", "--property=UMask=0077", *command, "--state", os.fspath(state_path), "run"], capture_output=True, timeout=10, **external_options())
         return result.returncode == 0

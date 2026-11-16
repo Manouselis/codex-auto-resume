@@ -5,6 +5,7 @@ import time
 import uuid
 from dataclasses import replace
 
+from . import __version__
 from .domain import Adapter, NotSentError, Observation, Request, State, TransientError, UnsafeError
 from .policy import evaluate
 from .store import Store
@@ -555,6 +556,7 @@ class Scheduler:
                 with self.engine.store.transaction():
                     self.engine.store.db.execute("UPDATE meta SET value=? WHERE key='power_status'", (self.awake.status,))
                     self.engine.store.db.execute("UPDATE meta SET value=? WHERE key='controller_heartbeat'", (str(self.engine.clock()),))
+                    self.engine.store.db.execute("UPDATE meta SET value=? WHERE key='controller_version'", (__version__,))
                 self.engine.tick()
             except Exception:
                 # Unexpected failures stop scheduling, but leave Codex itself alone.
