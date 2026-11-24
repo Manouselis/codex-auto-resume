@@ -160,8 +160,10 @@ def main(argv=None):
         elif args.command == "ui":
             from .ui import launch
             from .desktop import ensure_background
+            from .update import RELAUNCH
             background = not args.simulation and args.state is None and ensure_background(store.path)
-            launch(engine, args.simulation, background=background)
+            if launch(engine, args.simulation, background=background):
+                return RELAUNCH
         elif args.command == "run":
             if not args.simulation:
                 adapter.ensure_daemon()

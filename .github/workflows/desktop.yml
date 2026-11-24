@@ -59,9 +59,22 @@ jobs:
       - name: Install, launch bundled GUI, uninstall (Windows)
         if: runner.os == 'Windows'
         run: python scripts/smoke_native.py (Get-Item dist/release/*-windows-x64-setup.exe).FullName --install --report dist/smoke-${{ matrix.target }}.json
-      - name: Mount DMG, copy app, launch bundled GUI (macOS)
+      - name: Download the published 0.8.3 macOS app
         if: runner.os == 'macOS'
-        run: python scripts/smoke_native.py dist/release/*-${{ matrix.target }}.dmg --report dist/smoke-${{ matrix.target }}.json
+        shell: bash
+        run: |
+          name="codex-auto-resume-0.8.3-${{ matrix.target }}.dmg"
+          if [[ "${{ matrix.target }}" == macos-arm64 ]]; then
+            sha=b4eff59a2099ac370658952eccb08e6beba14b2666e69d0a15c570c53ea50f65
+          else
+            sha=b433f0c54090d08f9e2b31ca85bd2c28d09e549275b5f98158aa6ed5fa2d278c
+          fi
+          curl --fail --silent --show-error --location --retry 2 --max-time 60 \
+            "https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.3/$name" --output "$name"
+          echo "$sha  $name" | shasum -a 256 -c
+      - name: Upgrade the published app and relaunch (macOS)
+        if: runner.os == 'macOS'
+        run: python scripts/smoke_native.py dist/release/*-${{ matrix.target }}.dmg --upgrade-from codex-auto-resume-0.8.3-${{ matrix.target }}.dmg --report dist/smoke-${{ matrix.target }}.json
       - uses: actions/upload-artifact@v4
         with:
           name: installer-${{ matrix.target }}

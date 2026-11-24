@@ -20,7 +20,7 @@ Python and Tk are bundled. Install the official Codex desktop app and sign in to
 
 These community beta installers are unsigned, so Windows and macOS may ask for confirmation. See [installation help](docs/INSTALL.md), [checksums and release files](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.3), and the [compatibility test scope](docs/TESTING.md).
 
-The Windows app checks for new releases when opened and shows an **Update to** button. Install 0.8.1 once to enable updates from inside the app.
+Starting with 0.8.4, installed Windows, Ubuntu, and macOS apps show their version and check for a newer release when opened. Accept the update popup to download, install, and reopen the app. Earlier Ubuntu and macOS versions need a one-time manual upgrade. Windows versions 0.8.1 and later can use their existing **Update to** button.
 
 1. Open Auto-Resume. **Continue automatically when the 5h limit resets** starts checked.
 2. Click **Add conversation**, then select a chat. Selection arms it and opens Codex. An idle chat receives one **`continue`**; a running chat keeps working.

@@ -35,7 +35,7 @@ Keep Auto-Resume open/minimized while recovery is armed. The app requests preven
 
 Uninstall using **Settings → Apps → Installed apps → Codex Auto-Resume → Uninstall**. Close the app first.
 
-If Auto-Resume finds the Store app but asks for the standalone runtime, install the [official Codex CLI for Windows](https://developers.openai.com/codex/cli) and reopen Auto-Resume. The standalone CLI can initialize the local Codex daemon using your existing sign-in.
+If an older Auto-Resume release asks for the standalone runtime even though the Store app is installed, upgrade Auto-Resume. Starting in 0.8.4 it can use the bundled runtime to list conversations and access the desktop queue.
 
 ## macOS
 
@@ -57,9 +57,11 @@ The app discovers standard Codex desktop and CLI install locations. Open the off
 
 ## Updates and data
 
-On Windows, install version 0.8.1 once over the existing app. From then on, Auto-Resume checks GitHub at startup and every six hours while open. You can also select **Check for updates**. When a release appears, choose **Update to** and confirm. Auto-Resume downloads and verifies the installer, briefly closes, then reopens after installation. Review the queue after reopening if a continuation was in flight.
+Starting with 0.8.4, the footer shows the installed version. The Windows installer, Ubuntu DEB, and installed macOS app check GitHub at startup and every six hours while open. When an update is available, a popup asks whether to install it. If you decline, **Update to** remains available in the footer. Auto-Resume verifies the download, installs it in place, and reopens the app.
 
-On Ubuntu, use the [APT upgrade steps](#upgrade-an-existing-ubuntu-installation). On macOS, quit the app before replacing it in Applications.
+Ubuntu uses APT and prompts for administrator authorization. If its background controller was active, select the chats you want to monitor again after the upgrade. macOS updates the installed app bundle and may request administrator authorization for a protected Applications folder. Copy the app from its disk image to Applications before opening it.
+
+For the first upgrade to 0.8.4 or later, Windows 0.8.1–0.8.3 can use the existing **Update to** button. Earlier Windows builds need the installer. Earlier Ubuntu builds need the [APT upgrade steps](#upgrade-an-existing-ubuntu-installation). On macOS, quit the older app and replace it in Applications.
 
 Recovery metadata is preserved across upgrades/uninstall. It contains chat/account/project identifiers and guard state, not credentials or message text. Defaults:
 

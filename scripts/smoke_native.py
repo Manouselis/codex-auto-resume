@@ -4,18 +4,23 @@
 Smoke mode uses isolated invented data; it never connects to Codex or infers.
 """
 import argparse
+import hashlib
 import json
 import os
 import platform
 import shutil
 import sqlite3
 import subprocess
+import sys
 import tempfile
 import time
 from contextlib import closing
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from auto_resume import __version__, update
 
 
 def run(*args, **kwargs):
@@ -29,10 +34,15 @@ def nsis(binary, option, path):
     return subprocess.run(command, check=True, timeout=120, shell=False)
 
 
-def smoke(binary, report):
+def smoke(binary, report, *, relaunch=False):
     start = time.monotonic()
+    command = [binary, '--package-smoke', report]
+    if relaunch:
+        restart = 'import sys; from auto_resume.update import relaunch; sys.executable = sys.argv.pop(1); relaunch()'
+        command = [sys.executable, '-c', restart, *command]
     try:
-        run(binary, '--package-smoke', report)
+        # The first argument after -c becomes the executable to restart.
+        run(*command, cwd=ROOT)
     except subprocess.CalledProcessError as exc:
         details = report.read_text(encoding='utf-8') if report.exists() else 'No smoke report written'
         raise RuntimeError(details) from exc
@@ -48,6 +58,24 @@ def smoke(binary, report):
 
 def apt_install(package):
     run('sudo', 'apt-get', '-y', '--no-install-recommends', '-o', 'DPkg::Lock::Timeout=30', 'install', package)
+
+
+def package_release(package):
+    return update.Release(__version__, package.name, "", hashlib.sha256(package.read_bytes()).hexdigest(),
+                          package.stat().st_size)
+
+
+def install_deb_update(package):
+    execute = update._run
+
+    def headless(command, **options):
+        # CI has sudo access and no desktop polkit authentication agent.
+        if command[0] == "/usr/bin/pkexec":
+            command = ["sudo", "-n", *command[2:]]
+        return execute(command, **options)
+
+    with patch.object(update, "_run", side_effect=headless):
+        update._install_ubuntu(package, package_release(package))
 
 
 def upgrade_deb(previous, package, folder, report):
@@ -68,12 +96,12 @@ def upgrade_deb(previous, package, folder, report):
                             raise RuntimeError('Previous controller did not start')
                         time.sleep(0.1)
                 start = time.monotonic()
-                apt_install(package)
+                install_deb_update(package)
                 upgrade_seconds = round(time.monotonic() - start, 3)
                 assert controller.poll() is None, 'Upgrade interrupted the previous controller'
                 installed = run('dpkg-query', '-W', '-f=${Version}', 'codex-auto-resume',
                                 capture_output=True, text=True).stdout.strip()
-                result = smoke(new_binary, report)
+                result = smoke(new_binary, report, relaunch=True)
                 assert installed == result['version'] and installed != old_version, result
                 status = run(new_binary, '--simulation', '--state', state, 'status', capture_output=True, text=True)
                 assert [task['thread_id'] for task in json.loads(status.stdout)['tasks']] == ['demo-task']
@@ -94,11 +122,12 @@ def main():
     p.add_argument('package', type=Path)
     p.add_argument('--report', type=Path, default=ROOT / 'dist/package-smoke.json')
     p.add_argument('--install', action='store_true', help='Install, test and uninstall on disposable CI hosts only')
-    p.add_argument('--upgrade-from', type=Path, help='Install this older DEB before upgrading it in place')
+    p.add_argument('--upgrade-from', type=Path, help='Install this older DEB or DMG before updating in place')
     args = p.parse_args()
     package = args.package.resolve()
-    if args.upgrade_from and (not args.install or package.suffix != '.deb'):
-        p.error('--upgrade-from requires a DEB and --install')
+    if args.upgrade_from and (package.suffix not in ('.deb', '.dmg')
+                              or (package.suffix == '.deb' and not args.install)):
+        p.error('--upgrade-from requires a DMG or a DEB with --install')
     with tempfile.TemporaryDirectory(prefix='auto-resume-install-') as temporary:
         folder = Path(temporary)
         report = folder / 'gui.json'
@@ -141,13 +170,22 @@ def main():
             assert (target / 'unrelated.txt').read_text() == 'preserve me'
         elif package.suffix == '.dmg':
             mount = folder / 'mount'
-            run('hdiutil', 'attach', '-nobrowse', '-mountpoint', mount, package)
+            run('hdiutil', 'attach', '-nobrowse', '-mountpoint', mount, args.upgrade_from or package)
             try:
                 app = folder / 'Codex Auto-Resume.app'
                 run('ditto', mount / app.name, app)
             finally:
                 run('hdiutil', 'detach', mount)
-            result = smoke(app / 'Contents/MacOS/Codex Auto-Resume', report)
+            if args.upgrade_from:
+                previous = update._mac_bundle(app)
+                assert previous != __version__
+                with patch.object(update, "__version__", previous):
+                    update._install_macos(package, package_release(package), app)
+                result = smoke(app / 'Contents/MacOS/Codex Auto-Resume', report, relaunch=True)
+                assert result['version'] == __version__
+                result['upgraded_from'] = previous
+            else:
+                result = smoke(app / 'Contents/MacOS/Codex Auto-Resume', report)
             shutil.rmtree(app)
         else:
             result = smoke(package, report)

@@ -56,8 +56,12 @@ def main():
             Path(sys.argv[2]).write_text(json.dumps({"package_smoke": "FAIL", "error_type": type(exc).__name__}) + "\n", encoding="utf-8")
             return 1
     from .cli import main as cli_main
+    from .update import RELAUNCH, relaunch
     try:
-        return cli_main(sys.argv[1:] or ["ui"])
+        result = cli_main(sys.argv[1:] or ["ui"])
+        if result == RELAUNCH:
+            relaunch()
+        return result
     except Exception:
         # Display a useful failure even when there is no terminal. Do not expose
         # raw protocol payloads, account identifiers or conversation contents.

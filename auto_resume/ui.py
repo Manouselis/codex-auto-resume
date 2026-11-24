@@ -3,6 +3,7 @@ import queue
 import json
 import threading
 import base64
+import subprocess
 import time
 from collections import deque
 from importlib import resources
@@ -30,6 +31,9 @@ class ControlWindow:
         self.allowance_timer_id = None
         self.update_timer_id = None
         self.update_results = queue.Queue()
+        self.offered_update = None
+        self.installing_update = False
+        self.relaunch_after_update = False
         self.pending_actions = deque()
         self.picker = None
         self.pending_selection = None
@@ -135,11 +139,12 @@ class ControlWindow:
         footer = self.footer = ttk.Frame(frame)
         footer.pack(fill="x")
         ttk.Button(footer, text="Activity log", command=self.history).pack(side="left")
+        ttk.Label(footer, text=f"Version {__version__}", style="Muted.TLabel").pack(side="left", padx=12)
         ttk.Checkbutton(footer, text="Dark mode", variable=self.dark, command=self.theme).pack(side="right")
-        if not simulation and update.installed_windows_app():
+        if not simulation and update.installed_target() is not None:
             self.update_button = ttk.Button(footer, text="Check for updates", command=self.check_update)
             self.update_button.pack(side="right", padx=12)
-            self.update_timer_id = root.after(3000, lambda: self.check_update(automatic=True))
+            self.update_timer_id = root.after(1000, lambda: self.check_update(automatic=True))
         elif simulation:
             ttk.Label(footer, text="Demo data · no model requests", style="Muted.TLabel").pack(side="left", padx=14)
         ttk.Label(frame, textvariable=self.power_status, style="Muted.TLabel").pack(anchor="w", pady=(7, 0))
@@ -175,16 +180,19 @@ class ControlWindow:
         self.update_button.state(["disabled"])
         results = self.update_results
 
+        def finished(outcome):
+            self.update_button.state(["!disabled"])
+            callback, result = outcome
+            if callback is not None:
+                callback(result)
+
         def run():
             try:
                 result = action()
-            except (OSError, ValueError, TypeError, AttributeError):
-                if on_error is not None:
-                    results.put((on_error, None))
+            except (OSError, ValueError, TypeError, AttributeError, subprocess.SubprocessError):
+                results.put((finished, (on_error, None)))
             else:
-                results.put((on_success, result))
-            finally:
-                results.put((lambda _: self.update_button.state(["!disabled"]), None))
+                results.put((finished, (on_success, result)))
 
         threading.Thread(target=run, daemon=True).start()
 
@@ -198,6 +206,9 @@ class ControlWindow:
         def checked(release):
             if release:
                 self.update_button.configure(text=f"Update to {release.version}", command=lambda: self.install_update(release))
+                if self.offered_update != release.version:
+                    self.offered_update = release.version
+                    self.install_update(release)
             elif not automatic:
                 self.notice.set("Auto-Resume is up to date.")
 
@@ -209,21 +220,29 @@ class ControlWindow:
     def install_update(self, release):
         from tkinter import messagebox
 
+        if self.installing_update:
+            return
         if not messagebox.askyesno("Update Auto-Resume", f"Download and install Auto-Resume {release.version}? "
-                                   "Auto-Resume will briefly close and reopen.", parent=self.root):
+                                   "Auto-Resume will reopen after installation.", parent=self.root):
             return
 
-        def downloaded(installer):
-            try:
-                update.start_installer(installer)
-            except OSError:
-                self.notice.set("Could not open the update installer. Try again.")
-                return
+        def failed(message):
+            self.installing_update = False
+            self.notice.set(message)
+
+        def installed(relaunch):
+            self.relaunch_after_update = relaunch
             self.close(for_update=True)
 
+        def downloaded(installer):
+            self.notice.set("Installing the update. Your system may ask for permission.")
+            self.update_work(lambda: update.install_update(installer, release), installed,
+                             lambda _: failed("The update could not be installed. Try again."))
+
+        self.installing_update = True
         self.notice.set(f"Downloading Auto-Resume {release.version}…")
         self.update_work(lambda: update.download_update(release), downloaded,
-                         lambda _: self.notice.set("The update could not be downloaded or verified. Try again."))
+                         lambda _: failed("The update could not be downloaded or verified. Try again."))
 
     def theme(self):
         if self.dark.get():
@@ -544,6 +563,9 @@ class ControlWindow:
     def close(self, *, for_update=False):
         if self.closed:
             return
+        if self.installing_update and not for_update:
+            self.notice.set("Wait for the update to finish before closing Auto-Resume.")
+            return
         self.closed = True
         if self.initial_check_id is not None:
             self.root.after_cancel(self.initial_check_id)
@@ -573,5 +595,6 @@ def launch(engine, simulation=False, *, background=False):
         root = tk.Tk(className="CodexAutoResume")
     except Exception as exc:
         raise ValueError("Desktop UI is unavailable. On Ubuntu install python3-tk and use a desktop session.") from exc
-    ControlWindow(root, engine, simulation, background=background)
+    window = ControlWindow(root, engine, simulation, background=background)
     root.mainloop()
+    return window.relaunch_after_update

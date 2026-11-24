@@ -162,6 +162,43 @@ class UiTests(unittest.TestCase):
         self.assertGreater(disarm.winfo_rootx(), arm.winfo_rootx())
         self.assertLessEqual(disarm.winfo_rootx() - (arm.winfo_rootx() + arm.winfo_width()), 12)
 
+    def test_installed_app_shows_version_and_prompts_automatically(self):
+        import tkinter as tk
+        from unittest.mock import patch
+        from auto_resume import __version__, update
+        from auto_resume.ui import ControlWindow
+
+        def wait_until(condition):
+            deadline = time.monotonic() + 5
+            while not condition() and time.monotonic() < deadline:
+                self.root.update()
+                time.sleep(0.01)
+            self.assertTrue(condition())
+
+        release = update.Release("1.0.0", "update.deb", "", "", 1)
+        installer = Path(self.tmp.name) / release.name
+        with (patch.object(update, "installed_target", return_value="linux-x64.deb"),
+              patch.object(update, "check_for_update", return_value=release) as check,
+              patch("tkinter.messagebox.askyesno", side_effect=[False, True]) as confirm,
+              patch.object(update, "download_update", return_value=installer) as download,
+              patch.object(update, "install_update", return_value=True) as install):
+            window = ControlWindow(tk.Toplevel(self.root), self.engine, background=True)
+            try:
+                self.assertIn(f"Version {__version__}", [child.cget("text") for child in window.footer.winfo_children()])
+                wait_until(lambda: confirm.call_count == 1)
+                self.assertEqual(window.update_button.cget("text"), "Update to 1.0.0")
+                download.assert_not_called()
+                window.check_update(automatic=True)
+                wait_until(lambda: check.call_count == 2 and not window.update_button.instate(["disabled"]))
+                confirm.assert_called_once()
+                window.update_button.invoke()
+                wait_until(lambda: window.closed)
+                download.assert_called_once_with(release)
+                install.assert_called_once_with(installer, release)
+                self.assertTrue(window.relaunch_after_update)
+            finally:
+                window.close(for_update=True)
+
     def test_disarm_also_uses_the_chosen_conversation_without_table_selection(self):
         self.window.arm()
         self.pump()

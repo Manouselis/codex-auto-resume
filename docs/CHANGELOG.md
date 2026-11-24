@@ -2,6 +2,11 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
+## 0.8.4
+
+- Display the installed version and offer verified in-app updates on Windows, Ubuntu, and macOS. Check automatically when the app opens, then install and reopen after confirmation.
+- Use the bundled Codex App Server to list desktop conversations and access the native queue when the managed daemon package is missing.
+
 ## 0.8.3 — 16 November 2026
 
 - Automatically resume explicitly armed desktop goals that hit the five-hour limit. After verifying included usage and the original goal, wake its desktop owner and confirm the continuation in the original chat.

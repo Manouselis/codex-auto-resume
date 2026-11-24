@@ -92,7 +92,7 @@ Version: {VERSION}
 Section: utils
 Priority: optional
 Architecture: {'arm64' if arch == 'arm64' else 'amd64'}
-Depends: libc6 (>= 2.35), libx11-6, libxext6, libxrender1, libxft2, libfontconfig1
+Depends: libc6 (>= 2.35), libx11-6, libxext6, libxrender1, libxft2, libfontconfig1, pkexec
 Maintainer: Pantelis Manouselis <noreply@github.com>
 Installed-Size: {size}
 Homepage: https://github.com/Manouselis/codex-auto-resume
