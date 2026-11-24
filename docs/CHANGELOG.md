@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
-## 0.8.4
+## 0.8.4 — 24 November 2026
 
 - Display the installed version and offer verified in-app updates on Windows, Ubuntu, and macOS. Check automatically when the app opens, then install and reopen after confirmation.
 - Use the bundled Codex App Server to list desktop conversations and access the native queue when the managed daemon package is missing.

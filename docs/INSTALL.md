@@ -1,6 +1,6 @@
 # Install Codex Auto-Resume
 
-Download your installer from the [v0.8.3 release](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.3). Python and Tk are bundled. Open the official Codex desktop app and sign in to ChatGPT Plus before adding conversations.
+Download your installer from the [v0.8.4 release](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.4). Python and Tk are bundled. Open the official Codex desktop app and sign in to ChatGPT Plus before adding conversations.
 
 ## Ubuntu
 
@@ -17,7 +17,7 @@ The application lives in `/opt/codex-auto-resume` and is available at `/usr/bin/
 Close Software Install if it is stalled. From the folder containing the new package, install it over the old version with APT. This also works if App Center only shows **Installed**.
 
 ```sh
-sudo apt install ./codex-auto-resume-0.8.3-linux-x64.deb
+sudo apt install ./codex-auto-resume-0.8.4-linux-x64.deb
 dpkg-query -W codex-auto-resume
 ```
 

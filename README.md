@@ -7,7 +7,7 @@ A desktop companion that continues explicitly armed conversations in the same ch
 [Project website](https://manouselis.github.io/codex-auto-resume/)
 
 [![Checks](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml)
-[![Desktop installers](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml) · **v0.8.3 beta** · MIT
+[![Desktop installers](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml) · **v0.8.4 beta** · MIT
 
 ## Download and open
 
@@ -15,12 +15,12 @@ Python and Tk are bundled. Install the official Codex desktop app and sign in to
 
 | Your computer | Download | Install |
 | --- | --- | --- |
-| Ubuntu 22.04+ · x64 | [Ubuntu installer](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.3/codex-auto-resume-0.8.3-linux-x64.deb) | Open with Software Install for a fresh install. Use [APT for upgrades](docs/INSTALL.md#upgrade-an-existing-ubuntu-installation). |
-| Windows 11 · x64 / ARM with x64 emulation | [Windows installer](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.3/codex-auto-resume-0.8.3-windows-x64-setup.exe) | Open the installer, then launch from Start. |
-| macOS · Apple silicon, 14+ | [Apple silicon app](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.3/codex-auto-resume-0.8.3-macos-arm64.dmg) | Open the disk image and drag the app to Applications. |
-| macOS · Intel, 15+ | [Intel app](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.3/codex-auto-resume-0.8.3-macos-x64.dmg) | Open the disk image and drag the app to Applications. |
+| Ubuntu 22.04+ · x64 | [Ubuntu installer](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.4/codex-auto-resume-0.8.4-linux-x64.deb) | Open with Software Install for a fresh install. Use [APT for upgrades](docs/INSTALL.md#upgrade-an-existing-ubuntu-installation). |
+| Windows 11 · x64 / ARM with x64 emulation | [Windows installer](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.4/codex-auto-resume-0.8.4-windows-x64-setup.exe) | Open the installer, then launch from Start. |
+| macOS · Apple silicon, 14+ | [Apple silicon app](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.4/codex-auto-resume-0.8.4-macos-arm64.dmg) | Open the disk image and drag the app to Applications. |
+| macOS · Intel, 15+ | [Intel app](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.4/codex-auto-resume-0.8.4-macos-x64.dmg) | Open the disk image and drag the app to Applications. |
 
-These community beta installers are unsigned, so Windows and macOS may ask for confirmation. See [installation help](docs/INSTALL.md), [checksums and release files](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.3), and the [compatibility test scope](docs/TESTING.md).
+These community beta installers are unsigned, so Windows and macOS may ask for confirmation. See [installation help](docs/INSTALL.md), [checksums and release files](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.4), and the [compatibility test scope](docs/TESTING.md).
 
 Starting with 0.8.4, installed Windows, Ubuntu, and macOS apps show their version and check for a newer release when opened. Accept the update popup to download, install, and reopen the app. Earlier Ubuntu and macOS versions need a one-time manual upgrade. Windows versions 0.8.1 and later can use their existing **Update to** button.
 

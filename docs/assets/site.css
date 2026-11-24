@@ -76,6 +76,14 @@ h3 { font-size: 1.25rem; font-weight: 740; letter-spacing: -.024em; }
 .button-download:hover { background: #dfefe3; }
 .download-note { color: var(--muted); margin-top: 16px; font-size: .9375rem; }
 
+.upgrade { padding-bottom: clamp(43px, 6vw, 76px); }
+.upgrade-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .88fr); gap: clamp(22px, 4vw, 54px); padding: clamp(21px, 4vw, 40px); border: 1px solid var(--line); border-radius: 11px; background: var(--white); }
+.upgrade-panel h2 { font-size: clamp(1.85rem, 3.1vw, 2.6rem); }
+.upgrade-panel p, .upgrade-panel dl { margin: 12px 0 0; color: var(--muted); }
+.upgrade-panel dl > div + div { margin-top: 12px; }
+.upgrade-panel dt { color: var(--ink); font-weight: 740; }
+.upgrade-panel dd { margin: 1px 0 0; }
+
 .workflow { background: #e6f0e8; border-block: 1px solid var(--line); }
 .workflow-layout, .safeguards { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: clamp(23px, 6vw, 80px); align-items: start; }
 .workflow h2 { max-width: 15ch; text-wrap: wrap; }
@@ -102,7 +110,7 @@ footer { background: #e9efea; border-top: 1px solid var(--line); }
   .packages { gap: 10px; }
 }
 @media (max-width: 730px) {
-  .hero-layout, .workflow-layout, .safeguards { grid-template-columns: 1fr; gap: 26px; }
+  .hero-layout, .workflow-layout, .safeguards, .upgrade-panel { grid-template-columns: 1fr; gap: 26px; }
   h1 { max-width: 11ch; }
   .hero-layout { padding-block: 35px; }
   .preview { max-width: 550px; }
