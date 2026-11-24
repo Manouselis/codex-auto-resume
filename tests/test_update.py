@@ -1,5 +1,6 @@
 import hashlib
 import io
+import json
 import plistlib
 import subprocess
 import sys
@@ -7,6 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from urllib.error import HTTPError
 
 from auto_resume import update
 
@@ -20,6 +22,12 @@ def published(version, payload=b"verified bytes", *, target=WINDOWS, **fields):
         "name": name, "size": len(payload), "digest": "sha256:" + hashlib.sha256(payload).hexdigest(),
         "browser_download_url": f"https://github.com/{update.REPO}/releases/download/v{version}/{name}",
     }], **fields}
+
+
+def atom_feed(*versions):
+    links = "".join(f'<entry><link rel="alternate" href="{update.RELEASE_PAGE}/tag/v{version}"/></entry>'
+                    for version in versions)
+    return f'<feed xmlns="http://www.w3.org/2005/Atom">{links}</feed>'.encode()
 
 
 class UpdateTests(unittest.TestCase):
@@ -57,6 +65,47 @@ class UpdateTests(unittest.TestCase):
                 result = update.download_update(release)
             self.assertEqual(result.name, release.name)
             self.assertEqual(result.read_bytes(), payload)
+
+    def test_update_uses_atom_and_checksums_without_the_rest_api(self):
+        payload = b"verified Windows build"
+        digest = hashlib.sha256(payload).hexdigest()
+        name = "codex-auto-resume-1.2.3-windows-x64-setup.exe"
+        assets = f"{update.RELEASE_PAGE}/download/v1.2.3/"
+
+        def read(request, timeout):
+            body = {
+                f"{update.RELEASE_PAGE}.atom": atom_feed("0.8.2", "1.2.3"),
+                assets + "SHA256SUMS": f"{digest}  {name}\n".encode(),
+                assets + name: payload,
+            }[getattr(request, "full_url", request)]
+            return io.BytesIO(body)
+
+        with (tempfile.TemporaryDirectory() as folder,
+              patch.object(update, "_cache_dir", return_value=Path(folder)),
+              patch.object(update, "installed_target", return_value=WINDOWS),
+              patch.object(update, "_open_url", side_effect=read)):
+            release = update.check_for_update()
+            self.assertEqual(release, update.Release("1.2.3", name, assets + name, digest, None))
+            with patch.object(update, "MAX_INSTALLER_SIZE", len(payload) - 1):
+                with self.assertRaisesRegex(ValueError, "Unexpected installer size"):
+                    update.download_update(release)
+            self.assertEqual(list(Path(folder).iterdir()), [])
+            self.assertEqual(update.download_update(release).read_bytes(), payload)
+
+    def test_atom_up_to_date_checks_no_other_endpoints(self):
+        with patch.object(update, "_open_url", return_value=io.BytesIO(atom_feed("0.8.3", "0.8.4"))) as request:
+            self.assertIsNone(update._select_feed_release(WINDOWS, current="0.8.4"))
+        self.assertEqual(request.call_count, 1)
+
+    def test_rest_metadata_still_works_if_atom_is_unavailable(self):
+        error = HTTPError(f"{update.RELEASE_PAGE}.atom", 503, "Unavailable", {}, None)
+        body = io.BytesIO(json.dumps([published("1.2.3")]).encode())
+        with (tempfile.TemporaryDirectory() as folder,
+              patch.object(update, "_cache_dir", return_value=Path(folder)),
+              patch.object(update, "installed_target", return_value=WINDOWS),
+              patch.object(update, "_open_url", side_effect=[error, body]) as request):
+            self.assertEqual(update.check_for_update().version, "1.2.3")
+            self.assertEqual(request.call_args.args[0].full_url, update.RELEASES)
 
     def test_mac_offers_updates_for_installed_app_but_not_read_only_disk_image(self):
         with tempfile.TemporaryDirectory() as directory:

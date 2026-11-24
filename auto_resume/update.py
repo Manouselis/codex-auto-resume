@@ -13,14 +13,18 @@ import tempfile
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
+from xml.etree import ElementTree
 
 from . import __version__
 from .process import external_options
 
 
 REPO = "Manouselis/codex-auto-resume"
+RELEASE_PAGE = f"https://github.com/{REPO}/releases"
 RELEASES = f"https://api.github.com/repos/{REPO}/releases?per_page=30"
+ATOM = "{http://www.w3.org/2005/Atom}"
 MAX_INSTALLER_SIZE = 100 * 1024 * 1024
 TAG = re.compile(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)")
 MAC_BUNDLE_ID = "io.github.manouselis.codex-auto-resume"
@@ -82,7 +86,7 @@ class Release:
     name: str
     url: str
     digest: str
-    size: int
+    size: int | None
 
 
 def package_target():
@@ -156,15 +160,60 @@ def check_for_update():
         (cache / f"codex-auto-resume-{__version__}-{target}").unlink(missing_ok=True)
     except OSError:
         pass  # The installer that just launched this app can still be exiting.
-    request = Request(RELEASES, headers={"Accept": "application/vnd.github+json",
-                                         "User-Agent": f"Codex-Auto-Resume/{__version__}"})
+    try:
+        return _select_feed_release(target)
+    except (OSError, ValueError, ElementTree.ParseError):
+        # The ordinary release feed avoids the shared anonymous REST API quota.
+        payload = _read_release_data(RELEASES, 2 * 1024 * 1024, "application/vnd.github+json")
+        return select_release(json.loads(payload), target=target)
+
+
+def _read_release_data(url, limit, accept):
+    request = Request(url, headers={"Accept": accept, "User-Agent": f"Codex-Auto-Resume/{__version__}"})
     with _open_url(request, timeout=8) as response:
-        limit = 2 * 1024 * 1024
         payload = response.read(limit + 1)
-        if len(payload) > limit:
-            raise ValueError("Release feed is too large")
-        releases = json.loads(payload)
-    return select_release(releases, target=target)
+    if len(payload) > limit:
+        raise ValueError("Release metadata is too large")
+    return payload
+
+
+def _select_feed_release(target, current=__version__):
+    payload = _read_release_data(f"{RELEASE_PAGE}.atom", 512 * 1024, "application/atom+xml")
+    feed = ElementTree.fromstring(payload)
+    if feed.tag != f"{ATOM}feed":
+        raise ValueError("Unexpected GitHub release feed")
+
+    installed = tuple(map(int, current.split(".")))
+    candidates = {}
+    prefix = f"{RELEASE_PAGE}/tag/"
+    for link in feed.findall(f"{ATOM}entry/{ATOM}link[@rel='alternate']"):
+        href = link.get("href", "")
+        if not href.startswith(prefix):
+            continue
+        tag = TAG.fullmatch(href[len(prefix):])
+        if tag:
+            version = tuple(map(int, tag.groups()))
+            if version > installed:
+                candidates[version] = tag[0]
+
+    for version in sorted(candidates, reverse=True):
+        tag = candidates[version]
+        label = tag[1:]
+        name = f"codex-auto-resume-{label}-{target}"
+        assets = f"{RELEASE_PAGE}/download/{tag}"
+        try:
+            checksums = _read_release_data(f"{assets}/SHA256SUMS", 32 * 1024, "application/octet-stream")
+        except HTTPError as exc:
+            if exc.code == 404:
+                continue
+            raise
+        line = re.compile(r"([0-9a-f]{64}) [ *]" + re.escape(name))
+        matches = [match[1] for entry in checksums.decode("ascii").splitlines() if (match := line.fullmatch(entry))]
+        if len(matches) == 1:
+            return Release(label, name, f"{assets}/{name}", matches[0], None)
+    if candidates:
+        raise ValueError("No compatible installer checksum found in the release feed")
+    return None
 
 
 def select_release(releases, current=__version__, *, target):
@@ -180,7 +229,7 @@ def select_release(releases, current=__version__, *, target):
             continue
         label = tag[0][1:]
         name = f"codex-auto-resume-{label}-{target}"
-        url = f"https://github.com/{REPO}/releases/download/{tag[0]}/{name}"
+        url = f"{RELEASE_PAGE}/download/{tag[0]}/{name}"
         for asset in release.get("assets", []):
             digest = re.fullmatch(r"sha256:([0-9a-f]{64})", asset.get("digest") or "")
             size = asset.get("size")
@@ -208,17 +257,19 @@ def download_update(release):
     total = 0
     digest = hashlib.sha256()
     temporary = None
+    limit = release.size if release.size is not None else MAX_INSTALLER_SIZE
     try:
         with tempfile.NamedTemporaryFile(dir=cache, suffix=".part", delete=False) as output:
             temporary = Path(output.name)
             with _open_url(release.url, timeout=15) as response:
                 while chunk := response.read(64 * 1024):
                     total += len(chunk)
-                    if total > release.size:
+                    if total > limit:
                         raise ValueError("Unexpected installer size")
                     digest.update(chunk)
                     output.write(chunk)
-        if total != release.size or digest.hexdigest() != release.digest:
+        if (not total or (release.size is not None and total != release.size)
+                or digest.hexdigest() != release.digest):
             raise ValueError("Installer verification failed")
         installer = cache / release.name
         temporary.replace(installer)

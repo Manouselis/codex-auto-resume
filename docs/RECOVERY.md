@@ -1,10 +1,12 @@
 # Usage limits and context-budget recovery
 
-## Selecting an idle chat
+## Arming ahead
 
-In 0.7.0, **Add conversation** opens the selected original chat in the Codex desktop app. If its last turn is completed, selection explicitly requests one literal `continue`; it does not create a new conversation or override an approval or exhausted goal budget. A running or unresolved external turn is monitored without injecting another message. With no included usage, the explicit start waits for a fresh permitted reset. Normal completion after the selected start still stops recovery.
+In 0.8.5, **Add conversation** opens an idle or running chat in Codex and adds it to the queue as **Armed ahead**. Start or keep working in Codex. Add more chats the same way. Auto-Resume follows ordinary manual turns until it confirms a five-hour interruption or a context checkpoint you enabled. The CLI equivalent for a desktop chat is `codex-auto-resume arm THREAD_ID --wait-for-limit`.
 
-The native queue was verified with Codex runtime 0.166. Requests use durable client message identities, and actual turn history must confirm the corresponding user message. Queue acceptance alone is insufficient. Older results showing a queue/desktop writer restriction are historical; this new selection path avoids `thread/resume` entirely. Existing heartbeat bindings continue to use their original guard and schedule for subsequent scheduled work.
+Once an interruption is pinned, a newer manual turn stops that recovery. Normal completion after automatic recovery removes the chat. Use **Disarm** to remove any chat. Existing heartbeat bindings continue to use their original guard and schedule.
+
+Automatic desktop recovery uses the native queue. Requests carry durable client message IDs. The app confirms that the matching message appeared in a started turn. The queue path was verified with Codex runtime 0.166.
 
 [Documentation index](README.md) · [Installation and operation](INSTALL.md)
 
@@ -19,7 +21,8 @@ The App Server can report a context-checkpoint stop as a normally completed turn
 | Structured five-hour usage-limit failure | Wait for the official reset and verify fresh included allowance |
 | Recognized context-budget checkpoint with recovery enabled | Verify allowance and continue the same conversation without waiting unnecessarily |
 | Context checkpoint while five-hour usage is exhausted | Wait for reset, then run the same fresh checks |
-| Ordinary completion, cancellation, pending approval or blocked work | Stop; do not automatically restart |
+| Ordinary completion while **Armed ahead** | Remain queued for a later interruption |
+| Ordinary completion after automatic recovery, cancellation, pending approval or blocked work | Stop recovery |
 | A paused or exhausted user-specified goal budget | Stop; context recovery does not override that budget |
 
 ## Enable context recovery explicitly

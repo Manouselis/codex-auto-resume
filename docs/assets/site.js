@@ -7,8 +7,8 @@ if (preview && themeButtons.length) {
   for (const button of themeButtons) {
     button.addEventListener("click", () => {
       const theme = button.dataset.theme;
-      preview.src = `screenshots/${theme}.png?v=0.8.4`;
-      preview.alt = `Auto-Resume ${theme} control panel showing included allowance, an example recovery queue, version 0.8.4, and Check for updates.`;
+      preview.src = `screenshots/${theme}.png?v=0.8.5`;
+      preview.alt = `Auto-Resume 0.8.5 in ${theme} mode showing remaining allowance and two example chats armed ahead.`;
       for (const item of themeButtons) {
         item.setAttribute("aria-pressed", String(item === button));
       }

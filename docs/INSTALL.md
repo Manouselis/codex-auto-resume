@@ -1,6 +1,6 @@
 # Install Codex Auto-Resume
 
-Download your installer from the [v0.8.4 release](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.4). Python and Tk are bundled. Open the official Codex desktop app and sign in to ChatGPT Plus before adding conversations.
+Download your installer from the [v0.8.5 release](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.5). Python and Tk are bundled. Open the official Codex desktop app and sign in to ChatGPT Plus before adding conversations.
 
 ## Ubuntu
 
@@ -17,7 +17,7 @@ The application lives in `/opt/codex-auto-resume` and is available at `/usr/bin/
 Close Software Install if it is stalled. From the folder containing the new package, install it over the old version with APT. This also works if App Center only shows **Installed**.
 
 ```sh
-sudo apt install ./codex-auto-resume-0.8.4-linux-x64.deb
+sudo apt install ./codex-auto-resume-0.8.5-linux-x64.deb
 dpkg-query -W codex-auto-resume
 ```
 
@@ -51,17 +51,17 @@ Keep Auto-Resume open/minimized; closing it disarms recovery. While armed, `caff
 
 ## First use
 
-Opening the app checks **Continue automatically when the 5h limit resets**. This alone sends no message: select a chat using **Add conversation** to arm it. Selecting an idle chat explicitly requests one `continue`. Running chats are monitored without an extra message. A disabled or normally completed chat disappears from the queue.
+Opening the app checks **Continue automatically when the 5h limit resets**. Use **Add conversation** to arm an idle or running chat. It opens in Codex and appears as **Armed ahead**. Start or continue working in Codex. You can queue several chats before the limit runs out. Normal manual turns leave a chat armed. A confirmed five-hour interruption moves it to reset recovery, and normal completion after automatic recovery removes it. **Disarm** removes a chat at any time.
 
 The app discovers standard Codex desktop and CLI install locations. Open the official desktop app and sign in before using Auto-Resume. If the discovered runtime lacks a managed daemon package, Auto-Resume uses its local stdio App Server to list conversations and access the desktop's native queue. This path requires a runtime that supports the native queue. The app does not download, update, stop or replace an existing Codex runtime.
 
 ## Updates and data
 
-Starting with 0.8.4, the footer shows the installed version. The Windows installer, Ubuntu DEB, and installed macOS app check GitHub at startup and every six hours while open. When an update is available, a popup asks whether to install it. If you decline, **Update to** remains available in the footer. Auto-Resume verifies the download, installs it in place, and reopens the app.
+Starting with 0.8.4, the footer shows the installed version. The Windows installer, Ubuntu DEB, and installed macOS app check GitHub at startup and every six hours while open. Version 0.8.5 discovers updates through GitHub’s public release feed and reads the installer’s published SHA-256 checksum. When an update is available, a popup asks whether to install it. If you decline, **Update to** remains available in the footer. Auto-Resume verifies the download, installs it in place, and reopens the app.
 
 Ubuntu uses APT and prompts for administrator authorization. If its background controller was active, select the chats you want to monitor again after the upgrade. macOS updates the installed app bundle and may request administrator authorization for a protected Applications folder. Copy the app from its disk image to Applications before opening it.
 
-For the first upgrade to 0.8.4 or later, Windows 0.8.1–0.8.3 can use the existing **Update to** button. Earlier Windows builds need the installer. Earlier Ubuntu builds need the [APT upgrade steps](#upgrade-an-existing-ubuntu-installation). On macOS, quit the older app and replace it in Applications.
+If the update check in 0.8.4 or earlier fails, close the app and download 0.8.5 from the [project website](https://manouselis.github.io/codex-auto-resume/#downloads). Run the Windows installer, use the [APT upgrade steps](#upgrade-an-existing-ubuntu-installation) on Ubuntu, or replace the macOS app in Applications.
 
 Recovery metadata is preserved across upgrades/uninstall. It contains chat/account/project identifiers and guard state, not credentials or message text. Defaults:
 

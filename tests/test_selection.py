@@ -56,6 +56,95 @@ class SelectionTests(unittest.TestCase):
         self.assertEqual(self.start()["state"], State.RUNNING)
         self.assertFalse(self.queued())
 
+    def arm_ahead(self):
+        self.engine.register("live-test", wait_for_limit=True, desktop_queue=True)
+        return self.engine.start_selected("live-test")
+
+    def hit_limit_after_arming(self):
+        self.now[0] += 31
+        self.backend.latest.update(id="later-limited-turn", status="failed",
+                                   error={"codexErrorInfo": "usageLimitExceeded"}, completedAt=int(self.clock()))
+        self.backend.payload = fake_payload(self.clock())
+        self.engine.tick()
+        return self.store.get("live-test")
+
+    def test_idle_prearm_follows_manual_turns_and_resumes_once_after_limit(self):
+        self.assertEqual(self.arm_ahead()["state"], State.ARMED)
+        self.assertFalse(self.queued())
+        self.now[0] += 31
+        self.backend.latest.update(id="manual-turn", status="inProgress", completedAt=None)
+        self.backend.thread["status"] = {"type": "active", "activeFlags": []}
+        self.engine.tick()
+        self.assertEqual(self.store.get("live-test")["state"], State.ARMED)
+
+        self.now[0] += 31
+        self.backend.latest.update(status="completed", completedAt=int(self.clock()))
+        self.backend.thread["status"] = {"type": "idle"}
+        self.backend.payload = fake_payload(self.clock())
+        self.engine.tick()
+        self.assertEqual(self.store.get("live-test")["state"], State.ARMED)
+        self.assertFalse(self.queued())
+
+        task = self.hit_limit_after_arming()
+        self.assertEqual(task["state"], State.WAITING_FOR_RESET)
+        context = json.loads(task["context"])
+        self.assertEqual(context["turn_id"], "later-limited-turn")
+        self.assertFalse(context.get("wait_for_limit"))
+        self.assertFalse(self.queued())
+
+        self.now[0] = task["next_check"]
+        self.backend.payload = fake_payload(self.clock(), five=5, ordinary=True)
+        self.engine.tick()
+        self.assertEqual(self.store.get("live-test")["state"], State.RUNNING)
+        self.assertEqual(len(self.queued()), 1)
+        self.assertFalse(any(m in ("thread/resume", "turn/start") for m, _ in self.backend.calls))
+        self.now[0] += 31
+        self.backend.latest.update(status="completed", completedAt=int(self.clock()))
+        self.engine.tick()
+        self.assertEqual(self.store.get("live-test")["state"], State.COMPLETED)
+        self.assertEqual(len(self.queued()), 1)
+
+    def test_running_prearm_stops_if_user_cancels(self):
+        self.backend.latest.update(status="inProgress", completedAt=None)
+        self.backend.thread["status"] = {"type": "active", "activeFlags": []}
+        self.assertEqual(self.arm_ahead()["state"], State.ARMED)
+        self.now[0] += 31
+        self.backend.latest.update(status="interrupted", completedAt=int(self.clock()))
+        self.engine.tick()
+        self.assertFalse(self.store.get("live-test")["eligible"])
+        self.assertFalse(self.queued())
+
+    def test_prearm_will_not_pick_up_a_failure_from_before_arming(self):
+        self.arm_ahead()
+        armed_at = self.clock()
+        self.now[0] += 31
+        self.backend.latest.update(id="older-failure", status="failed",
+                                   error={"codexErrorInfo": "usageLimitExceeded"}, completedAt=int(armed_at) - 1)
+        self.backend.payload = fake_payload(self.clock())
+        self.engine.tick()
+        self.assertEqual(self.store.get("live-test")["state"], State.PAUSED_FOR_USER)
+        self.assertFalse(self.queued())
+
+    def test_manual_activity_after_prearmed_failure_stops_later_recovery(self):
+        self.arm_ahead()
+        waiting = self.hit_limit_after_arming()
+        self.now[0] = waiting["next_check"]
+        self.backend.payload = fake_payload(self.clock(), five=5, ordinary=True)
+        self.backend.latest.update(id="newer-manual-turn", status="completed", error=None,
+                                   completedAt=int(self.clock()))
+        self.engine.tick()
+        self.assertEqual(self.store.get("live-test")["state"], State.PAUSED_FOR_USER)
+        self.assertFalse(self.queued())
+
+    def test_prearmed_failure_still_requires_included_usage_after_reset(self):
+        self.arm_ahead()
+        waiting = self.hit_limit_after_arming()
+        self.now[0] = waiting["next_check"]
+        self.backend.payload = fake_payload(self.clock(), five=5, weekly=100, ordinary=True)
+        self.engine.tick()
+        self.assertEqual(self.store.get("live-test")["state"], State.WEEKLY_LIMIT_REACHED)
+        self.assertFalse(self.queued())
+
     def test_repeated_selection_before_dispatch_reserves_only_one_continue(self):
         self.select()
         self.select()

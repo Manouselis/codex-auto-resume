@@ -31,7 +31,7 @@ class Engine:
         self.native_schedule_check = native_schedule_check
 
     def register(self, thread_id: str, *, recover_context=None, native_heartbeat=None, native_max_attempts=None,
-                 start_idle=False, desktop_queue=None):
+                 start_idle=False, wait_for_limit=False, desktop_queue=None):
         # No context or private messages are copied from the original conversation.
         if not isinstance(thread_id, str) or not 1 <= len(thread_id) <= 128 or any(
                 not (c.isalnum() or c in "-_") for c in thread_id):
@@ -41,12 +41,16 @@ class Engine:
         saved = json.loads(previous["context"]) if previous else {}
         if desktop_queue is None:
             desktop_queue = saved.get("desktop_queue", False)
-        if type(start_idle) is not bool or type(desktop_queue) is not bool:
+        if any(type(value) is not bool for value in (start_idle, wait_for_limit, desktop_queue)):
             raise ValueError("Invalid conversation selection settings")
+        if start_idle and wait_for_limit:
+            raise ValueError("Choose either an immediate continue or arming ahead of the five-hour limit")
         if recover_context is None:
             recover_context = saved.get("recover_context", False)
         if native_heartbeat is None:
             native_heartbeat = saved.get("native_heartbeat")
+        if wait_for_limit and native_heartbeat:
+            raise ValueError("This chat uses a native recovery schedule. Use that schedule to monitor it.")
         if native_max_attempts is None:
             native_max_attempts = saved.get("native_max_attempts", 10)
         if type(recover_context) is not bool:
@@ -81,7 +85,8 @@ class Engine:
             verify = getattr(self.adapter, "confirmed_context_checkpoint", None)
             if verify and verify(thread_id, previous["ack_turn"]):
                 native_checkpoint = previous["ack_turn"]
-        if not user_start and not context_stop and not native_checkpoint and not obs.external_unresolved and (obs.turn_status not in ("inProgress", "failed") or (
+        idle_prearm = wait_for_limit and obs.turn_status == "completed"
+        if not user_start and not idle_prearm and not context_stop and not native_checkpoint and not obs.external_unresolved and (obs.turn_status not in ("inProgress", "failed") or (
                 obs.turn_status == "failed" and obs.error_code != "usageLimitExceeded")):
             raise UnsafeError("Only running tasks or structured usage-limit failures can be armed")
         finished = []
@@ -99,7 +104,7 @@ class Engine:
                             native_heartbeat=native_heartbeat, native_max_attempts=native_max_attempts,
                             finished_submissions=finished, expected_generation=generation,
                             native_schedule_status=native_status, native_checkpoint=native_checkpoint,
-                            user_start=user_start, desktop_queue=desktop_queue)
+                            user_start=user_start, wait_for_limit=wait_for_limit, desktop_queue=desktop_queue)
 
     def start_selected(self, thread_id):
         """Process one explicit UI selection; SQLite still protects all writers."""
@@ -242,6 +247,8 @@ class Engine:
             if state == State.WAITING_FOR_GOAL:
                 self._watch_usage_limited_goal(task, obs, context, generation)
                 return
+            if context.get("wait_for_limit") and not self._pin_prearmed_interruption(task, obs, context, generation):
+                return
             expected_turn = task["ack_turn"] or context["turn_id"]
             if obs.turn_id != expected_turn:
                 self._pause(tid, "A different turn started; the task may have been superseded")
@@ -358,6 +365,35 @@ class Engine:
             self._retry(task)
         except (UnsafeError, ValueError, KeyError, TypeError):
             self._pause(tid, "Unable to verify usage or conversation safely; inspect diagnostics")
+
+    def _pin_prearmed_interruption(self, task, obs, context, generation):
+        """Follow manual turns until an eligible interruption pins one turn."""
+        tid, now = task["thread_id"], self.clock()
+        limit_failure = obs.turn_status == "failed" and obs.error_code == "usageLimitExceeded"
+        checkpoint = (context["recover_context"] and obs.stop_reason == "context_budget"
+                      and obs.turn_status in ("completed", "failed"))
+        completed_at = obs.turn_completed_at
+        # Codex records terminal times in whole UTC seconds. A different turn
+        # must have ended since arming, including one in the same second.
+        new_turn = (type(completed_at) in (int, float) and int(context["armed_at"]) <= completed_at <= now)
+        with self.store.transaction():
+            current = self.store.get(tid)
+            if (not self.store.enabled or self.store.generation != generation or not current or not current["eligible"]
+                    or current["state"] != State.ARMED or current["context"] != task["context"]):
+                return False
+            if (limit_failure or checkpoint) and (obs.turn_id == context["turn_id"] or new_turn):
+                context.pop("wait_for_limit")
+                context.update(turn_id=obs.turn_id, revision=obs.revision)
+                self.store.db.execute("UPDATE tasks SET context=? WHERE thread_id=?", (json.dumps(context), tid))
+                return True
+            if not checkpoint and (obs.external_unresolved or obs.turn_status in ("inProgress", "completed")):
+                self.store.update(tid, State.ARMED, "Armed ahead — watching for the five-hour limit", now,
+                                  next_check=now + 30, retries=0)
+            else:
+                self.store.update(tid, State.PAUSED_FOR_USER,
+                                  "Could not confirm a recoverable interruption for this arming", now,
+                                  eligible=False, next_check=None)
+        return False
 
     def _watch_usage_limited_goal(self, task, obs, context, generation, *, goal=None):
         tid, now = task["thread_id"], self.clock()

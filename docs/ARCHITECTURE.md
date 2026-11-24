@@ -10,6 +10,8 @@ Linux's frozen controller starts its sleep-wait helper through `--inhibit-wait`,
 
 # Architecture
 
+Starting with 0.8.5, **Add conversation** records a monitoring intent for an idle or running desktop chat. Each chat can follow its ordinary manual turns until a supported interruption is observed. A different terminal turn must have ended since arming. The controller then pins the matching turn before entering the existing reset or checkpoint recovery path.
+
 For 0.7.0 UI selections, `desktop.open_conversation` invokes the installed `codex://threads/<id>` handler. An explicit selection can persist `user_start_pending` for a completed chat. The background controller sends a single literal `continue` only after fresh usage and goal checks. Running chats have no pending start. `LiveAdapter` uses `thread/queue/add` with the reservation's client ID, then matches that ID in `thread/items/list` to confirm the actual turn. It never calls `thread/queue/start` or takes over a desktop writer. Subsequent confirmed quota recovery keeps the selected queue transport. A lost or delayed acknowledgement remains an uncertain reservation, with no automatic resend.
 
 The 0.7.0 desktop launcher starts an installed per-user service. `desktop.py` reuses an active controller or starts the service; Tk remains a control panel. `power.py` takes a `systemd-inhibit --what=sleep` lease while recovery is enabled and any chat is eligible. The lease follows controller lifetime and never inhibits idle display handling, locking or shutdown. A private heartbeat records controller liveness.

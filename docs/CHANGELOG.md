@@ -2,6 +2,11 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
+## 0.8.5
+
+- **Add conversation** arms idle or running chats ahead of the five-hour limit. They stay in the queue through ordinary manual turns and recover after a confirmed interruption and reset.
+- Check for updates through GitHub’s public release feed and installer checksums. Startup and manual checks can discover releases when the anonymous REST API is rate-limited.
+
 ## 0.8.4 — 24 November 2026
 
 - Display the installed version and offer verified in-app updates on Windows, Ubuntu, and macOS. Check automatically when the app opens, then install and reopen after confirmation.

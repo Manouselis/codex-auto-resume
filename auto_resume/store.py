@@ -101,7 +101,8 @@ class Store:
 
     def register(self, obs: Observation, now: float, *, recover_context=False,
                  native_heartbeat=None, native_max_attempts=10, finished_submissions=(), expected_generation=None,
-                 native_schedule_status=None, native_checkpoint=None, user_start=False, desktop_queue=False):
+                 native_schedule_status=None, native_checkpoint=None, user_start=False, wait_for_limit=False,
+                 desktop_queue=False):
         with self.transaction():
             if not self.enabled:
                 raise ValueError("Enable Auto-Resume before arming a task")
@@ -118,6 +119,7 @@ class Store:
                     self.log(obs.thread_id, State(old["state"]), "Acknowledged reserved turn confirmed ended; reservation finished without a retry", now)
             same_settings = (old and old_context.get("recover_context", False) == recover_context
                 and old_context.get("desktop_queue", False) == desktop_queue
+                and old_context.get("wait_for_limit", False) == wait_for_limit
                 and old_context.get("native_heartbeat") == native_heartbeat
                 and old_context.get("native_max_attempts", 10) == native_max_attempts
                 and tuple(old_context.get("bucket_ids", ())) == obs.bucket_ids
@@ -151,7 +153,7 @@ class Store:
                     return self.get(obs.thread_id)
             if old and old["state"] == State.COMPLETED:
                 same_turn = obs.turn_id == (old["ack_turn"] or old_context["turn_id"])
-                if same_turn and not user_start and not (recover_context and obs.stop_reason == "context_budget"):
+                if same_turn and not user_start and not wait_for_limit and not (recover_context and obs.stop_reason == "context_budget"):
                     raise ValueError("This Codex turn ended; only a new turn or an explicitly enabled context checkpoint can be armed")
             if self.db.execute("SELECT 1 FROM submissions WHERE thread_id=? AND status IN ('reserved','running','uncertain')",
                                (obs.thread_id,)).fetchone():
@@ -163,6 +165,8 @@ class Store:
             context["armed_at"] = now
             context["desktop_queue"] = desktop_queue
             context["user_start_pending"] = user_start
+            if wait_for_limit:
+                context["wait_for_limit"] = True
             if native_checkpoint:
                 context["native_checkpoint_turn"] = native_checkpoint
             reason = ("Task armed for usage-limit and context-budget recovery" if recover_context
@@ -171,6 +175,8 @@ class Store:
                 reason = "Native scheduled recovery armed; waiting for a native wake-up"
             if user_start:
                 reason = "Conversation armed; continue will start when included usage is available"
+            if wait_for_limit:
+                reason = "Armed ahead — watching for the five-hour limit"
             state = State.ARMED
             if native_heartbeat and native_schedule_status == "PAUSED" and not user_start:
                 state = State.WAITING_FOR_SCHEDULE

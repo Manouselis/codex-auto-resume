@@ -91,6 +91,64 @@ class UiTests(unittest.TestCase):
         self.assertFalse(self.window.tasks.get_children())
         self.assertTrue(self.store.history())
 
+    def test_add_conversation_arms_an_idle_desktop_chat_without_sending(self):
+        import json
+        import tkinter as tk
+        from unittest.mock import patch
+        from auto_resume.live import LiveAdapter
+        from auto_resume.ui import ControlWindow
+        from test_live import Backend
+
+        backend = Backend(self.tmp.name)
+        backend.latest.update(status="completed", error=None)
+        adapter = LiveAdapter(backend)
+        store = Store(Path(self.tmp.name) / "arm-ahead.sqlite3")
+        window = ControlWindow(tk.Toplevel(self.root), Engine(store, adapter), background=True)
+        try:
+            with patch.object(adapter, "recent_threads", return_value=[{"id": "live-test", "name": "Idle chat"}]):
+                window.add_button.invoke()
+                deadline = time.monotonic() + 3
+                while window.picker is None and time.monotonic() < deadline:
+                    self.root.update()
+                    time.sleep(0.01)
+                self.assertIsNotNone(window.picker)
+                listing = next(w for w in window.picker.winfo_children() if isinstance(w, tk.Listbox))
+                listing.selection_set(0)
+                listing.event_generate("<<ListboxSelect>>")
+                while not window.tasks.exists("live-test") and time.monotonic() < deadline:
+                    self.root.update()
+                    time.sleep(0.01)
+            self.assertEqual(window.tasks.item("live-test", "values")[0], "Armed ahead")
+            task = store.get("live-test")
+            self.assertTrue(task["eligible"])
+            self.assertTrue(json.loads(task["context"])["wait_for_limit"])
+            self.assertFalse(any(method in ("thread/queue/add", "turn/start") for method, _ in backend.calls))
+        finally:
+            window.close()
+            store.close()
+
+    def test_adding_a_second_chat_keeps_the_first_armed(self):
+        import tkinter as tk
+        from dataclasses import replace
+
+        idle = replace(self.adapter.observations["demo-task"], turn_status="completed",
+                       error_code=None, incomplete=False)
+        self.adapter.observations["demo-task"] = idle
+        self.adapter.observations["second-chat"] = replace(idle, thread_id="second-chat")
+        for index, thread_id in enumerate(("demo-task", "second-chat")):
+            self.window.add_button.invoke()
+            self.root.update()
+            listing = next(w for w in self.window.picker.winfo_children() if isinstance(w, tk.Listbox))
+            listing.selection_set(index)
+            listing.event_generate("<<ListboxSelect>>")
+            self.pump()
+            task = self.store.get(thread_id)
+            self.assertIsNotNone(task, self.window.notice.get())
+            self.assertTrue(task["eligible"])
+        self.assertEqual({task["thread_id"] for task in self.store.tasks() if task["eligible"]},
+                         {"demo-task", "second-chat"})
+        self.assertFalse(self.adapter.requests)
+
     def test_usage_check_and_themes(self):
         self.window.check_usage()
         self.pump()
@@ -163,10 +221,12 @@ class UiTests(unittest.TestCase):
         self.assertLessEqual(disarm.winfo_rootx() - (arm.winfo_rootx() + arm.winfo_width()), 12)
 
     def test_installed_app_shows_version_and_prompts_automatically(self):
+        import io
         import tkinter as tk
         from unittest.mock import patch
         from auto_resume import __version__, update
         from auto_resume.ui import ControlWindow
+        from test_update import atom_feed
 
         def wait_until(condition):
             deadline = time.monotonic() + 5
@@ -175,10 +235,21 @@ class UiTests(unittest.TestCase):
                 time.sleep(0.01)
             self.assertTrue(condition())
 
-        release = update.Release("1.0.0", "update.deb", "", "", 1)
+        name = "codex-auto-resume-1.0.0-linux-x64.deb"
+        assets = f"{update.RELEASE_PAGE}/download/v1.0.0"
+        release = update.Release("1.0.0", name, f"{assets}/{name}", "a" * 64, None)
         installer = Path(self.tmp.name) / release.name
+
+        def read(request, timeout):
+            return io.BytesIO({
+                f"{update.RELEASE_PAGE}.atom": atom_feed("1.0.0"),
+                f"{assets}/SHA256SUMS": f"{release.digest}  {name}\n".encode(),
+            }[request.full_url])
+
         with (patch.object(update, "installed_target", return_value="linux-x64.deb"),
-              patch.object(update, "check_for_update", return_value=release) as check,
+              patch.object(update, "_cache_dir", return_value=Path(self.tmp.name)),
+              patch.object(update, "_open_url", side_effect=read),
+              patch.object(update, "check_for_update", wraps=update.check_for_update) as check,
               patch("tkinter.messagebox.askyesno", side_effect=[False, True]) as confirm,
               patch.object(update, "download_update", return_value=installer) as download,
               patch.object(update, "install_update", return_value=True) as install):

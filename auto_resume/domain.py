@@ -68,6 +68,7 @@ class Observation:
     external_unresolved: bool = False
     stop_reason: str | None = None
     name: str = ""
+    turn_completed_at: float | None = None
     # Dispatch rechecks these pinned facts; the public protocol is not atomic.
 
 

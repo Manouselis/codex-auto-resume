@@ -1,6 +1,8 @@
 # Codex Auto-Resume documentation
 
-Start with the [download and graphical installation guide](INSTALL.md). Version 0.8.0 bundles Python/Tk in native Ubuntu, Windows and macOS installers. The app remains a companion to the separately installed, signed-in Codex desktop app.
+Start with the [project website](https://manouselis.github.io/codex-auto-resume/) and [installation guide](INSTALL.md). Native packages include Python and Tk for Ubuntu, Windows and macOS. Open the separately installed Codex desktop app and sign in with ChatGPT Plus.
+
+In 0.8.5, use **Add conversation** to [arm chats ahead of the five-hour limit](RECOVERY.md#arming-ahead). Chats stay in the queue as you work in Codex. Installed copies check for updates at launch through GitHub’s public release feed and verify published checksums before installing.
 
 | Guide | Purpose |
 | --- | --- |

@@ -225,7 +225,7 @@ class LiveAdapter:
                                incomplete=None if unresolved else latest.get("status") in ("inProgress", "failed"),
                                external_unresolved=unresolved,
                                stop_reason="context_budget" if checkpoint else None,
-                               name=thread.get("name") or "")
+                               name=thread.get("name") or "", turn_completed_at=latest.get("completedAt"))
 
     def _financial_config(self, cwd):
         config = self.rpc.call("config/read", {"cwd": cwd, "includeLayers": False}).get("config")

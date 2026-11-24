@@ -87,7 +87,7 @@ class ControlWindow:
         self.toggle.pack(side="left")
         ttk.Label(setting, textvariable=self.status, style="Status.TLabel").pack(side="right", padx=(12, 0))
         ttk.Label(frame, text="Choose what to continue", style="Section.TLabel").pack(anchor="w")
-        ttk.Label(frame, text="Add a conversation below. Selecting it arms recovery immediately.",
+        ttk.Label(frame, text="Add conversations to watch for a five-hour interruption.",
                   style="Muted.TLabel").pack(anchor="w", pady=(4, 10))
         controls = ttk.Frame(frame)
         controls.pack(fill="x", pady=(0, 20))
@@ -215,7 +215,8 @@ class ControlWindow:
         if not automatic:
             self.notice.set("Checking for updates…")
         self.update_work(update.check_for_update, checked,
-                         None if automatic else lambda _: self.notice.set("Could not check for updates. Try again."))
+                         None if automatic else lambda _: self.notice.set(
+                             "Could not reach GitHub releases. Try again or download the update from the project website."))
 
     def install_update(self, release):
         from tkinter import messagebox
@@ -364,7 +365,9 @@ class ControlWindow:
         def arm():
             if not self.simulation:
                 open_conversation(tid)
-            task = engine.register(tid, recover_context=recover_context, start_idle=True,
+            previous = engine.store.get(tid)
+            native = previous and json.loads(previous["context"]).get("native_heartbeat")
+            task = engine.register(tid, recover_context=recover_context, wait_for_limit=not native,
                                    desktop_queue=not self.simulation)
             if not self.simulation and self.owns_controller:
                 task = engine.start_selected(tid)
@@ -375,11 +378,14 @@ class ControlWindow:
                 raise UnsafeError(task["reason"])
             if task["state"] == "WAITING_FOR_GOAL":
                 return task["reason"]
+            context = json.loads(task["context"])
+            if context.get("wait_for_limit"):
+                return task["reason"]
             if task["state"] == "RUNNING":
-                return "Conversation armed · continue sent" if json.loads(task["context"]).get("user_start_pending") else "Conversation armed · already working"
-            if json.loads(task["context"]).get("user_start_pending") and not task["ack_turn"]:
+                return "Conversation armed · continue sent" if context.get("user_start_pending") else "Conversation armed · already working"
+            if context.get("user_start_pending") and not task["ack_turn"]:
                 return "Conversation armed · continue will start when included usage is available"
-            if json.loads(task["context"]).get("native_heartbeat"):
+            if context.get("native_heartbeat"):
                 if task["state"] == "WAITING_FOR_SCHEDULE":
                     return "Native schedule is paused; activate it in Codex to enable recovery"
                 return "Native recovery armed; existing running work is preserved"
@@ -425,7 +431,8 @@ class ControlWindow:
         window.title("Add a conversation")
         window.geometry("660x360")
         ttk.Label(window, text="Select a conversation to arm it", style="Section.TLabel").pack(anchor="w", padx=16, pady=(16, 4))
-        ttk.Label(window, text="Codex opens when you choose. Idle chats receive continue; running chats keep working.", style="Muted.TLabel").pack(anchor="w", padx=16)
+        ttk.Label(window, text="Codex opens when you choose. Start or keep working in Codex whenever you’re ready.",
+                  style="Muted.TLabel", wraplength=600).pack(anchor="w", padx=16)
         listing = tk.Listbox(window, font=("sans-serif", 11), exportselection=False)
         listing.pack(fill="both", expand=True, padx=16, pady=16)
         for item in conversations:
@@ -542,6 +549,8 @@ class ControlWindow:
             label = {"WAITING_FOR_SCHEDULE": "Schedule paused", "PAUSED_FOR_USER": "Needs attention",
                      "WAITING_FOR_GOAL": "Goal recovery",
                      "WAITING_FOR_RESET": "Waiting for reset"}.get(task["state"], task["state"].replace("_", " ").capitalize())
+            if context.get("wait_for_limit") and task["state"] == "ARMED":
+                label = "Armed ahead"
             if task["state"] == "WAITING_FOR_RESET" and task["reason"].startswith("Connection unavailable"):
                 label = "Retrying connection"
             values = (label, reset, task["reason"])

@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Codex Auto-Resume is an open-source desktop companion that resumes explicitly armed Codex chats when included usage returns.">
+  <meta name="description" content="Arm several Codex chats before the five-hour limit and recover confirmed interruptions when included usage returns.">
   <meta name="theme-color" content="#10151e">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Codex Auto-Resume">
   <meta property="og:description" content="Pick up in the same Codex conversation when included usage returns.">
   <meta property="og:url" content="https://manouselis.github.io/codex-auto-resume/">
-  <meta property="og:image" content="https://manouselis.github.io/codex-auto-resume/screenshots/dark.png?v=0.8.4">
+  <meta property="og:image" content="https://manouselis.github.io/codex-auto-resume/screenshots/dark.png?v=0.8.5">
   <link rel="canonical" href="https://manouselis.github.io/codex-auto-resume/">
   <link rel="icon" href="assets/auto-resume.png" type="image/png">
   <link rel="stylesheet" href="assets/site.css?v=2">
-  <script src="assets/site.js?v=0.8.4" defer></script>
+  <script src="assets/site.js?v=0.8.5" defer></script>
   <title>Codex Auto-Resume</title>
 </head>
 <body id="top">
@@ -38,7 +38,7 @@
         <div class="hero-copy">
           <p class="eyebrow">A desktop companion for Codex</p>
           <h1 id="hero-title">Pick up when <span>usage returns.</span></h1>
-          <p class="lede">Choose the Codex chat you want to keep moving. When your included five-hour allowance returns, Auto-Resume picks up in the same conversation, with the same project and model.</p>
+          <p class="lede">Queue your Codex chats before the five-hour limit. If work hits the limit, Auto-Resume waits for included usage to return and picks up in the same chat, project, and model.</p>
           <div class="hero-actions">
             <a class="button button-primary" href="#downloads">Download Auto-Resume</a>
             <a class="hero-link" href="#how-it-works">See how it works</a>
@@ -53,8 +53,8 @@
               <button type="button" data-theme="light" aria-pressed="false" aria-controls="app-preview">Light</button>
             </div>
           </figcaption>
-          <img id="app-preview" src="screenshots/dark.png?v=0.8.4" width="920" height="800"
-            alt="Auto-Resume dark control panel showing included allowance, an example recovery queue, version 0.8.4, and Check for updates."
+          <img id="app-preview" src="screenshots/dark.png?v=0.8.5" width="920" height="800"
+            alt="Auto-Resume 0.8.5 in dark mode showing remaining allowance and two example chats armed ahead."
             fetchpriority="high">
         </figure>
       </div>
@@ -66,8 +66,8 @@
           <h2 id="downloads-title">Download for your desktop</h2>
           <p>Open the official Codex desktop app and sign in with ChatGPT Plus first.</p>
         </div>
-        <a class="release-link" id="release-details" href="https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.4">
-          <span id="release-version">v0.8.4 beta</span> · Release notes
+        <a class="release-link" id="release-details" href="https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.5">
+          <span id="release-version">v0.8.5 beta</span> · Release notes
         </a>
       </div>
       <div class="packages">
@@ -75,22 +75,22 @@
           <h3>Windows</h3>
           <p>Windows 11 · x64 or ARM with x64 emulation</p>
           <a class="button button-download" data-package="windows-x64-setup.exe"
-            href="https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.4/codex-auto-resume-0.8.4-windows-x64-setup.exe">Download installer</a>
+            href="https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.5/codex-auto-resume-0.8.5-windows-x64-setup.exe">Download installer</a>
         </article>
         <article class="package">
           <h3>Ubuntu</h3>
           <p>Ubuntu 22.04+ · x64</p>
           <a class="button button-download" data-package="linux-x64.deb"
-            href="https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.4/codex-auto-resume-0.8.4-linux-x64.deb">Download .deb</a>
+            href="https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.5/codex-auto-resume-0.8.5-linux-x64.deb">Download .deb</a>
         </article>
         <article class="package">
           <h3>macOS</h3>
           <p>Apple silicon with macOS 14+ or Intel with macOS 15+</p>
           <div class="package-buttons">
             <a class="button button-download" data-package="macos-arm64.dmg"
-              href="https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.4/codex-auto-resume-0.8.4-macos-arm64.dmg">Apple silicon</a>
+              href="https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.5/codex-auto-resume-0.8.5-macos-arm64.dmg">Apple silicon</a>
             <a class="button button-download" data-package="macos-x64.dmg"
-              href="https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.4/codex-auto-resume-0.8.4-macos-x64.dmg">Intel</a>
+              href="https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.5/codex-auto-resume-0.8.5-macos-x64.dmg">Intel</a>
           </div>
         </article>
       </div>
@@ -100,20 +100,20 @@
     <section class="shell upgrade" aria-labelledby="upgrade-title">
       <div class="upgrade-panel">
         <div>
-          <h2 id="upgrade-title">New in 0.8.4</h2>
-          <p>The footer shows your installed version. Auto-Resume checks for updates when it opens. Accept the popup to download the verified installer, install it, and reopen the app.</p>
-          <p>The Microsoft Store Codex runtime can now list conversations and access the desktop queue when its managed daemon package is missing.</p>
+          <h2 id="upgrade-title">New in 0.8.5</h2>
+          <p><strong>Add conversation</strong> arms idle or active chats before the limit. They stay queued through ordinary manual turns while you work in Codex.</p>
+          <p>Startup and manual update checks use GitHub’s public release feed. Accept the update prompt to install the verified download and reopen Auto-Resume.</p>
         </div>
         <div>
           <h3>Upgrading from an older version</h3>
           <dl>
             <div>
               <dt>Windows</dt>
-              <dd>On 0.8.1–0.8.3, use <strong>Check for updates</strong> and select the version offered by <strong>Update to</strong>. Earlier builds need the installer.</dd>
+              <dd>If <strong>Check for updates</strong> fails in an older copy, close it and run the Windows installer above. The app shows its version in the footer.</dd>
             </div>
             <div>
               <dt>Ubuntu and macOS</dt>
-              <dd>Install 0.8.4 or later once using the download above. Future updates will appear in the app.</dd>
+              <dd>If the older app cannot offer the update, install the Ubuntu package over it or replace the macOS app in Applications.</dd>
             </div>
           </dl>
         </div>
@@ -130,17 +130,17 @@
           <li>
             <span class="step-number" aria-hidden="true">1</span>
             <h3>Choose a conversation</h3>
-            <p>Use <strong>Add conversation</strong> to arm the chat and open it in Codex. An eligible idle chat receives one <code>continue</code>. A running chat keeps working.</p>
+            <p>Use <strong>Add conversation</strong> to open a chat in Codex and add it to the queue as <strong>Armed ahead</strong>. Start or keep working in Codex.</p>
           </li>
           <li>
             <span class="step-number" aria-hidden="true">2</span>
             <h3>Wait for included allowance</h3>
-            <p>If armed work stops at the five-hour limit, Auto-Resume waits for the reset and checks fresh usage before it sends a continuation.</p>
+            <p>Normal manual turns leave a chat queued. After a confirmed five-hour interruption, Auto-Resume waits for the reset and checks fresh included usage.</p>
           </li>
           <li>
             <span class="step-number" aria-hidden="true">3</span>
             <h3>Continue in Codex</h3>
-            <p>The original conversation receives the continuation. Auto-Resume checks that the new turn started and removes normally completed chats from the queue.</p>
+            <p>The original conversation receives the continuation. Auto-Resume confirms the new turn started and removes the chat when automatic recovery completes normally.</p>
           </li>
         </ol>
       </div>
@@ -154,7 +154,7 @@
       </div>
       <ul>
         <li><strong>Allowance and billing</strong><span>Weekly exhaustion, paid usage and unknown billing routes block continuation.</span></li>
-        <li><strong>Changes in the original chat</strong><span>Approvals, cancellation, task budgets and newer manual work can stop recovery.</span></li>
+        <li><strong>Changes in the original chat</strong><span>Approvals, cancellation, task budgets and newer manual work after an interruption can stop recovery.</span></li>
         <li><strong>Unconfirmed delivery</strong><span>When Codex does not confirm a submission, Auto-Resume pauses the chat for inspection.</span></li>
       </ul>
     </section>

@@ -101,6 +101,8 @@ def main(argv=None):
                      default=None,
                      help="Also recover confirmed context-budget checkpoints for this conversation")
     arm.add_argument("--native-heartbeat", help="Bind this arming to an existing native Codex heartbeat ID")
+    arm.add_argument("--wait-for-limit", action="store_true",
+                     help="Arm ahead and wait for a confirmed five-hour interruption in this desktop chat")
     arm.add_argument("--native-max-attempts", type=int,
                      help="Maximum native work turns, from 1 to 10 (new task: 10; otherwise preserved)")
     claim = sub.add_parser("native-claim", help="Check and durably admit work inside a native heartbeat turn")
@@ -147,7 +149,9 @@ def main(argv=None):
             store.set_enabled(not store.enabled, time.time())
         elif args.command == "arm":
             engine.register(args.thread_id, recover_context=args.recover_context,
-                            native_heartbeat=args.native_heartbeat, native_max_attempts=args.native_max_attempts)
+                            native_heartbeat=args.native_heartbeat, native_max_attempts=args.native_max_attempts,
+                            wait_for_limit=args.wait_for_limit,
+                            desktop_queue=True if args.wait_for_limit and not args.simulation else None)
         elif args.command in ("native-claim", "native-finish"):
             from .native import NativeController
             native = NativeController(store, adapter)

@@ -1,12 +1,12 @@
 Download the installer for your computer below. Python and Tk are included. Install the official Codex desktop app and sign in to ChatGPT Plus first.
 
-- Ubuntu x64: use Software Install for a fresh install. To upgrade from an earlier release, run `sudo apt install ./codex-auto-resume-0.8.4-linux-x64.deb` from the download folder, then reopen Auto-Resume.
+- Ubuntu x64: use Software Install for a fresh install. To upgrade from an earlier release, run `sudo apt install ./codex-auto-resume-0.8.5-linux-x64.deb` from the download folder, then reopen Auto-Resume.
 - Windows 11: open `windows-x64-setup.exe` and follow the wizard (also runs on Windows 11 ARM through x64 emulation).
 - macOS: choose `macos-arm64.dmg` for Apple silicon (14+) or `macos-x64.dmg` for Intel (15+); drag the app to Applications.
 
-Opening the app enables the master checkbox. Add conversation → select a chat arms it immediately; an idle chat receives one `continue`. Multiple chats recover independently. Disarm removes a chat from the queue. Allowance updates every minute.
+Use **Add conversation** to arm idle or running chats ahead of the five-hour limit. Keep working in Codex. These chats stay queued through ordinary manual turns, and Auto-Resume waits for verified included usage before recovering a confirmed interruption. **Disarm** removes a chat from the queue.
 
-Auto-Resume shows its version in the footer and checks for updates when it opens. Confirm the popup to download the verified installer, install it, and reopen the app. Windows 0.8.1 and later can use their existing **Update to** button for this first upgrade. Earlier Ubuntu and macOS versions need a one-time manual upgrade.
+Auto-Resume checks for updates on startup through GitHub’s public release feed and verifies the installer checksum. Confirm the popup to install the update and reopen the app. If the update check fails in 0.8.4 or earlier, download the installer for 0.8.5 below and install it over your existing copy.
 
 When the Microsoft Store runtime lacks a standalone daemon package, Auto-Resume can use the bundled App Server to list conversations and access the desktop queue.
 

@@ -2,12 +2,12 @@
 
 **Keep your Codex chats moving when included usage resets.**
 
-A desktop companion that continues explicitly armed conversations in the same chat, with the same project and model. Multiple chats can recover independently.
+A desktop companion that resumes explicitly armed Codex conversations in the same chat, with the same project and model. Add multiple conversations to the queue before your five-hour allowance runs out.
 
 [Project website](https://manouselis.github.io/codex-auto-resume/)
 
 [![Checks](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml)
-[![Desktop installers](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml) · **v0.8.4 beta** · MIT
+[![Desktop installers](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml) · **v0.8.5 beta** · MIT
 
 ## Download and open
 
@@ -15,18 +15,18 @@ Python and Tk are bundled. Install the official Codex desktop app and sign in to
 
 | Your computer | Download | Install |
 | --- | --- | --- |
-| Ubuntu 22.04+ · x64 | [Ubuntu installer](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.4/codex-auto-resume-0.8.4-linux-x64.deb) | Open with Software Install for a fresh install. Use [APT for upgrades](docs/INSTALL.md#upgrade-an-existing-ubuntu-installation). |
-| Windows 11 · x64 / ARM with x64 emulation | [Windows installer](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.4/codex-auto-resume-0.8.4-windows-x64-setup.exe) | Open the installer, then launch from Start. |
-| macOS · Apple silicon, 14+ | [Apple silicon app](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.4/codex-auto-resume-0.8.4-macos-arm64.dmg) | Open the disk image and drag the app to Applications. |
-| macOS · Intel, 15+ | [Intel app](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.4/codex-auto-resume-0.8.4-macos-x64.dmg) | Open the disk image and drag the app to Applications. |
+| Ubuntu 22.04+ · x64 | [Ubuntu installer](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.5/codex-auto-resume-0.8.5-linux-x64.deb) | Open with Software Install for a fresh install. Use [APT for upgrades](docs/INSTALL.md#upgrade-an-existing-ubuntu-installation). |
+| Windows 11 · x64 / ARM with x64 emulation | [Windows installer](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.5/codex-auto-resume-0.8.5-windows-x64-setup.exe) | Open the installer, then launch from Start. |
+| macOS · Apple silicon, 14+ | [Apple silicon app](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.5/codex-auto-resume-0.8.5-macos-arm64.dmg) | Open the disk image and drag the app to Applications. |
+| macOS · Intel, 15+ | [Intel app](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.5/codex-auto-resume-0.8.5-macos-x64.dmg) | Open the disk image and drag the app to Applications. |
 
-These community beta installers are unsigned, so Windows and macOS may ask for confirmation. See [installation help](docs/INSTALL.md), [checksums and release files](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.4), and the [compatibility test scope](docs/TESTING.md).
+These community beta installers are unsigned, so Windows and macOS may ask for confirmation. See [installation help](docs/INSTALL.md), [checksums and release files](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.5), and the [compatibility test scope](docs/TESTING.md).
 
-Starting with 0.8.4, installed Windows, Ubuntu, and macOS apps show their version and check for a newer release when opened. Accept the update popup to download, install, and reopen the app. Earlier Ubuntu and macOS versions need a one-time manual upgrade. Windows versions 0.8.1 and later can use their existing **Update to** button.
+Installed copies show their version in the footer and check for updates when opened. Version 0.8.5 uses GitHub’s public release feed and published checksums. If **Check for updates** fails in an older copy, close it and install 0.8.5 over it using the download above.
 
 1. Open Auto-Resume. **Continue automatically when the 5h limit resets** starts checked.
-2. Click **Add conversation**, then select a chat. Selection arms it and opens Codex. An idle chat receives one **`continue`**; a running chat keeps working.
-3. Click **Disarm** to remove a chat from the queue. Normal completion also removes it.
+2. Click **Add conversation**, then select an idle or running chat. The chat opens in Codex and shows **Armed ahead** in the queue. Start or keep working in Codex. Repeat to queue more chats.
+3. Armed chats stay queued through ordinary manual turns. After a confirmed five-hour interruption, Auto-Resume waits for the reset and verifies fresh included usage before resuming. Click **Disarm** to remove a chat. Normal completion after automatic recovery also removes it.
 
 Allowance refreshes every minute. Optional **Recover context checkpoints** continues unfinished work from saved checkpoints.
 
@@ -38,7 +38,7 @@ Allowance refreshes every minute. Optional **Recover context checkpoints** conti
 
 - Fresh included-usage permission is checked before every continuation. Weekly exhaustion, paid usage, unknown billing routes and approvals block work.
 - Lost acknowledgements pause that chat for inspection. Messages are never blindly resent.
-- Cancellations, task budgets, newer manual work and account changes remain stop conditions.
+- Cancellations, task budgets and account changes remain stop conditions. Once an interruption is pinned, a newer manual turn stops the pending recovery.
 - Screen locking is allowed. Armed work requests sleep prevention. Keep Codex open; on Windows/macOS, keep Auto-Resume open or minimized too.
 - Ubuntu uses a background controller when a user systemd session is available. Its status is shown in the app.
 

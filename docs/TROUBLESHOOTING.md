@@ -121,3 +121,7 @@ Use the native installer for your OS/CPU, not the developer `.pyz`. Python is bu
 If the GUI reports Codex missing, install and open the official Codex desktop app, sign in, then reopen Auto-Resume. Standard desktop, per-user CLI and managed daemon locations are searched without a shell. The managed connection uses Codex's official socket proxy on Windows. When the installed runtime lacks a managed daemon package, Auto-Resume uses its stdio App Server for conversation reads and native queue operations. Codex retains the desktop conversation writer.
 
 On Windows/macOS, keep the app open/minimized. On Ubuntu, check the panel's background-controller status. A suspended computer is not running either app; screen locking and suspension are different.
+
+## Check for updates fails
+
+In 0.8.4 and earlier, the public GitHub REST API can reject the update check when its shared anonymous quota runs out. Close the old app and install 0.8.5 over it using the [project downloads](https://manouselis.github.io/codex-auto-resume/#downloads). The newer updater checks GitHub’s public release feed on launch and uses the release’s SHA-256 checksum to verify the installer.
