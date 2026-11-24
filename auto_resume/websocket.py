@@ -17,7 +17,7 @@ from pathlib import Path
 
 from . import __version__
 from .domain import NotSentError, TransientError, UnsafeError, WriterConflictError
-from .protocol import READ_METHODS, find_codex, start_daemon
+from .protocol import DaemonPackageError, DesktopQueueRpc, READ_METHODS, find_codex, start_daemon
 
 from .process import external_options
 
@@ -227,13 +227,22 @@ class DaemonRpc:
         self.events = queue.Queue()
         self.responses = queue.Queue()
         self.connection = None
+        self.desktop_rpc = None
         self.sequence = 0
 
     def _start(self):
         try:
             connection = LocalWebSocket(self.socket_path, self.timeout)
         except TransientError:
-            start_daemon()
+            try:
+                start_daemon()
+            except DaemonPackageError as exc:
+                # Desktop bundles can serve stdio without the standalone daemon
+                # package. The queue client cannot acquire a writer or start a turn.
+                self.desktop_rpc = DesktopQueueRpc([exc.binary, "app-server", "--listen", "stdio://"],
+                                                   timeout=self.timeout)
+                self.desktop_rpc.events = self.events
+                return
             connection = LocalWebSocket(self.socket_path, self.timeout)
         self.connection = connection
         self.responses = queue.Queue()
@@ -298,8 +307,10 @@ class DaemonRpc:
             raise UnsafeError("Billing, auth changes, approval replies and unrelated mutations are forbidden")
         with self.lock:
             try:
-                if self.connection is None:
+                if self.connection is None and self.desktop_rpc is None:
                     self._start()
+                if self.desktop_rpc is not None:
+                    return self.desktop_rpc.call(method, params)
                 return self._call(method, params or {})
             except (TransientError, UnsafeError, OSError):
                 self.close()
@@ -307,5 +318,8 @@ class DaemonRpc:
 
     def close(self):
         connection, self.connection = self.connection, None
+        desktop_rpc, self.desktop_rpc = self.desktop_rpc, None
         if connection:
             connection.close()
+        if desktop_rpc:
+            desktop_rpc.close()

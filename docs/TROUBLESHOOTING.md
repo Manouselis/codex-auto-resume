@@ -118,6 +118,6 @@ After diagnostic replies have become the latest turn, explicit Arm can reuse the
 
 Use the native installer for your OS/CPU, not the developer `.pyz`. Python is bundled. Windows/macOS reputation prompts are expected for this unsigned community beta; see the [graphical installation steps](INSTALL.md). Do not disable system security globally. Close an older Auto-Resume copy before upgrading.
 
-If the GUI reports Codex missing, install/open the official Codex desktop app and sign in, then reopen Auto-Resume. Standard desktop, per-user CLI and managed daemon locations are searched without a shell. Windows requires an official runtime with `app-server proxy`; an unsupported transport is refused rather than using a second writer.
+If the GUI reports Codex missing, install and open the official Codex desktop app, sign in, then reopen Auto-Resume. Standard desktop, per-user CLI and managed daemon locations are searched without a shell. The managed connection uses Codex's official socket proxy on Windows. When the installed runtime lacks a managed daemon package, Auto-Resume uses its stdio App Server for conversation reads and native queue operations. Codex retains the desktop conversation writer.
 
 On Windows/macOS, keep the app open/minimized. On Ubuntu, check the panel's background-controller status. A suspended computer is not running either app; screen locking and suspension are different.

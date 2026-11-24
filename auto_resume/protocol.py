@@ -1,4 +1,4 @@
-"""Read-only JSON-lines App Server transport; execution methods are unreachable."""
+"""Runtime discovery and restricted JSON-lines App Server clients."""
 import json
 import os
 import queue
@@ -14,6 +14,14 @@ from .process import external_options
 
 READ_METHODS = frozenset({"initialize", "account/read", "account/rateLimits/read",
                           "thread/read", "thread/turns/list", "model/list"})
+
+
+class DaemonPackageError(TransientError):
+    """The discovered runtime can run App Server but has no managed daemon package."""
+
+    def __init__(self, binary):
+        super().__init__("The installed Codex runtime has no managed daemon package")
+        self.binary = binary
 
 
 def _windows_store_runtimes():
@@ -99,19 +107,22 @@ def find_codex() -> str:
 
 def start_daemon():
     """Start the official per-user transport; this never starts a model turn."""
+    binary = find_codex()
     try:
-        subprocess.run([find_codex(), "app-server", "daemon", "start"], capture_output=True,
+        subprocess.run([binary, "app-server", "daemon", "start"], capture_output=True,
                        timeout=30, check=True, **external_options())
     except subprocess.CalledProcessError as exc:
-        if sys.platform == "win32" and b"no complete local package" in (exc.stderr or b""):
-            raise TransientError("Codex is installed. Install the official standalone Codex CLI for Windows "
-                                 "to enable its local connection, then reopen Auto-Resume.") from exc
+        if b"no complete local package" in (exc.stderr or b""):
+            raise DaemonPackageError(binary) from exc
         raise TransientError("Unable to start the Codex connection; check the installed Codex runtime") from exc
     except (OSError, subprocess.SubprocessError) as exc:
         raise TransientError("Unable to start the Codex connection; check the installed Codex runtime") from exc
 
 
-class ReadOnlyRpc:
+class _StdioRpc:
+    methods = READ_METHODS
+    forbidden_method = "This release forbids execution, billing, auth changes, and approval methods"
+
     def __init__(self, command=None, *, timeout=10):
         self.command = command
         self.timeout = timeout
@@ -189,14 +200,14 @@ class ReadOnlyRpc:
             raise UnsafeError("Unexpected App Server response identity")
         if "error" in response:
             # Do not log backend text: it may include account or conversation details.
-            raise UnsafeError("Codex refused the read; check authentication and protocol compatibility")
+            raise UnsafeError("App Server rejected " + method + "; inspect authentication and compatibility")
         if not isinstance(response.get("result"), dict):
             raise UnsafeError("Unsupported App Server response")
         return response["result"]
 
     def call(self, method, params=None):
-        if method not in READ_METHODS:
-            raise UnsafeError("This release forbids execution, billing, auth changes, and approval methods")
+        if method not in self.methods:
+            raise UnsafeError(self.forbidden_method)
         with self.lock:
             try:
                 if self.process is None or self.process.poll() is not None:
@@ -226,3 +237,15 @@ class ReadOnlyRpc:
 
     def __exit__(self, *_):
         self.close()
+
+
+class ReadOnlyRpc(_StdioRpc):
+    """Observe the installed runtime without issuing writes."""
+
+
+class DesktopQueueRpc(_StdioRpc):
+    """Read saved state and use the native queue without acquiring a thread writer."""
+
+    methods = READ_METHODS | {"config/read", "thread/list", "thread/items/list",
+                             "thread/goal/get", "thread/goal/set", "thread/queue/list", "thread/queue/add"}
+    forbidden_method = "The bundled Codex connection supports desktop conversations through the native queue"

@@ -53,7 +53,7 @@ Keep Auto-Resume open/minimized; closing it disarms recovery. While armed, `caff
 
 Opening the app checks **Continue automatically when the 5h limit resets**. This alone sends no message: select a chat using **Add conversation** to arm it. Selecting an idle chat explicitly requests one `continue`. Running chats are monitored without an extra message. A disabled or normally completed chat disappears from the queue.
 
-The app discovers standard Codex desktop/CLI install locations and the desktop's managed runtime; no API key entry is needed. If it cannot find Codex, install/open the official desktop app, sign in, and reopen Auto-Resume. The native queue requires a compatible runtime (live-tested with 0.166). The app does not download, update, stop or replace an existing Codex runtime.
+The app discovers standard Codex desktop and CLI install locations. Open the official desktop app and sign in before using Auto-Resume. If the discovered runtime lacks a managed daemon package, Auto-Resume uses its local stdio App Server to list conversations and access the desktop's native queue. This path requires a runtime that supports the native queue. The app does not download, update, stop or replace an existing Codex runtime.
 
 ## Updates and data
 

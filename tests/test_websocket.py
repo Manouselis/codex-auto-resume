@@ -1,12 +1,14 @@
 import json
 import queue
 import struct
+import sys
 import threading
 import unittest
 from unittest.mock import patch
 
 from auto_resume.domain import NotSentError, TransientError, UnsafeError, WriterConflictError
-from auto_resume.live import LiveRpc
+from auto_resume.live import LiveAdapter, LiveRpc
+from auto_resume.protocol import DaemonPackageError, DesktopQueueRpc
 from auto_resume.websocket import DaemonRpc, LocalWebSocket, MAX_MESSAGE
 
 
@@ -51,6 +53,58 @@ class WebSocketTests(unittest.TestCase):
             with self.assertRaises(UnsafeError):
                 rpc._start()
             self.assertFalse(start.called)
+
+    def test_bundled_runtime_lists_conversations_and_reuses_native_queue_connection(self):
+        server = """
+import json
+import sys
+
+for line in sys.stdin:
+    message = json.loads(line)
+    if "id" not in message:
+        continue
+    result = {
+        "initialize": {},
+        "thread/list": {"data": [{"id": "test-thread", "name": "Example"}]},
+        "thread/queue/list": {"data": []},
+        "thread/queue/add": {"queuedSubmission": {"clientUserMessageId": "test-message"}},
+    }[message["method"]]
+    print(json.dumps({"id": message["id"], "result": result}), flush=True)
+"""
+        rpc = LiveRpc(timeout=5)
+        with (patch("auto_resume.websocket.LocalWebSocket", side_effect=TransientError("Unavailable")) as connect,
+              patch("auto_resume.websocket.start_daemon", side_effect=DaemonPackageError("bundled-codex")),
+              patch("auto_resume.websocket.DesktopQueueRpc",
+                    return_value=DesktopQueueRpc([sys.executable, "-u", "-c", server], timeout=5)) as desktop):
+            try:
+                self.assertEqual(LiveAdapter(rpc).recent_threads(), [{"id": "test-thread", "name": "Example"}])
+                process = rpc.desktop_rpc.process
+                self.assertEqual(rpc.call("thread/queue/list", {"threadId": "test-thread"}), {"data": []})
+                queued = rpc.call("thread/queue/add", {"threadId": "test-thread", "clientUserMessageId": "test-message"})
+                self.assertEqual(queued["queuedSubmission"]["clientUserMessageId"], "test-message")
+                self.assertIs(rpc.desktop_rpc.process, process)
+                connect.assert_called_once()
+                desktop.assert_called_once_with(["bundled-codex", "app-server", "--listen", "stdio://"], timeout=5)
+            finally:
+                rpc.close()
+        self.assertIsNotNone(process.poll())
+        self.assertIsNone(rpc.desktop_rpc)
+
+    def test_bundled_runtime_cannot_acquire_a_conversation_writer(self):
+        rpc = DesktopQueueRpc()
+        for method in ("thread/start", "thread/resume", "thread/queue/start", "turn/start", "account/login/start"):
+            with self.subTest(method=method), self.assertRaises(UnsafeError):
+                rpc.call(method)
+        self.assertIsNone(rpc.process)
+
+    def test_other_daemon_startup_errors_do_not_trigger_fallback(self):
+        rpc = LiveRpc()
+        with (patch("auto_resume.websocket.LocalWebSocket", side_effect=TransientError("Unavailable")),
+              patch("auto_resume.websocket.start_daemon", side_effect=TransientError("Cannot start daemon")),
+              patch("auto_resume.websocket.DesktopQueueRpc") as desktop):
+            with self.assertRaisesRegex(TransientError, "Cannot start daemon"):
+                rpc.call("thread/list")
+            desktop.assert_not_called()
 
     def rejected(self, method, message, *, code=-32600):
         rpc = DaemonRpc(timeout=1)

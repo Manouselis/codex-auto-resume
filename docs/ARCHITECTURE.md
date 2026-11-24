@@ -2,7 +2,7 @@
 
 `entry.py` maps an argument-free launch to the normal control window. PyInstaller onedir bundles include Python/Tk and assets. Native installers do not require a terminal or a system Python interpreter. `process.py` restores external program library paths; native package smoke mode uses isolated state and never connects to Codex.
 
-`protocol.find_codex` searches standard desktop/CLI roots and the managed daemon package. Unix connects directly to the private control socket. Windows uses `codex app-server proxy` as a **raw byte stream**, with the same RFC6455 handshake/frame validation. Codex owns Windows socket/rendezvous validation. No TCP listener, token handling or alternate writer is introduced.
+`protocol.find_codex` searches standard desktop/CLI roots and the managed daemon package. Unix connects directly to the private control socket. Windows uses `codex app-server proxy` as a **raw byte stream**, with the same RFC6455 handshake/frame validation. Codex owns Windows socket/rendezvous validation. When daemon startup reports a missing package, Auto-Resume uses the discovered runtime's stdio App Server for saved-state reads and the guarded desktop queue. Direct turn starts and thread restoration require the managed connection.
 
 Linux's frozen controller starts its sleep-wait helper through `--inhibit-wait`, not `sys.executable -c`. Windows holds a system-required power request on a dedicated owning thread; macOS uses `caffeinate -i`. Neither prevents display sleep or screen locking. Windows/macOS use a window-owned controller in this release; Ubuntu can use the user systemd controller.
 

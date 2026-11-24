@@ -3,10 +3,11 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from auto_resume.domain import TransientError, UnsafeError
 from auto_resume.lifecycle import ControllerLock
-from auto_resume.protocol import ReadOnlyRpc
+from auto_resume.protocol import DaemonPackageError, ReadOnlyRpc, start_daemon
 
 
 MOCK = r'''
@@ -49,7 +50,6 @@ class RpcTests(unittest.TestCase):
         self.assertEqual(self.rpc.call("thread/read", {"threadId": "my-thread"})["thread"]["id"], "my-thread")
 
     def test_local_controls_do_not_require_installed_codex(self):
-        from unittest.mock import patch
         with patch("auto_resume.protocol.find_codex", side_effect=UnsafeError("missing")):
             rpc = ReadOnlyRpc()
             self.assertIsNone(rpc.process)
@@ -92,6 +92,18 @@ class RpcTests(unittest.TestCase):
         with self.assertRaises(UnsafeError) as caught:
             self.rpc.call("thread/read", {"threadId": "error"})
         self.assertNotIn("PRIVATE TOKEN", str(caught.exception))
+
+    def test_missing_daemon_package_is_detected_on_each_platform(self):
+        command = ["bundled-codex", "app-server", "daemon", "start"]
+        error = subprocess.CalledProcessError(1, command, stderr=b"Error: this CLI has no complete local package")
+        for platform in ("win32", "darwin", "linux"):
+            with (self.subTest(platform=platform), patch("auto_resume.protocol.sys.platform", platform),
+                  patch("auto_resume.protocol.find_codex", return_value=command[0]),
+                  patch("auto_resume.protocol.subprocess.run", side_effect=error) as run,
+                  self.assertRaises(DaemonPackageError) as caught):
+                start_daemon()
+            self.assertEqual(caught.exception.binary, command[0])
+            self.assertEqual(run.call_args.args[0], command)
 
     def test_single_controller_and_release(self):
         state = Path(self.tmp.name) / "state.sqlite3"

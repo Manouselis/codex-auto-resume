@@ -28,7 +28,7 @@ A process crash can preserve a reset wait, but an uncertain submission is paused
 
 Standalone installers target Ubuntu 22.04+ x64, Windows 11 x64 (including emulation on ARM), macOS 14+ Apple silicon and macOS 15+ Intel. See [Testing](TESTING.md) for actual build/install/GUI results; packaging tests use invented data and are distinct from live Codex continuation.
 
-Ubuntu X11 with runtime 0.166 is the verified live platform. Windows/macOS live Codex queue integration, Windows private-socket ACL behavior, Wayland, physical locked-session continuation, forced suspend, logout and reboot remain unverified. Windows uses Codex's official raw socket proxy; an incompatible runtime refuses execution. These community beta downloads are not Authenticode signed or Apple Developer ID signed/notarized.
+Ubuntu X11 with runtime 0.166 is the verified live continuation platform. On Windows 11, conversation listing and quota reads were verified using the Store app's bundled runtime. Native queue writes were verified across processes using an isolated Windows profile. Windows/macOS live model continuation, Windows private-socket ACL behavior, Wayland, physical locked-session continuation, forced suspend, logout and reboot remain unverified. Windows uses Codex's official raw socket proxy for managed daemons. These community beta downloads are not Authenticode signed or Apple Developer ID signed/notarized.
 
 Keep Auto-Resume open/minimized on Windows/macOS. On Ubuntu, a user systemd controller may continue after the panel closes, as reported by the app. The sleep requests prevent ordinary idle suspension where available; they do not wake suspended computers or override forced suspension/lid/shutdown policies.
 
