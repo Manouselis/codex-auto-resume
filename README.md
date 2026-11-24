@@ -4,6 +4,8 @@
 
 A desktop companion that continues explicitly armed conversations in the same chat, with the same project and model. Multiple chats can recover independently.
 
+[Project website](https://manouselis.github.io/codex-auto-resume/)
+
 [![Checks](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml)
 [![Desktop installers](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml) · **v0.8.3 beta** · MIT
 

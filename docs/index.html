@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Codex Auto-Resume is an open-source desktop companion that resumes explicitly armed Codex chats when included usage returns.">
+  <meta name="theme-color" content="#102523">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Codex Auto-Resume">
+  <meta property="og:description" content="Pick up in the same Codex conversation when included usage returns.">
+  <meta property="og:url" content="https://manouselis.github.io/codex-auto-resume/">
+  <meta property="og:image" content="https://manouselis.github.io/codex-auto-resume/screenshots/dark.png">
+  <link rel="canonical" href="https://manouselis.github.io/codex-auto-resume/">
+  <link rel="icon" href="assets/auto-resume.png" type="image/png">
+  <link rel="stylesheet" href="assets/site.css">
+  <script src="assets/site.js" defer></script>
+  <title>Codex Auto-Resume</title>
+</head>
+<body id="top">
+  <a href="#main" class="skip">Skip to content</a>
+  <header class="top">
+    <div class="shell header-row">
+      <a href="#top" class="brand">
+        <img src="assets/auto-resume.png" alt="" width="36" height="36">
+        <span>Codex Auto-Resume</span>
+      </a>
+      <nav aria-label="Main navigation">
+        <a href="#downloads">Downloads</a>
+        <a href="#how-it-works">How it works</a>
+        <a class="repo-link" href="https://github.com/Manouselis/codex-auto-resume">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="shell hero-layout">
+        <div class="hero-copy">
+          <p class="eyebrow">A desktop companion for Codex</p>
+          <h1 id="hero-title">Pick up when <span>usage returns.</span></h1>
+          <p class="lede">Choose the Codex chat you want to keep moving. When your included five-hour allowance returns, Auto-Resume picks up in the same conversation, with the same project and model.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#downloads">Download Auto-Resume</a>
+            <a class="hero-link" href="#how-it-works">See how it works</a>
+          </div>
+          <p class="hero-note">Windows, Ubuntu and macOS · Open source under MIT</p>
+        </div>
+        <figure class="preview">
+          <figcaption class="preview-toolbar">
+            <span>Desktop preview</span>
+            <div class="preview-controls" role="group" aria-label="Screenshot theme" hidden>
+              <button type="button" data-theme="dark" aria-pressed="true" aria-controls="app-preview">Dark</button>
+              <button type="button" data-theme="light" aria-pressed="false" aria-controls="app-preview">Light</button>
+            </div>
+          </figcaption>
+          <img id="app-preview" src="screenshots/dark.png" width="920" height="800"
+            alt="Auto-Resume dark control panel showing included allowance and an example conversation in the recovery queue."
+            fetchpriority="high">
+        </figure>
+      </div>
+    </section>
+
+    <section id="downloads" class="shell section" aria-labelledby="downloads-title">
+      <div class="section-heading">
+        <div>
+          <h2 id="downloads-title">Download for your desktop</h2>
+          <p>Open the official Codex desktop app and sign in with ChatGPT Plus first.</p>
+        </div>
+        <a class="release-link" id="release-details" href="https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.3">
+          <span id="release-version">v0.8.3 beta</span> · Release notes
+        </a>
+      </div>
+      <div class="packages">
+        <article class="package">
+          <h3>Windows</h3>
+          <p>Windows 11 · x64 or ARM with x64 emulation</p>
+          <a class="button button-download" data-package="windows-x64-setup.exe"
+            href="https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.3/codex-auto-resume-0.8.3-windows-x64-setup.exe">Download installer</a>
+        </article>
+        <article class="package">
+          <h3>Ubuntu</h3>
+          <p>Ubuntu 22.04+ · x64</p>
+          <a class="button button-download" data-package="linux-x64.deb"
+            href="https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.3/codex-auto-resume-0.8.3-linux-x64.deb">Download .deb</a>
+        </article>
+        <article class="package">
+          <h3>macOS</h3>
+          <p>Apple silicon with macOS 14+ or Intel with macOS 15+</p>
+          <div class="package-buttons">
+            <a class="button button-download" data-package="macos-arm64.dmg"
+              href="https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.3/codex-auto-resume-0.8.3-macos-arm64.dmg">Apple silicon</a>
+            <a class="button button-download" data-package="macos-x64.dmg"
+              href="https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.3/codex-auto-resume-0.8.3-macos-x64.dmg">Intel</a>
+          </div>
+        </article>
+      </div>
+      <p class="download-note">The community installers are unsigned. Windows and macOS may ask for confirmation. <a href="https://github.com/Manouselis/codex-auto-resume/blob/main/docs/INSTALL.md">See the installation guide</a>.</p>
+    </section>
+
+    <section id="how-it-works" class="workflow" aria-labelledby="workflow-title">
+      <div class="shell section workflow-layout">
+        <div>
+          <h2 id="workflow-title">From an armed chat to a confirmed continuation</h2>
+          <p>Each conversation has its own recovery queue. You can disarm it from the desktop panel at any time.</p>
+        </div>
+        <ol class="steps">
+          <li>
+            <span class="step-number" aria-hidden="true">1</span>
+            <h3>Choose a conversation</h3>
+            <p>Use <strong>Add conversation</strong> to arm the chat and open it in Codex. An eligible idle chat receives one <code>continue</code>. A running chat keeps working.</p>
+          </li>
+          <li>
+            <span class="step-number" aria-hidden="true">2</span>
+            <h3>Wait for included allowance</h3>
+            <p>If armed work stops at the five-hour limit, Auto-Resume waits for the reset and checks fresh usage before it sends a continuation.</p>
+          </li>
+          <li>
+            <span class="step-number" aria-hidden="true">3</span>
+            <h3>Continue in Codex</h3>
+            <p>The original conversation receives the continuation. Auto-Resume checks that the new turn started and removes normally completed chats from the queue.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="shell section safeguards" aria-labelledby="safeguards-title">
+      <div>
+        <h2 id="safeguards-title">When recovery pauses</h2>
+        <p>Live continuation was verified on Ubuntu with Codex runtime 0.166. Windows and macOS installer tests use isolated data.</p>
+        <a href="https://github.com/Manouselis/codex-auto-resume/blob/main/docs/TESTING.md">Verification and test scope</a>
+      </div>
+      <ul>
+        <li><strong>Allowance and billing</strong><span>Weekly exhaustion, paid usage and unknown billing routes block continuation.</span></li>
+        <li><strong>Changes in the original chat</strong><span>Approvals, cancellation, task budgets and newer manual work can stop recovery.</span></li>
+        <li><strong>Unconfirmed delivery</strong><span>When Codex does not confirm a submission, Auto-Resume pauses the chat for inspection.</span></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <div class="shell footer-row">
+      <p>Codex Auto-Resume · <a href="https://github.com/Manouselis">Pantelis Manouselis</a></p>
+      <nav aria-label="Project resources">
+        <a href="https://github.com/Manouselis/codex-auto-resume/blob/main/docs/TROUBLESHOOTING.md">Troubleshooting</a>
+        <a href="https://github.com/Manouselis/codex-auto-resume/releases">All releases</a>
+        <a href="https://github.com/Manouselis/codex-auto-resume/blob/main/LICENSE">License</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>
