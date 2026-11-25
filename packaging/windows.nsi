@@ -16,6 +16,12 @@ InstallDir "$LOCALAPPDATA\Programs\Codex Auto-Resume"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
 !define MUI_ABORTWARNING
+!define MUI_WELCOMEPAGE_TITLE "Set up Codex Auto-Resume"
+!define MUI_WELCOMEPAGE_TEXT "Install the desktop companion for your Windows account. Setup includes the app and a Start menu shortcut. Python is included.$\r$\n$\r$\nBefore using Auto-Resume, open the Codex desktop app and sign in. Then add the conversations you want to watch."
+!define MUI_DIRECTORYPAGE_TEXT_TOP "Choose where to install the dashboard. An upgrade uses this same folder and keeps your saved recovery settings."
+!define MUI_FINISHPAGE_TITLE "Codex Auto-Resume is installed"
+!define MUI_FINISHPAGE_TEXT "Open Codex Auto-Resume below or find it in Start. Choose Add conversation to arm a chat for recovery."
+ShowInstDetails show
 !define MUI_FINISHPAGE_RUN "$INSTDIR\codex-auto-resume.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "Open Codex Auto-Resume"
 !define MUI_ICON "${ICON}"
@@ -52,11 +58,14 @@ Function .onInstSuccess
 FunctionEnd
 
 Section "Application"
+  SetDetailsPrint textonly
   SetOutPath "$INSTDIR"
+  DetailPrint "Installing the application and bundled runtime"
   File /r "${BUNDLE}\*"
   IfErrors 0 +3
   SetErrorLevel 1
   Abort "Could not replace Auto-Resume's application files. Close any other copies and run the installer again."
+  DetailPrint "Creating shortcuts and registering the uninstaller"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   CreateDirectory "$SMPROGRAMS\Codex Auto-Resume"
   CreateShortcut "$SMPROGRAMS\Codex Auto-Resume\Codex Auto-Resume.lnk" "$INSTDIR\codex-auto-resume.exe"
