@@ -1,6 +1,6 @@
 # Install Codex Auto-Resume
 
-Download your installer from the [v0.8.6 release](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.6). Python and Tk are bundled. Open the official Codex desktop app and sign in to ChatGPT Plus before adding conversations.
+Download your installer from the [v0.8.7 release](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.7). Python and Tk are bundled. Open the official Codex desktop app and sign in to ChatGPT Plus before adding conversations.
 
 ## Ubuntu
 
@@ -17,11 +17,11 @@ The application lives in `/opt/codex-auto-resume` and is available at `/usr/bin/
 Close Software Install if it is stalled. From the folder containing the new package, install it over the old version with APT. This also works if App Center only shows **Installed**.
 
 ```sh
-sudo apt install ./codex-auto-resume-0.8.6-linux-x64.deb
+sudo apt install ./codex-auto-resume-0.8.7-linux-x64.deb
 dpkg-query -W codex-auto-resume
 ```
 
-Quit the older window and launch `/usr/bin/codex-auto-resume`. This path also avoids a shortcut left by a source install. If the new window reports **Older background controller active**, close it and stop the active Auto-Resume service before relaunching. Use `systemctl --user stop codex-auto-resume.service` for older releases or `systemctl --user stop codex-auto-resume-native.service` for a previous native controller. Stopping the controller disarms its queue, so select the chats you want to monitor again. The upgrade preserves saved recovery history.
+Quit the older window and open **Codex Auto-Resume** from Applications or your existing dock pin. Starting with 0.8.7, the DEB checks the installing account and active sessions for the standard source-generated shortcut and archives it beside the original path as a hidden `.source-backup` file. Ubuntu then uses the package launcher for the same app ID. Custom shortcuts and saved recovery data are preserved. If the new window reports **Older background controller active**, close it and stop the active Auto-Resume service before relaunching. Use `systemctl --user stop codex-auto-resume.service` for older releases or `systemctl --user stop codex-auto-resume-native.service` for a previous native controller. Stopping the controller disarms its queue, so select the chats you want to monitor again. The upgrade preserves saved recovery history.
 
 Screen locking with Super+L is allowed. The sleep inhibitor is held only while at least one eligible chat is armed. Power off, forced suspension and lid policies can still stop execution; the status line reports when sleep prevention is unavailable. Login is required; this release does not install an always-on boot service.
 
@@ -57,11 +57,11 @@ The app discovers standard Codex desktop and CLI install locations. Open the off
 
 ## Updates and data
 
-Starting with 0.8.4, the footer shows the installed version. The Windows installer, Ubuntu DEB, and installed macOS app check GitHub at startup and every six hours while open. Version 0.8.6 discovers updates through GitHub’s public release feed and reads the installer’s published SHA-256 checksum. When an update is available, a popup asks whether to install it. If you decline, **Update to** remains available in the footer. Auto-Resume verifies the download, installs it in place, and reopens the app.
+Starting with 0.8.4, the footer shows the installed version. The Windows installer, Ubuntu DEB, and installed macOS app check GitHub at startup and every six hours while open. Version 0.8.6 and later discover updates through GitHub’s public release feed and reads the installer’s published SHA-256 checksum. When an update is available, a popup asks whether to install it. If you decline, **Update to** remains available in the footer. Auto-Resume verifies the download, installs it in place, and reopens the app.
 
 Ubuntu uses APT and prompts for administrator authorization. If its background controller was active, select the chats you want to monitor again after the upgrade. macOS updates the installed app bundle and may request administrator authorization for a protected Applications folder. Copy the app from its disk image to Applications before opening it.
 
-If the update check in 0.8.4 or earlier fails, close the app and download 0.8.6 from the [project website](https://manouselis.github.io/codex-auto-resume/#downloads). Run the Windows installer, use the [APT upgrade steps](#upgrade-an-existing-ubuntu-installation) on Ubuntu, or replace the macOS app in Applications.
+If the update check in 0.8.4 or earlier fails, close the app and download 0.8.7 from the [project website](https://manouselis.github.io/codex-auto-resume/#downloads). Run the Windows installer, use the [APT upgrade steps](#upgrade-an-existing-ubuntu-installation) on Ubuntu, or replace the macOS app in Applications.
 
 The local state database retains recovery metadata and any custom recovery messages across upgrades and uninstall. It stores chat/account/project identifiers and guard state. Auto-Resume does not copy conversation transcripts or credentials into it. Defaults:
 

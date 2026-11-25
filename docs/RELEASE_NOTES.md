@@ -1,6 +1,4 @@
-- Set a custom **Recovery message** for any chat managed by the companion. Leave the field blank to use the built-in prompt. Fixes [#3](https://github.com/Manouselis/codex-auto-resume/issues/3).
-- Search the conversation picker by title or ID. Select a queue entry to see why it is waiting and which message it will use.
-- The dashboard refreshes less often while idle and leaves unchanged rows alone.
+Ubuntu now migrates the standard app-menu shortcut left by a source install when you install or update the DEB. Your existing dock pin and Applications entry open the packaged app. The installer keeps an exact backup of the old shortcut and preserves custom launchers and recovery data.
 
 Python and Tk are bundled. Install Codex separately and sign in to ChatGPT Plus. On Ubuntu, open the DEB with Software Install for a fresh install and use APT for an existing install. On Windows, run the per-user setup wizard. On macOS, open the DMG for your processor and drag the app to Applications.
 

@@ -1,5 +1,9 @@
 # Testing
 
+## Version 0.8.7
+
+The Ubuntu tests seed the historical per-user desktop entry before a clean DEB install and before an upgrade through the app's APT path. They check that package configuration archives the exact entry under the original user, that the system desktop entry refers to the installed executable, and that the bundled app launches. Unit tests cover repeat runs, older icons, custom shortcuts, and symlinks.
+
 ## Version 0.8.6
 
 The desktop workflow builds, installs, and launches the bundled app on Ubuntu 22.04, Windows Server x64, and macOS on Apple silicon and Intel. Compatibility jobs exercise the same packages on Ubuntu 24.04, Ubuntu 26.04, and Windows 11 ARM under x64 emulation. The release includes JSON reports for every host. These jobs use test data and make zero live model requests.

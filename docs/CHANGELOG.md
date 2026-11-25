@@ -2,6 +2,10 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
+## 0.8.7
+
+- Ubuntu installs and updates archive the recognized shortcut from older source installs. The same application ID now opens the packaged launcher from Applications and the dock. Custom shortcuts, controllers, and recovery data are outside the migration.
+
 ## 0.8.6 — 25 November 2026
 
 - Set a recovery message for each armed chat. An empty field restores the built-in prompt. Fixes [#3](https://github.com/Manouselis/codex-auto-resume/issues/3).
