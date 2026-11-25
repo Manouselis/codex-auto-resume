@@ -47,7 +47,7 @@ The external engine allows up to three automatic continuation attempts per armin
 
 The companion never approves sensitive actions. A server approval or input request pauses the registered task and remains unanswered. Approval routing from an independently connected desktop client to the daemon-owned turn is not verified; manually inspect Codex before continuing.
 
-On Ubuntu state files use mode 0600 and newly created state directories 0700. An application ID prevents overwriting unrelated databases. State contains account/thread/project identifiers and safety metadata, but no conversation text or credentials. Logs do not include raw backend error messages. Public live evidence omits the test thread ID.
+On Ubuntu state files use mode 0600 and newly created state directories 0700. An application ID prevents overwriting unrelated databases. State contains account/thread/project identifiers, safety metadata, and any recovery message you save. Auto-Resume keeps saved recovery messages out of the activity log and does not copy transcripts or credentials into its database. Logs do not include raw backend error messages. Public live evidence omits the test thread ID.
 
 The socket is restricted to the current user's official daemon. Closing the window/connection does not kill an acknowledged running daemon turn. Uninstall preserves task history and never modifies Codex's files. Windows ACLs and transport behavior remain unverified.
 

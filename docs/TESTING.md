@@ -1,6 +1,16 @@
-# Testing — 0.8.0
+# Testing
 
-Local Ubuntu 22.04/X11, Python 3.10.12: **241 tests, 240 passed, one Windows-only API test skipped; all 19 GUI tests passed**. [Current report](evidence/test-results.json). Tests send zero live model requests.
+## Version 0.8.6
+
+The desktop workflow builds, installs, and launches the bundled app on Ubuntu 22.04, Windows Server x64, and macOS on Apple silicon and Intel. Compatibility jobs exercise the same packages on Ubuntu 24.04, Ubuntu 26.04, and Windows 11 ARM under x64 emulation. The release includes JSON reports for every host. These jobs use test data and make zero live model requests.
+
+The new message tests exercise actual queue payloads against a controlled backend. They verify per-chat persistence during a reset wait, no send on save, the exact custom text, the default fallback, and refusal to edit when a submission is outstanding. The GUI test saves and clears the text through the actual editor.
+
+[Desktop installer runs](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml)
+
+## Historical verification from 0.8.0
+
+Local Ubuntu 22.04/X11, Python 3.10.12: **241 tests, 240 passed, one Windows-only API test skipped; all 19 GUI tests passed**. Local report from the 0.8.0 release.. Tests send zero live model requests.
 
 ## Native installers and compatibility
 

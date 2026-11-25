@@ -2,6 +2,12 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
+## 0.8.6 — 25 November 2026
+
+- Set a recovery message for each armed chat. An empty field restores the built-in prompt. Fixes [#3](https://github.com/Manouselis/codex-auto-resume/issues/3).
+- Search the conversation picker by title or ID. The dashboard puts the recovery explanation and message setting next to the queue.
+- Refresh the quiet dashboard once a second and update displayed rows only when they change. Allowance still refreshes once a minute.
+
 ## 0.8.5
 
 - **Add conversation** arms idle or running chats ahead of the five-hour limit. They stay in the queue through ordinary manual turns and recover after a confirmed interruption and reset.

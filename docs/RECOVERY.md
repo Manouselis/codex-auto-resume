@@ -1,5 +1,15 @@
 # Usage limits and context-budget recovery
 
+## Choose a recovery message
+
+1. Add a conversation and select its row in the armed queue.
+2. Click **Recovery message**, enter up to 4,000 characters, and click **Save**.
+3. To restore the built-in prompt, choose **Use default** and **Save**. Whitespace alone also restores it.
+
+The app saves the setting locally for that conversation across restarts and rearming. It records the change in the activity log without including the text. Saving preserves the scheduled check and does not send a message. At dispatch, the app reads the saved message when it reserves the continuation. Existing usage, identity, approval, and duplicate-send checks still apply. If checkpoint recovery is enabled, Auto-Resume appends its checkpoint instructions.
+
+A chat with a native Codex schedule takes its instructions from the schedule. The dashboard shows that distinction in the chat details.
+
 ## Arming ahead
 
 In 0.8.5, **Add conversation** opens an idle or running chat in Codex and adds it to the queue as **Armed ahead**. Start or keep working in Codex. Add more chats the same way. Auto-Resume follows ordinary manual turns until it confirms a five-hour interruption or a context checkpoint you enabled. The CLI equivalent for a desktop chat is `codex-auto-resume arm THREAD_ID --wait-for-limit`.
