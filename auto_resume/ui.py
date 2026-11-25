@@ -297,6 +297,8 @@ class ControlWindow:
         self.style.configure("TEntry", fieldbackground=panel, foreground=fg, bordercolor=border,
                              lightcolor=border, darkcolor=border, padding=5, insertcolor=fg)
         self.style.map("TEntry", bordercolor=[("focus", accent)], lightcolor=[("focus", accent)])
+        self.style.configure("Vertical.TScrollbar", background=border, troughcolor=panel,
+                             arrowcolor=muted, bordercolor=panel, lightcolor=border, darkcolor=border)
         self.style.configure("Treeview", background=panel, fieldbackground=panel, foreground=fg,
                              rowheight=40, borderwidth=0, relief="flat", bordercolor=border, lightcolor=panel, darkcolor=panel)
         self.style.configure("Treeview.Heading", background=panel, foreground=muted, relief="flat",
@@ -556,12 +558,15 @@ class ControlWindow:
                 self.arm()
         listing.bind("<<ListboxSelect>>", select)
         listing.bind("<Return>", select)
-        def select_first(_):
-            if filtered:
+        def search_enter(_):
+            if len(filtered) == 1:
                 listing.selection_set(0)
                 select()
+            elif filtered:
+                listing.activate(0)
+                listing.focus_set()
 
-        search.bind("<Return>", select_first)
+        search.bind("<Return>", search_enter)
         window.bind("<Escape>", lambda _: window.destroy())
         search.focus_set()
 
@@ -671,7 +676,10 @@ class ControlWindow:
         controller = "Window controller" if self.owns_controller else ("Background controller active" if alive else "Background controller starting")
         if alive and not self.owns_controller and self.engine.store.value("controller_version") != __version__:
             controller = "Older background controller active. Restart it after upgrading."
-        self.set_if_changed(self.power_status, controller + " · " + (power if power != "Not requested" else "No armed work needs sleep protection."))
+        power_detail = (power if power != "Not requested" else "Sleep prevention is inactive.")
+        if self.simulation:
+            power_detail = "Demo mode leaves sleep settings unchanged."
+        self.set_if_changed(self.power_status, controller + " · " + power_detail)
         saved_tasks = self.engine.store.tasks()
         saved_by_id = {task["thread_id"]: task for task in saved_tasks}
         active = [task for task in saved_tasks if task["eligible"]]

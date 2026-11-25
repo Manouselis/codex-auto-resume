@@ -149,6 +149,28 @@ class UiTests(unittest.TestCase):
                          {"demo-task", "second-chat"})
         self.assertFalse(self.adapter.requests)
 
+    def test_picker_search_arms_the_filtered_identity(self):
+        import tkinter as tk
+        from tkinter import ttk
+        from dataclasses import replace
+
+        first = self.adapter.observations["demo-task"]
+        self.adapter.observations["second-chat"] = replace(first, thread_id="second-chat")
+        self.window.show_picker([{"id": "demo-task", "name": "Report"},
+                                 {"id": "second-chat", "name": "Release checks"}])
+        picker = self.window.picker
+        self.root.update()
+        search = next(child for child in picker.winfo_children() if isinstance(child, ttk.Entry))
+        listing = next(child for child in picker.winfo_children() if isinstance(child, tk.Listbox))
+        search.insert(0, "release second")
+        self.assertEqual(listing.size(), 1)
+        listing.selection_set(0)
+        listing.event_generate("<<ListboxSelect>>")
+        self.pump()
+        self.assertIsNone(self.store.get("demo-task"))
+        self.assertTrue(self.store.get("second-chat")["eligible"])
+        self.assertFalse(self.adapter.requests)
+
     def test_recovery_message_editor_saves_and_clears_selected_chat(self):
         import tkinter as tk
 
