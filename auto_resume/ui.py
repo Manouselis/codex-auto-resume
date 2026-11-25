@@ -11,7 +11,7 @@ from datetime import datetime
 
 from .engine import Scheduler
 from . import __version__
-from .domain import UnsafeError
+from .domain import DEFAULT_RECOVERY_MESSAGE, UnsafeError
 from .desktop import open_conversation
 from . import update
 
@@ -95,6 +95,9 @@ class ControlWindow:
         self.add_button.pack(side="left")
         self.disarm_button = ttk.Button(controls, text="Disarm", command=self.disarm, state="disabled")
         self.disarm_button.pack(side="left", padx=(8, 0))
+        self.message_button = ttk.Button(controls, text="Recovery message", command=self.edit_recovery_message,
+                                         state="disabled")
+        self.message_button.pack(side="left", padx=(8, 0))
         ttk.Checkbutton(controls, text="Recover context checkpoints", variable=self.recover_context).pack(side="right")
         quota_head = ttk.Frame(frame)
         quota_head.pack(fill="x", pady=(0, 10))
@@ -396,6 +399,67 @@ class ControlWindow:
             self.pending_selection = tid
         self.work(arm, armed)
 
+    def edit_recovery_message(self):
+        import tkinter as tk
+        from tkinter import ttk
+
+        selected = self.tasks.selection()
+        if not selected:
+            return
+        thread_id = selected[0]
+        store = self.engine.store
+        task = store.get(thread_id)
+        if not task or not task["eligible"]:
+            return
+        context = json.loads(task["context"])
+        if context.get("native_heartbeat"):
+            self.notice.set("Set the recovery message in this chat’s Codex schedule.")
+            return
+
+        window = tk.Toplevel(self.root)
+        window.title("Recovery message")
+        window.transient(self.root)
+        window.configure(background=self.style.lookup("TFrame", "background"))
+        window.minsize(510, 410)
+        body = ttk.Frame(window, padding=22)
+        body.pack(fill="both", expand=True)
+        ttk.Label(body, text="Recovery message", style="Section.TLabel").pack(anchor="w")
+        title = self.names.get(thread_id) or context.get("name") or thread_id
+        ttk.Label(body, text=title, style="Muted.TLabel", wraplength=465).pack(anchor="w", pady=(4, 14))
+        ttk.Label(body, text="Codex receives this message when automatic recovery starts. Leave it blank to use the default.",
+                  wraplength=465).pack(anchor="w", pady=(0, 10))
+        foreground = self.style.lookup("TLabel", "foreground")
+        editor = tk.Text(body, width=52, height=6, wrap="word", undo=True, relief="flat", padx=10, pady=10,
+                         background=self.style.lookup("Card.TFrame", "background"),
+                         foreground=foreground, insertbackground=foreground)
+        editor.pack(fill="both", expand=True)
+        editor.insert("1.0", store.recovery_message(thread_id))
+        ttk.Label(body, text="Default message", style="Section.TLabel").pack(anchor="w", pady=(14, 4))
+        ttk.Label(body, text=DEFAULT_RECOVERY_MESSAGE, wraplength=465,
+                  style="Muted.TLabel").pack(anchor="w")
+        feedback = tk.StringVar()
+        ttk.Label(body, textvariable=feedback, wraplength=465).pack(anchor="w", pady=(8, 0))
+        buttons = ttk.Frame(body)
+        buttons.pack(fill="x", pady=(10, 0))
+
+        def save():
+            try:
+                store.set_recovery_message(thread_id, editor.get("1.0", "end-1c"), self.engine.clock())
+            except ValueError as exc:
+                feedback.set(str(exc))
+                return
+            self.notice.set("Custom recovery message saved." if store.recovery_message(thread_id)
+                            else "Default recovery message restored.")
+            window.destroy()
+
+        ttk.Button(buttons, text="Use default", command=lambda: editor.delete("1.0", "end")).pack(side="left")
+        ttk.Button(buttons, text="Save", style="Primary.TButton", command=save).pack(side="right")
+        ttk.Button(buttons, text="Cancel", command=window.destroy).pack(side="right", padx=(0, 8))
+        window.bind("<Escape>", lambda _: window.destroy())
+        window.bind("<Control-Return>", lambda _: save())
+        window.grab_set()
+        editor.focus_set()
+
     def disarm(self):
         chosen = self.tasks.selection()
         if not chosen:
@@ -410,6 +474,7 @@ class ControlWindow:
                 self.tasks.delete(tid)
         self.selected_thread_id.set("")
         self.disarm_button.state(["disabled"])
+        self.message_button.state(["disabled"])
         self.scheduler.wake.set()
         self.notice.set("Conversation disarmed and removed from the queue.")
 
@@ -461,6 +526,7 @@ class ControlWindow:
                 self.select_conversation(chosen[0])
                 self.notice.set(task["reason"])
                 self.disarm_button.state(["!disabled"])
+                self.message_button.state(["!disabled"])
 
     def select_conversation(self, thread_id):
         self.selected_thread_id.set(thread_id)
@@ -540,7 +606,9 @@ class ControlWindow:
             self.empty_state.place_forget()
         else:
             self.empty_state.place(relx=.5, rely=.55, anchor="center")
-        self.disarm_button.state(["!disabled"] if self.tasks.selection() else ["disabled"])
+        selected_state = ["!disabled"] if self.tasks.selection() else ["disabled"]
+        self.disarm_button.state(selected_state)
+        self.message_button.state(selected_state)
         for task in active:
             reset = datetime.fromtimestamp(task["next_check"]).strftime("%d %b %H:%M") if task["next_check"] else "—"
             context = json.loads(task["context"])
@@ -565,6 +633,7 @@ class ControlWindow:
             self.tasks.focus(self.pending_selection)
             self.pending_selection = None
             self.disarm_button.state(["!disabled"])
+            self.message_button.state(["!disabled"])
         if self.scheduler.last_error:
             self.notice.set(self.scheduler.last_error)
         self.refresh_id = self.root.after(200, self.refresh)

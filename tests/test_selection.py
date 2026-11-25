@@ -68,6 +68,44 @@ class SelectionTests(unittest.TestCase):
         self.engine.tick()
         return self.store.get("live-test")
 
+    def test_custom_message_survives_reset_wait_and_is_only_sent_to_selected_chat(self):
+        self.arm_ahead()
+        message = "Finish the current checks.\nRecord the results in the existing report."
+        waiting = self.hit_limit_after_arming()
+        self.store.set_recovery_message("live-test", message, self.clock())
+        self.assertEqual(self.store.get("live-test")["next_check"], waiting["next_check"])
+        self.assertEqual(self.store.recovery_message("other-chat"), "")
+        self.assertFalse(self.queued())
+        self.assertFalse(any(message in row["reason"] for row in self.store.history()))
+        reopened = Store(self.store.path)
+        try:
+            self.assertEqual(reopened.recovery_message("live-test"), message)
+        finally:
+            reopened.close()
+
+        self.now[0] = waiting["next_check"]
+        self.backend.payload = fake_payload(self.clock(), five=5, ordinary=True)
+        self.engine.tick()
+        self.assertEqual(len(self.queued()), 1)
+        self.assertEqual(self.queued()[0]["threadId"], "live-test")
+        self.assertEqual(self.queued()[0]["input"], [{"type": "text", "text": message}])
+        with self.assertRaisesRegex(ValueError, "outstanding"):
+            self.store.set_recovery_message("live-test", "Another message", self.clock())
+
+    def test_empty_message_restores_default_and_overlong_message_is_rejected(self):
+        from auto_resume.domain import DEFAULT_RECOVERY_MESSAGE
+
+        self.arm_ahead()
+        self.store.set_recovery_message("live-test", "Finish the report", self.clock())
+        with self.assertRaisesRegex(ValueError, "4,000"):
+            self.store.set_recovery_message("live-test", "x" * 4001, self.clock())
+        self.store.set_recovery_message("live-test", " \n ", self.clock())
+        waiting = self.hit_limit_after_arming()
+        self.now[0] = waiting["next_check"]
+        self.backend.payload = fake_payload(self.clock(), five=5, ordinary=True)
+        self.engine.tick()
+        self.assertEqual(self.queued()[0]["input"][0]["text"], DEFAULT_RECOVERY_MESSAGE)
+
     def test_idle_prearm_follows_manual_turns_and_resumes_once_after_limit(self):
         self.assertEqual(self.arm_ahead()["state"], State.ARMED)
         self.assertFalse(self.queued())

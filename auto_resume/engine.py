@@ -518,6 +518,7 @@ class Engine:
             if self.store.db.execute("SELECT 1 FROM submissions WHERE thread_id=? AND status IN ('reserved','running','uncertain')", (tid,)).fetchone():
                 self.store.update(tid, State.PAUSED_FOR_USER, "This conversation already has an outstanding or uncertain submission; inspect it before retrying", now, eligible=False, next_check=None)
                 return
+            message = self.store.recovery_message(tid)
             self.store.db.execute("INSERT INTO submissions VALUES(?,?,?,NULL,?)", (cid, tid, "reserved", now))
             self.store.update(tid, State.RESUMING, "Resuming previous task", now,
                               continuation_id=cid, attempts=current["attempts"] + 1, next_check=None)
@@ -528,8 +529,11 @@ class Engine:
         request = replace(request, desktop_queue=context.get("desktop_queue", False))
         if trigger == "user_continue":
             request = replace(request, text="continue")
-        elif context.get("recover_context") is True:
-            request = replace(request, text=request.text + CHECKPOINT_INSTRUCTIONS)
+        else:
+            text = message or request.text
+            if context.get("recover_context") is True:
+                text += CHECKPOINT_INSTRUCTIONS
+            request = replace(request, text=text)
         request = replace(request, trigger=trigger, goal_identity=context.get("waiting_goal_identity"))
         try:
             if not self.store.enabled or not self.store.get(tid)["eligible"] or self.store.generation != generation:

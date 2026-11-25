@@ -149,6 +149,27 @@ class UiTests(unittest.TestCase):
                          {"demo-task", "second-chat"})
         self.assertFalse(self.adapter.requests)
 
+    def test_recovery_message_editor_saves_and_clears_selected_chat(self):
+        import tkinter as tk
+
+        self.engine.register("demo-task")
+        self.window.refresh()
+        self.window.tasks.selection_set("demo-task")
+        self.window.show_reason()
+        for value in ("Finish the report.\nRun checks.", ""):
+            self.window.message_button.invoke()
+            dialog = next(child for child in self.root.winfo_children() if isinstance(child, tk.Toplevel))
+            body = dialog.winfo_children()[0]
+            editor = next(child for child in body.winfo_children() if isinstance(child, tk.Text))
+            editor.delete("1.0", "end")
+            editor.insert("1.0", value)
+            buttons = body.winfo_children()[-1]
+            save = next(button for button in buttons.winfo_children() if button.cget("text") == "Save")
+            save.invoke()
+            self.assertEqual(self.store.recovery_message("demo-task"), value)
+            self.assertFalse(dialog.winfo_exists())
+        self.assertFalse(self.adapter.requests)
+
     def test_usage_check_and_themes(self):
         self.window.check_usage()
         self.pump()

@@ -92,6 +92,13 @@ class Capabilities:
                     self.original_runtime, self.backend_idempotency))
 
 
+DEFAULT_RECOVERY_MESSAGE = (
+    "Continue the previously interrupted task from its current state. First inspect existing "
+    "progress, files, and test results. Do not redo completed work. Resume only the outstanding "
+    "objectives, preserve the original requirements, and stop when the task is genuinely complete."
+)
+
+
 @dataclass(frozen=True)
 class Request:
     continuation_id: str
@@ -103,11 +110,7 @@ class Request:
     bucket_ids: tuple[str, ...]
     included_only: bool = True
     desktop_queue: bool = False
-    text: str = (
-        "Continue the previously interrupted task from its current state. First inspect existing "
-        "progress, files, and test results. Do not redo completed work. Resume only the outstanding "
-        "objectives, preserve the original requirements, and stop when the task is genuinely complete."
-    )
+    text: str = DEFAULT_RECOVERY_MESSAGE
     trigger: str = "usage_limit"
     goal_identity: str | None = None
 

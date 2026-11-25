@@ -48,6 +48,8 @@ class Store:
                 eligible INTEGER NOT NULL, next_check REAL, retries INTEGER NOT NULL DEFAULT 0,
                 attempts INTEGER NOT NULL DEFAULT 0, continuation_id TEXT, ack_turn TEXT,
                 reason TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS recovery_messages(
+                thread_id TEXT PRIMARY KEY, message TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS submissions(
                 id TEXT PRIMARY KEY, thread_id TEXT NOT NULL, status TEXT NOT NULL,
                 turn_id TEXT, created_at REAL NOT NULL);
@@ -198,6 +200,36 @@ class Store:
     def tasks(self):
         with self.lock:
             return [dict(r) for r in self.db.execute("SELECT * FROM tasks ORDER BY thread_id")]
+
+    def recovery_message(self, thread_id):
+        with self.lock:
+            row = self.db.execute("SELECT message FROM recovery_messages WHERE thread_id=?", (thread_id,)).fetchone()
+            return row["message"] if row else ""
+
+    def set_recovery_message(self, thread_id, message, now):
+        if not isinstance(message, str) or len(message) > 4000 or "\0" in message:
+            raise ValueError("Enter up to 4,000 characters for the recovery message.")
+        message = message.strip()
+        with self.transaction():
+            task = self.get(thread_id)
+            if not task or not task["eligible"]:
+                raise ValueError("Select an armed conversation first.")
+            if json.loads(task["context"]).get("native_heartbeat"):
+                raise ValueError("Set the message in the Codex schedule for this conversation.")
+            if self.db.execute(
+                "SELECT 1 FROM submissions WHERE thread_id=? AND status IN ('reserved','running','uncertain')",
+                (thread_id,),
+            ).fetchone():
+                raise ValueError("A submission is outstanding. Wait for it to finish before editing.")
+            if self.recovery_message(thread_id) == message:
+                return
+            if message:
+                self.db.execute("""INSERT INTO recovery_messages VALUES(?,?)
+                    ON CONFLICT(thread_id) DO UPDATE SET message=excluded.message""", (thread_id, message))
+            else:
+                self.db.execute("DELETE FROM recovery_messages WHERE thread_id=?", (thread_id,))
+            self.log(thread_id, State(task["state"]),
+                     "Custom recovery message saved" if message else "Default recovery message restored", now)
 
     def update(self, thread_id, state: State, reason: str, now: float, **changes):
         # Caller owns transaction. Columns are allowlisted, values always bound.
