@@ -1,4 +1,6 @@
-Ubuntu now migrates the standard app-menu shortcut left by a source install when you install or update the DEB. Your existing dock pin and Applications entry open the packaged app. The installer keeps an exact backup of the old shortcut and preserves custom launchers and recovery data.
+- The dashboard puts the armed queue next to the selected conversation’s recovery details, including why it is waiting, its next check, and its message setting.
+- Use **Open in Codex** to navigate to the original conversation or **Timeline** to see its recent recovery events.
+- Windows setup explains what it installs, shows progress details, and points to the next step after installation.
 
 Python and Tk are bundled. Install Codex separately and sign in to ChatGPT Plus. On Ubuntu, open the DEB with Software Install for a fresh install and use APT for an existing install. On Windows, run the per-user setup wizard. On macOS, open the DMG for your processor and drag the app to Applications.
 

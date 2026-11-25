@@ -1,5 +1,9 @@
 # Testing
 
+## Version 0.8.8
+
+The GUI regression suite exercises the split dashboard at minimum size, recovery message editing, per-chat timeline filtering, and opening the exact selected Codex chat without submitting a message or changing its recovery state. The README screenshots use isolated demo data.
+
 ## Version 0.8.7
 
 The Ubuntu tests seed the historical per-user desktop entry before a clean DEB install and before an upgrade through the app's APT path. They check that package configuration archives the exact entry under the original user, that the system desktop entry refers to the installed executable, and that the bundled app launches. Unit tests cover repeat runs, older icons, custom shortcuts, and symlinks.

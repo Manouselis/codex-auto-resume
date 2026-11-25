@@ -1,5 +1,11 @@
 # Usage limits and context-budget recovery
 
+## Inspect a conversation
+
+Select a row in the armed queue to see the recovery state, the reason it is waiting, its next check, and the message setting. The next check is when Auto-Resume plans to look again. Continuation still depends on fresh information from Codex.
+
+**Open in Codex** navigates to the selected conversation without submitting a message or changing what is armed. **Timeline** shows that conversation’s recent recovery events. The footer’s **Activity log** shows recent events across the queue.
+
 ## Choose a recovery message
 
 1. Add a conversation and select its row in the armed queue.

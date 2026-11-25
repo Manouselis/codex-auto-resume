@@ -7,7 +7,7 @@ A desktop companion that resumes explicitly armed Codex conversations in the sam
 [Project website](https://manouselis.github.io/codex-auto-resume/)
 
 [![Checks](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml)
-[![Desktop installers](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml) · **v0.8.7 beta** · MIT
+[![Desktop installers](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml) · **v0.8.8 beta** · MIT
 
 ## Download and open
 
@@ -15,12 +15,12 @@ Python and Tk are bundled. Install the official Codex desktop app and sign in to
 
 | Your computer | Download | Install |
 | --- | --- | --- |
-| Ubuntu 22.04+ · x64 | [Ubuntu installer](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.7/codex-auto-resume-0.8.7-linux-x64.deb) | Open with Software Install for a fresh install. Use [APT for upgrades](docs/INSTALL.md#upgrade-an-existing-ubuntu-installation). |
-| Windows 11 · x64 / ARM with x64 emulation | [Windows installer](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.7/codex-auto-resume-0.8.7-windows-x64-setup.exe) | Open the installer, then launch from Start. |
-| macOS · Apple silicon, 14+ | [Apple silicon app](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.7/codex-auto-resume-0.8.7-macos-arm64.dmg) | Open the disk image and drag the app to Applications. |
-| macOS · Intel, 15+ | [Intel app](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.7/codex-auto-resume-0.8.7-macos-x64.dmg) | Open the disk image and drag the app to Applications. |
+| Ubuntu 22.04+ · x64 | [Ubuntu installer](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.8/codex-auto-resume-0.8.8-linux-x64.deb) | Open with Software Install for a fresh install. Use [APT for upgrades](docs/INSTALL.md#upgrade-an-existing-ubuntu-installation). |
+| Windows 11 · x64 / ARM with x64 emulation | [Windows installer](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.8/codex-auto-resume-0.8.8-windows-x64-setup.exe) | Open the installer, then launch from Start. |
+| macOS · Apple silicon, 14+ | [Apple silicon app](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.8/codex-auto-resume-0.8.8-macos-arm64.dmg) | Open the disk image and drag the app to Applications. |
+| macOS · Intel, 15+ | [Intel app](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.8/codex-auto-resume-0.8.8-macos-x64.dmg) | Open the disk image and drag the app to Applications. |
 
-These community beta installers are unsigned, so Windows and macOS may ask for confirmation. See [installation help](docs/INSTALL.md), [checksums and release files](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.7), and the [compatibility test scope](docs/TESTING.md).
+These community beta installers are unsigned, so Windows and macOS may ask for confirmation. See [installation help](docs/INSTALL.md), [checksums and release files](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.8), and the [compatibility test scope](docs/TESTING.md).
 
 Installed copies check GitHub for updates and verify the installer checksum. On Ubuntu, installing or updating the DEB also migrates the standard app-menu shortcut from an older source install. If the update check fails, download the installer for your platform above.
 
@@ -28,11 +28,11 @@ Installed copies check GitHub for updates and verify the installer checksum. On 
 2. Click **Add conversation**, search by title or ID, and select an idle or running chat. The chat opens in Codex and shows **Armed ahead** in the queue. Start or keep working in Codex. Repeat to queue more chats.
 3. Armed chats stay queued through ordinary manual turns. After a confirmed five-hour interruption, Auto-Resume waits for the reset and verifies fresh included usage before resuming. Click **Disarm** to remove a chat. Normal completion after automatic recovery also removes it.
 
-Select an armed chat and click **Recovery message** to customize the prompt Codex receives after a verified reset. Leave it blank to use the built-in prompt. The selected chat’s details show why it is waiting and which message it will use.
+Select an armed chat to see its recovery status, next check, and message setting. **Open in Codex** takes you to the original chat. **Timeline** shows its recovery history. Use **Recovery message** to choose what Codex receives after a verified reset, or leave it blank to use the built-in prompt.
 
 Allowance refreshes every minute. Optional **Recover context checkpoints** continues unfinished work from saved checkpoints.
 
-![Auto-Resume dashboard in dark mode with two example chats armed](docs/screenshots/dark.png)
+![Auto-Resume dashboard in dark mode with the armed queue and recovery details side by side](docs/screenshots/dark.png)
 
 The screenshot uses example conversations. [View the light theme](docs/screenshots/light.png).
 

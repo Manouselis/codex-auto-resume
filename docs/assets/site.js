@@ -7,8 +7,8 @@ if (preview && themeButtons.length) {
   for (const button of themeButtons) {
     button.addEventListener("click", () => {
       const theme = button.dataset.theme;
-      preview.src = `screenshots/${theme}.png?v=0.8.6`;
-      preview.alt = `Auto-Resume 0.8.6 in ${theme} mode showing remaining allowance and two example chats armed and the selected chat’s recovery details.`;
+      preview.src = `screenshots/${theme}.png?v=0.8.8`;
+      preview.alt = `Auto-Resume 0.8.8 in ${theme} mode showing remaining allowance and the armed queue alongside recovery details for the selected chat.`;
       for (const item of themeButtons) {
         item.setAttribute("aria-pressed", String(item === button));
       }

@@ -2,6 +2,12 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
+## 0.8.8
+
+- Reworked the dashboard with a split queue and recovery details, a more compact status and allowance area, and refreshed dark and light themes.
+- Added **Open in Codex** and a conversation-specific **Timeline**. The details panel separates the reason for waiting, the next check, and the recovery message setting.
+- Clarified the Windows setup screens and added a visible log of the installation stages.
+
 ## 0.8.7
 
 - Ubuntu installs and updates archive the recognized shortcut from older source installs. The same application ID now opens the packaged launcher from Applications and the dock. Custom shortcuts, controllers, and recovery data are outside the migration.
