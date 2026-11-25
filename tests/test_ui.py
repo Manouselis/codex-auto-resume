@@ -192,6 +192,48 @@ class UiTests(unittest.TestCase):
             self.assertFalse(dialog.winfo_exists())
         self.assertFalse(self.adapter.requests)
 
+    def test_selected_timeline_filters_other_conversations(self):
+        import tkinter as tk
+        from auto_resume.domain import State
+
+        self.engine.register("demo-task")
+        with self.store.transaction():
+            self.store.log("demo-task", State.ARMED, "Selected chat event", time.time())
+            self.store.log("other-chat", State.ARMED, "Other chat event", time.time())
+        self.window.refresh()
+        self.window.tasks.selection_set("demo-task")
+        self.window.show_reason()
+        self.window.timeline_button.invoke()
+        dialog = next(child for child in self.root.winfo_children() if isinstance(child, tk.Toplevel))
+        content = dialog.winfo_children()[0].winfo_children()[2]
+        transcript = next(child for child in content.winfo_children() if isinstance(child, tk.Text))
+        history = transcript.get("1.0", "end")
+        self.assertIn("Selected chat event", history)
+        self.assertNotIn("Other chat event", history)
+        self.assertFalse(self.adapter.requests)
+        dialog.destroy()
+
+    def test_open_in_codex_navigates_without_changing_recovery(self):
+        import tkinter as tk
+        from auto_resume.live import LiveAdapter
+        from auto_resume.ui import ControlWindow
+        from test_live import Backend
+
+        backend = Backend(self.tmp.name)
+        engine = Engine(self.store, LiveAdapter(backend))
+        engine.register("live-test", wait_for_limit=True, desktop_queue=True)
+        window = ControlWindow(tk.Toplevel(self.root), engine, simulation=False, background=True)
+        try:
+            window.tasks.selection_set("live-test")
+            window.show_reason()
+            saved = self.store.get("live-test")
+            window.open_button.invoke()
+            self.open_desktop.assert_called_once_with("live-test")
+            self.assertEqual(self.store.get("live-test"), saved)
+            self.assertFalse(any(method in ("thread/queue/add", "turn/start") for method, _ in backend.calls))
+        finally:
+            window.close()
+
     def test_usage_check_and_themes(self):
         self.window.check_usage()
         self.pump()
@@ -245,7 +287,8 @@ class UiTests(unittest.TestCase):
             ImageGrab.grab(bbox=box).save(Path(output) / name)
 
     def test_controls_fit_at_minimum_size(self):
-        self.root.geometry("720x720")
+        width, height = self.root.minsize()
+        self.root.geometry(f"{width}x{height}")
         self.root.update()
         bottom = self.root.winfo_rooty() + self.root.winfo_height()
         self.assertTrue(self.window.footer.winfo_ismapped())

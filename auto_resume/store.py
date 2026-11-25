@@ -250,9 +250,14 @@ class Store:
                         (now, thread_id, str(state.value), reason))
         self.db.execute("DELETE FROM history WHERE id <= (SELECT COALESCE(MAX(id),0)-1000 FROM history)")
 
-    def history(self):
+    def history(self, *, thread_id=None):
         with self.lock:
-            return [dict(r) for r in self.db.execute("SELECT * FROM history ORDER BY id DESC LIMIT 100")]
+            if thread_id is None:
+                rows = self.db.execute("SELECT * FROM history ORDER BY id DESC LIMIT 100")
+            else:
+                rows = self.db.execute("SELECT * FROM history WHERE thread_id=? ORDER BY id DESC LIMIT 100",
+                                       (thread_id,))
+            return [dict(row) for row in rows]
 
     def recover(self, now: float):
         # Never repeat a request whose transmission/acknowledgement is uncertain.

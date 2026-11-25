@@ -47,8 +47,8 @@ class ControlWindow:
             engine.store.set_enabled(True, engine.clock())
 
         root.title("Codex Auto-Resume" + (" · Demo" if simulation else ""))
-        root.geometry("920x800")
-        root.minsize(760, 760)
+        root.geometry("960x760")
+        root.minsize(760, 660)
         try:
             self.icon = tk.PhotoImage(data=base64.b64encode(resources.files("auto_resume").joinpath("assets/icon.png").read_bytes()))
             root.iconphoto(True, self.icon)
@@ -63,9 +63,12 @@ class ControlWindow:
         self.status = tk.StringVar(value="●  Recovery on" if self.enabled.get() else "●  Paused")
         self.detail_title = tk.StringVar(value="Conversation details")
         self.detail_text = tk.StringVar(value="Select an armed conversation to see its recovery status.")
+        self.detail_state = tk.StringVar()
+        self.detail_check = tk.StringVar()
+        self.detail_message = tk.StringVar()
         self.usage_text = tk.StringVar(value="Usage has not been checked")
-        self.quota_updated = tk.StringVar(value="Checking allowance automatically…")
-        self.notice = tk.StringVar(value="Click Add conversation to start automatic recovery.")
+        self.quota_updated = tk.StringVar(value="Checking Codex allowance…")
+        self.notice = tk.StringVar()
         self.selected_thread_id = tk.StringVar(value="demo-task" if simulation else "")
         self.queue_title = tk.StringVar(value="Armed conversations · 0")
         self.power_status = tk.StringVar(value="Keep Codex open; screen locking is allowed.")
@@ -73,97 +76,130 @@ class ControlWindow:
         self.remaining = [tk.StringVar(value="Not checked"), tk.StringVar(value="Not checked")]
         self.progress = [tk.DoubleVar(value=0), tk.DoubleVar(value=0)]
         self.bars = []
-        frame = ttk.Frame(root, padding=24)
+        frame = ttk.Frame(root, padding=(22, 18))
         frame.pack(fill="both", expand=True)
         header = ttk.Frame(frame)
-        header.pack(fill="x", pady=(0, 18))
+        header.pack(fill="x", pady=(0, 16))
         if self.icon:
-            self.brand_icon = self.icon.subsample(4, 4)
-            ttk.Label(header, image=self.brand_icon).pack(side="left", padx=(0, 14))
+            self.brand_icon = self.icon.subsample(5, 5)
+            ttk.Label(header, image=self.brand_icon).pack(side="left", padx=(0, 12))
         titles = ttk.Frame(header)
         titles.pack(side="left")
         ttk.Label(titles, text="Auto-Resume", style="Title.TLabel").pack(anchor="w")
-        ttk.Label(titles, text="Codex desktop companion", style="Muted.TLabel").pack(anchor="w", pady=(4, 0))
-        setting = ttk.Frame(frame, style="Card.TFrame", padding=(18, 14))
-        setting.pack(fill="x", pady=(0, 18))
+        ttk.Label(titles, text="Codex desktop companion", style="Muted.TLabel").pack(anchor="w", pady=(2, 0))
+        ttk.Checkbutton(header, text="Dark mode", variable=self.dark, command=self.theme).pack(side="right")
+
+        setting = ttk.Frame(frame, style="Status.TFrame", padding=(16, 12))
+        setting.pack(fill="x", pady=(0, 16))
         self.toggle = ttk.Checkbutton(setting, text="Continue automatically when the 5h limit resets",
                                       variable=self.enabled, command=self.toggle_enabled,
-                                      style="Card.TCheckbutton", takefocus=True)
+                                      style="Status.TCheckbutton", takefocus=True)
         self.toggle.pack(side="left")
         self.status_badge = ttk.Label(setting, textvariable=self.status, style="Status.TLabel")
         self.status_badge.pack(side="right", padx=(12, 0))
+
+        quota_head = ttk.Frame(frame)
+        quota_head.pack(fill="x", pady=(0, 8))
+        ttk.Label(quota_head, text="Included allowance", style="Section.TLabel").pack(side="left")
+        ttk.Label(quota_head, textvariable=self.quota_updated, style="Muted.TLabel").pack(side="right")
+        quotas = ttk.Frame(frame)
+        quotas.pack(fill="x", pady=(0, 18))
+        quotas.columnconfigure((0, 1), weight=1, uniform="quota")
+        for i, label in enumerate(("5-hour window", "Weekly window")):
+            card = ttk.Frame(quotas, style="Card.TFrame", padding=(16, 12))
+            card.grid(row=0, column=i, sticky="nsew", padx=(0, 6) if i == 0 else (6, 0))
+            ttk.Label(card, text=label, style="CardMuted.TLabel").pack(anchor="w")
+            ttk.Label(card, textvariable=self.remaining[i], style="Metric.TLabel").pack(anchor="w", pady=(4, 8))
+            bar = tk.Canvas(card, height=5, borderwidth=0, highlightthickness=0)
+            bar.pack(fill="x")
+            bar.bind("<Configure>", lambda _: self.draw_quotas())
+            self.bars.append(bar)
+
         controls = ttk.Frame(frame)
-        controls.pack(fill="x", pady=(0, 14))
+        controls.pack(fill="x", pady=(0, 9))
         self.add_button = ttk.Button(controls, text="+ Add conversation", command=self.choose, style="Primary.TButton")
         self.add_button.pack(side="left")
         self.disarm_button = ttk.Button(controls, text="Disarm", command=self.disarm, state="disabled")
         self.disarm_button.pack(side="left", padx=(8, 0))
-        self.message_button = ttk.Button(controls, text="Recovery message", command=self.edit_recovery_message,
-                                         state="disabled")
-        self.message_button.pack(side="left", padx=(8, 0))
         ttk.Checkbutton(controls, text="Recover context checkpoints", variable=self.recover_context).pack(side="right")
-        quota_head = ttk.Frame(frame)
-        quota_head.pack(fill="x", pady=(0, 10))
-        ttk.Label(quota_head, text="Included allowance", style="Section.TLabel").pack(side="left")
-        ttk.Label(quota_head, text="Updates every minute", style="Muted.TLabel").pack(side="right")
-        quotas = ttk.Frame(frame)
-        quotas.pack(fill="x")
-        quotas.columnconfigure((0, 1), weight=1, uniform="quota")
-        for i, label in enumerate(("5-hour window", "Weekly window")):
-            card = ttk.Frame(quotas, style="Card.TFrame", padding=(18, 13))
-            card.grid(row=0, column=i, sticky="nsew", padx=(0, 7) if i == 0 else (7, 0))
-            ttk.Label(card, text=label, style="CardMuted.TLabel").pack(anchor="w")
-            ttk.Label(card, textvariable=self.remaining[i], style="Metric.TLabel").pack(anchor="w", pady=(5, 10))
-            bar = tk.Canvas(card, height=6, borderwidth=0, highlightthickness=0)
-            bar.pack(fill="x")
-            bar.bind("<Configure>", lambda _: self.draw_quotas())
-            self.bars.append(bar)
-        ttk.Label(frame, textvariable=self.quota_updated, style="Muted.TLabel").pack(anchor="w", pady=(7, 17))
-        ttk.Label(frame, textvariable=self.queue_title, style="Section.TLabel").pack(anchor="w", pady=(0, 9))
-        table = ttk.Frame(frame, style="Card.TFrame", padding=1)
+
+        bottom = ttk.Frame(frame)
+        bottom.pack(side="bottom", fill="x")
+        workspace = ttk.Frame(frame)
+        workspace.pack(fill="both", expand=True)
+        workspace.columnconfigure(0, weight=1)
+        workspace.columnconfigure(1, minsize=278)
+        workspace.rowconfigure(0, weight=1)
+        queue_panel = ttk.Frame(workspace, style="Card.TFrame", padding=(12, 12, 8, 8))
+        queue_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
+        ttk.Label(queue_panel, textvariable=self.queue_title, style="CardHeading.TLabel").pack(anchor="w", pady=(0, 6))
+        table = ttk.Frame(queue_panel, style="Card.TFrame")
         table.pack(fill="both", expand=True)
-        self.tasks = ttk.Treeview(table, columns=("state", "reset", "reason"), show="tree headings", height=2, selectmode="browse")
+        self.tasks = ttk.Treeview(table, columns=("state",), show="tree headings", height=3, selectmode="browse")
         self.tasks.heading("#0", text="Conversation", anchor="w")
         self.tasks.heading("state", text="Recovery", anchor="w")
-        self.tasks.heading("reset", text="Next check", anchor="w")
-        self.tasks.heading("reason", text="Details", anchor="w")
-        self.tasks.column("#0", width=260, minwidth=210)
-        self.tasks.column("state", width=150, minwidth=130)
-        self.tasks.column("reset", width=150, minwidth=125)
-        self.tasks.column("reason", width=270, minwidth=160)
-        self.tasks.configure(displaycolumns=("state", "reset"))
+        self.tasks.column("#0", width=192, minwidth=124, stretch=True)
+        self.tasks.column("state", width=142, minwidth=124, stretch=False)
         scroll = ttk.Scrollbar(table, orient="vertical", command=self.tasks.yview)
-        self.tasks.configure(yscrollcommand=scroll.set)
-        scroll.pack(side="right", fill="y")
         self.tasks.pack(fill="both", expand=True)
+
+        def scroll_queue(first, last):
+            scroll.set(first, last)
+            needs_scroll = float(first) > 0 or float(last) < 1
+            if needs_scroll and not scroll.winfo_manager():
+                scroll.pack(side="right", fill="y", before=self.tasks)
+            elif not needs_scroll and scroll.winfo_manager():
+                scroll.pack_forget()
+
+        self.tasks.configure(yscrollcommand=scroll_queue)
         self.tasks.bind("<<TreeviewSelect>>", self.show_reason)
-        self.empty_state = ttk.Label(table, text="No conversations armed yet\nClick Add conversation to get started.",
-                                     justify="center", style="CardMuted.TLabel")
-        details = ttk.Frame(frame, style="Card.TFrame", padding=(16, 10))
-        details.pack(fill="x", pady=(10, 0))
+        self.empty_state = ttk.Label(table,
+            text="No conversations armed\nChoose Add conversation to watch a chat.",
+            justify="center", style="CardMuted.TLabel", wraplength=255)
+
+        details = ttk.Frame(workspace, style="Card.TFrame", padding=(15, 12))
+        details.grid(row=0, column=1, sticky="nsew")
+        actions = ttk.Frame(details, style="Card.TFrame")
+        actions.pack(side="bottom", fill="x", pady=(10, 0))
+        main_actions = ttk.Frame(actions, style="Card.TFrame")
+        main_actions.pack(fill="x")
+        self.open_button = ttk.Button(main_actions, text="Open in Codex", command=self.open_selected, state="disabled")
+        self.open_button.pack(side="left")
+        self.timeline_button = ttk.Button(main_actions, text="Timeline", command=self.show_timeline, state="disabled")
+        self.timeline_button.pack(side="left", padx=(6, 0))
+        self.message_button = ttk.Button(actions, text="Recovery message", command=self.edit_recovery_message,
+                                         state="disabled")
+        self.message_button.pack(anchor="w", pady=(6, 0))
+        ttk.Label(details, text="Recovery details", style="CardHeading.TLabel").pack(anchor="w")
+        ttk.Separator(details).pack(fill="x", pady=(9, 10))
+        ttk.Label(details, textvariable=self.detail_state, style="CardAccent.TLabel",
+                  wraplength=248).pack(anchor="w")
         ttk.Label(details, textvariable=self.detail_title, style="CardTitle.TLabel",
-                  wraplength=640).pack(anchor="w")
+                  wraplength=248).pack(anchor="w", pady=(4, 4))
         ttk.Label(details, textvariable=self.detail_text, style="CardMuted.TLabel",
-                  wraplength=640).pack(anchor="w", pady=(4, 0))
-        ttk.Label(frame, textvariable=self.notice, wraplength=690, style="Muted.TLabel").pack(anchor="w", fill="x", pady=(8, 8))
+                  wraplength=248).pack(anchor="w")
+        ttk.Label(details, textvariable=self.detail_check, style="CardMuted.TLabel",
+                  wraplength=248).pack(anchor="w", pady=(8, 0))
+        ttk.Label(details, textvariable=self.detail_message, style="CardMuted.TLabel",
+                  wraplength=248).pack(anchor="w", pady=(2, 0))
+        ttk.Label(bottom, textvariable=self.notice, wraplength=690, style="Muted.TLabel").pack(anchor="w", fill="x", pady=(8, 8))
         if simulation:
-            sims = ttk.Frame(frame)
+            sims = ttk.Frame(bottom)
             sims.pack(fill="x", pady=(0, 8))
             ttk.Button(sims, text="Simulate reset", command=lambda: self.reset_simulation(30)).pack(side="left")
             ttk.Button(sims, text="Weekly limit", command=lambda: self.reset_simulation(100)).pack(side="left", padx=8)
             ttk.Button(sims, text="Complete task", command=self.complete_simulation).pack(side="left")
-        footer = self.footer = ttk.Frame(frame)
+        footer = self.footer = ttk.Frame(bottom)
         footer.pack(fill="x")
         ttk.Button(footer, text="Activity log", command=self.history).pack(side="left")
         ttk.Label(footer, text=f"Version {__version__}", style="Muted.TLabel").pack(side="left", padx=12)
-        ttk.Checkbutton(footer, text="Dark mode", variable=self.dark, command=self.theme).pack(side="right")
         if not simulation and update.installed_target() is not None:
             self.update_button = ttk.Button(footer, text="Check for updates", command=self.check_update)
             self.update_button.pack(side="right", padx=12)
             self.update_timer_id = root.after(1000, lambda: self.check_update(automatic=True))
         elif simulation:
             ttk.Label(footer, text="Demo data · no model requests", style="Muted.TLabel").pack(side="left", padx=14)
-        ttk.Label(frame, textvariable=self.power_status, style="Muted.TLabel").pack(anchor="w", pady=(7, 0))
+        ttk.Label(bottom, textvariable=self.power_status, style="Muted.TLabel").pack(anchor="w", pady=(7, 0))
         root.protocol("WM_DELETE_WINDOW", self.close)
         root.bind("<Control-q>", lambda _: self.close())
         self.theme()
@@ -263,46 +299,47 @@ class ControlWindow:
 
     def theme(self):
         if self.dark.get():
-            bg, fg, muted, panel, border, accent = "#10151e", "#edf3fb", "#9baac0", "#1a2331", "#2d3a4e", "#73a9ff"
-            selection, success = "#233e61", "#65dbc3"
+            bg, fg, muted, panel, border, accent = "#101816", "#eef8f4", "#a5b8b0", "#192522", "#344944", "#9be0c2"
+            selection, success, status_bg, hover, on_accent = "#2a423a", "#91e4be", "#22352e", "#b7efd6", "#152920"
         else:
-            bg, fg, muted, panel, border, accent = "#f1f5fa", "#172b45", "#586c84", "#ffffff", "#d6e0ed", "#2563eb"
-            selection, success = "#dce9ff", "#087b64"
+            bg, fg, muted, panel, border, accent = "#edf3f0", "#1b2d25", "#536961", "#ffffff", "#d1dfd8", "#176951"
+            selection, success, status_bg, hover, on_accent = "#dcefe5", "#126248", "#dcece3", "#14523f", "#ffffff"
         self.root.configure(background=bg)
         self.style.configure(".", background=bg, foreground=fg, fieldbackground=panel, font=(self.font_family, 10))
         self.style.configure("TFrame", background=bg)
         self.style.configure("Card.TFrame", background=panel)
+        self.style.configure("Status.TFrame", background=status_bg)
         self.style.configure("TLabel", background=bg, foreground=fg)
         self.style.configure("Title.TLabel", font=(self.font_family, 25, "bold"))
         self.style.configure("Section.TLabel", font=(self.font_family, 11, "bold"))
         self.style.configure("Muted.TLabel", foreground=muted, font=(self.font_family, 9))
+        self.style.configure("CardHeading.TLabel", background=panel, font=(self.font_family, 11, "bold"))
+        self.style.configure("CardAccent.TLabel", background=panel, foreground=success, font=(self.font_family, 9, "bold"))
         self.style.configure("CardTitle.TLabel", background=panel, font=(self.font_family, 10, "bold"))
         self.style.configure("CardMuted.TLabel", background=panel, foreground=muted, font=(self.font_family, 9))
         self.style.configure("Metric.TLabel", background=panel, font=(self.font_family, 19, "bold"))
-        self.style.configure("Paused.TLabel", background=panel, foreground=muted, font=(self.font_family, 9, "bold"))
-        self.style.configure("Status.TLabel", background=panel, foreground=success, font=(self.font_family, 9, "bold"))
+        self.style.configure("Paused.TLabel", background=status_bg, foreground=muted, font=(self.font_family, 9, "bold"))
+        self.style.configure("Status.TLabel", background=status_bg, foreground=success, font=(self.font_family, 9, "bold"))
         self.style.configure("TButton", background=panel, foreground=fg, bordercolor=border, lightcolor=panel,
-                             darkcolor=panel, borderwidth=1, padding=(13, 8), focuscolor=accent)
+                             darkcolor=panel, borderwidth=1, padding=(11, 6), focuscolor=accent)
         self.style.map("TButton", background=[("active", border)], foreground=[("active", fg)])
-        self.style.configure("Primary.TButton", background=accent, foreground="#101b2d", bordercolor=accent,
-                             font=(self.font_family, 10, "bold"))
-        self.style.map("Primary.TButton", background=[("active", "#91bdff")], foreground=[("active", "#101b2d")])
-        if not self.dark.get():
-            self.style.configure("Primary.TButton", foreground="#ffffff")
-            self.style.map("Primary.TButton", foreground=[("active", "#ffffff")], background=[("active", "#1d4ed8")])
+        self.style.configure("Primary.TButton", background=accent, foreground=on_accent, bordercolor=accent,
+                             lightcolor=accent, darkcolor=accent, font=(self.font_family, 10, "bold"))
+        self.style.map("Primary.TButton", background=[("active", hover)], foreground=[("active", on_accent)])
         self.style.configure("TCheckbutton", background=bg, foreground=fg, indicatorbackground=panel, indicatorforeground=accent)
         self.style.map("TCheckbutton", background=[("active", bg)])
-        self.style.configure("Card.TCheckbutton", background=panel)
-        self.style.map("Card.TCheckbutton", background=[("active", panel)])
+        self.style.configure("Status.TCheckbutton", background=status_bg)
+        self.style.map("Status.TCheckbutton", background=[("active", status_bg)])
+        self.style.configure("TSeparator", background=border)
         self.style.configure("TEntry", fieldbackground=panel, foreground=fg, bordercolor=border,
                              lightcolor=border, darkcolor=border, padding=5, insertcolor=fg)
         self.style.map("TEntry", bordercolor=[("focus", accent)], lightcolor=[("focus", accent)])
         self.style.configure("Vertical.TScrollbar", background=border, troughcolor=panel,
                              arrowcolor=muted, bordercolor=panel, lightcolor=border, darkcolor=border)
         self.style.configure("Treeview", background=panel, fieldbackground=panel, foreground=fg,
-                             rowheight=40, borderwidth=0, relief="flat", bordercolor=border, lightcolor=panel, darkcolor=panel)
+                             rowheight=43, borderwidth=0, relief="flat", bordercolor=border, lightcolor=panel, darkcolor=panel)
         self.style.configure("Treeview.Heading", background=panel, foreground=muted, relief="flat",
-                             borderwidth=0, font=(self.font_family, 9, "bold"), padding=(12, 11))
+                             borderwidth=0, font=(self.font_family, 9, "bold"), padding=(9, 9))
         self.style.map("Treeview", background=[("selected", selection)], foreground=[("selected", fg)])
         self.style.map("Treeview.Heading", background=[("active", panel)])
         self.bar_colors = (border, accent, success)
@@ -317,11 +354,10 @@ class ControlWindow:
             bar.delete("all")
             width = int(bar.winfo_width() * self.progress[i].get() / 100)
             if width:
-                bar.create_rectangle(0, 0, width, 6, fill=(first, second)[i], width=0)
+                bar.create_rectangle(0, 0, width, 5, fill=(first, second)[i], width=0)
 
     def toggle_enabled(self):
         self.engine.store.set_enabled(self.enabled.get(), self.engine.clock())
-        self.status.set("Enabled" if self.enabled.get() else "Paused")
         self.scheduler.wake.set()
         if self.enabled.get() and not self.simulation:
             self.work(self.engine.adapter.ensure_daemon)
@@ -495,7 +531,7 @@ class ControlWindow:
                 self.tasks.delete(tid)
         self.selected_thread_id.set("")
         self.disarm_button.state(["disabled"])
-        self.message_button.state(["disabled"])
+        self.update_details(None)
         self.scheduler.wake.set()
         self.notice.set("Conversation disarmed and removed from the queue.")
 
@@ -580,24 +616,68 @@ class ControlWindow:
     def update_details(self, task):
         available = bool(task and task["eligible"])
         self.set_button_enabled(self.disarm_button, available)
+        self.set_button_enabled(self.open_button, available and not self.simulation)
+        self.set_button_enabled(self.timeline_button, available)
         if not available:
             self.set_button_enabled(self.message_button, False)
-            self.set_if_changed(self.detail_title, "Conversation details")
-            self.set_if_changed(self.detail_text, "Select an armed conversation to see its recovery status.")
+            self.set_if_changed(self.detail_state, "")
+            self.set_if_changed(self.detail_title, "No chat selected")
+            self.set_if_changed(self.detail_text, "Select an armed conversation to see why it is waiting.")
+            self.set_if_changed(self.detail_check, "")
+            self.set_if_changed(self.detail_message, "")
             return
         thread_id = task["thread_id"]
         context = json.loads(task["context"])
         native = bool(context.get("native_heartbeat"))
         self.set_button_enabled(self.message_button, not native)
         if native:
-            mode = "Message managed by the Codex schedule"
-        elif self.engine.store.recovery_message(thread_id):
-            mode = "Custom recovery message"
+            mode = "Message · managed by Codex schedule"
+            check = "Next check · managed by Codex"
         else:
-            mode = "Default recovery message"
+            mode = "Message · custom" if self.engine.store.recovery_message(thread_id) else "Message · default"
+            check = self.next_check_label(task["next_check"])
         name = self.names.get(thread_id) or context.get("name") or thread_id
         self.set_if_changed(self.detail_title, name)
-        self.set_if_changed(self.detail_text, task["reason"] + "\n" + mode)
+        self.set_if_changed(self.detail_state, self.recovery_label(task, context))
+        self.set_if_changed(self.detail_text, task["reason"])
+        self.set_if_changed(self.detail_check, check)
+        self.set_if_changed(self.detail_message, mode)
+
+    def next_check_label(self, scheduled):
+        if scheduled is None:
+            return "Next check · no time scheduled"
+        remaining = scheduled - self.engine.clock()
+        stamp = datetime.fromtimestamp(scheduled).strftime("%d %b, %H:%M")
+        if remaining <= 0:
+            return "Next check · due"
+        if remaining < 60:
+            return f"Next check · in under a minute ({stamp})"
+        return f"Next check · {stamp}"
+
+    @staticmethod
+    def recovery_label(task, context):
+        state = task["state"]
+        if context.get("wait_for_limit") and state == "ARMED":
+            return "Armed ahead"
+        if state == "WAITING_FOR_RESET" and task["reason"].startswith("Connection unavailable"):
+            return "Retrying connection"
+        return {"WAITING_FOR_SCHEDULE": "Schedule paused", "PAUSED_FOR_USER": "Needs attention",
+                "WAITING_FOR_GOAL": "Goal recovery", "WAITING_FOR_RESET": "Waiting for reset"}.get(
+                    state, state.replace("_", " ").capitalize())
+
+    def open_selected(self):
+        selected = self.tasks.selection()
+        if not selected or self.simulation:
+            return
+        try:
+            open_conversation(selected[0])
+        except (ValueError, UnsafeError) as exc:
+            self.notice.set(str(exc))
+
+    def show_timeline(self):
+        selected = self.tasks.selection()
+        if selected:
+            self.history(thread_id=selected[0])
 
     def select_conversation(self, thread_id):
         self.selected_thread_id.set(thread_id)
@@ -605,17 +685,45 @@ class ControlWindow:
         if task:
             self.recover_context.set(json.loads(task["context"]).get("recover_context", False))
 
-    def history(self):
+    def history(self, *, thread_id=None):
         import tkinter as tk
         from tkinter import ttk
+
         window = tk.Toplevel(self.root)
-        window.title("Auto-Resume activity")
-        text = tk.Text(window, width=90, height=22, wrap="word")
-        text.pack(fill="both", expand=True, padx=12, pady=12)
-        for event in self.engine.store.history():
-            text.insert("end", f"{datetime.fromtimestamp(event['at']):%d %b %H:%M} · {event['state']}\n{event['reason']}\n\n")
+        title = "Conversation timeline" if thread_id else "Activity log"
+        window.title(title)
+        window.geometry("620x440")
+        window.transient(self.root)
+        window.configure(background=self.style.lookup("TFrame", "background"))
+        body = ttk.Frame(window, padding=18)
+        body.pack(fill="both", expand=True)
+        ttk.Label(body, text=title, style="Section.TLabel").pack(anchor="w")
+        if thread_id:
+            task = self.engine.store.get(thread_id)
+            context = json.loads(task["context"]) if task else {}
+            name = self.names.get(thread_id) or context.get("name") or thread_id
+            ttk.Label(body, text=name, style="Muted.TLabel", wraplength=550).pack(anchor="w", pady=(3, 0))
+        content = ttk.Frame(body, style="Card.TFrame")
+        content.pack(fill="both", expand=True, pady=12)
+        foreground = self.style.lookup("TLabel", "foreground")
+        text = tk.Text(content, width=48, height=12, wrap="word", relief="flat", padx=12, pady=12,
+                       font=(self.font_family, 10), foreground=foreground,
+                       background=self.style.lookup("Card.TFrame", "background"))
+        scroll = ttk.Scrollbar(content, orient="vertical", command=text.yview)
+        scroll.pack(side="right", fill="y")
+        text.configure(yscrollcommand=scroll.set)
+        text.pack(side="left", fill="both", expand=True)
+        events = self.engine.store.history(thread_id=thread_id)
+        text.tag_configure("heading", font=(self.font_family, 10, "bold"))
+        for event in events:
+            label = event['state'].replace('_', ' ').capitalize()
+            text.insert("end", f"{datetime.fromtimestamp(event['at']):%d %b, %H:%M}  ·  {label}\n", "heading")
+            text.insert("end", f"{event['reason']}\n\n")
+        if not events:
+            text.insert("end", "No activity recorded yet.")
         text.configure(state="disabled")
-        ttk.Button(window, text="Close", command=window.destroy).pack(pady=8)
+        ttk.Button(body, text="Close", command=window.destroy).pack(anchor="e")
+        window.bind("<Escape>", lambda _: window.destroy())
 
     def reset_simulation(self, weekly):
         self.engine.adapter.reset(weekly=weekly)
@@ -700,18 +808,8 @@ class ControlWindow:
             else:
                 self.empty_state.place_forget()
         for task in active:
-            reset = datetime.fromtimestamp(task["next_check"]).strftime("%d %b %H:%M") if task["next_check"] else "—"
             context = json.loads(task["context"])
-            if context.get("native_heartbeat"):
-                reset = "Activate in Codex" if task["state"] == "WAITING_FOR_SCHEDULE" else "Native schedule"
-            label = {"WAITING_FOR_SCHEDULE": "Schedule paused", "PAUSED_FOR_USER": "Needs attention",
-                     "WAITING_FOR_GOAL": "Goal recovery",
-                     "WAITING_FOR_RESET": "Waiting for reset"}.get(task["state"], task["state"].replace("_", " ").capitalize())
-            if context.get("wait_for_limit") and task["state"] == "ARMED":
-                label = "Armed ahead"
-            if task["state"] == "WAITING_FOR_RESET" and task["reason"].startswith("Connection unavailable"):
-                label = "Retrying connection"
-            values = (label, reset, task["reason"])
+            values = (self.recovery_label(task, context),)
             tid = task["thread_id"]
             name = self.names.get(tid) or context.get("name") or tid
             if self.tasks.exists(tid):
