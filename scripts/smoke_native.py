@@ -14,13 +14,14 @@ import subprocess
 import sys
 import tempfile
 import time
-from contextlib import closing
+from contextlib import closing, contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from auto_resume import __version__, update
+from auto_resume.linux_shortcuts import DESKTOP_NAME, source_entry
 
 
 def run(*args, **kwargs):
@@ -78,6 +79,42 @@ def install_deb_update(package):
         update._install_ubuntu(package, package_release(package))
 
 
+@contextmanager
+def legacy_shortcut():
+    """Seed the historical default desktop entry for the disposable CI user."""
+    import pwd
+
+    prefix = Path(pwd.getpwuid(os.getuid()).pw_dir).resolve() / ".local"
+    directory = prefix / "share/applications"
+    directory.mkdir(parents=True, exist_ok=True)
+    entry = directory / DESKTOP_NAME
+    original = source_entry(sys.executable, prefix.resolve()).encode()
+    existing_backups = set(directory.glob(".codex-auto-resume-*.source-backup"))
+    # Refuse to overwrite any real launcher, even when run outside CI.
+    with entry.open("xb") as stream:
+        stream.write(original)
+
+    def backups():
+        return set(directory.glob(".codex-auto-resume-*.source-backup")) - existing_backups
+
+    def verify():
+        assert not entry.exists(), "Legacy source launcher still shadows the system installer"
+        archived = backups()
+        assert len(archived) == 1, archived
+        backup = archived.pop()
+        assert backup.read_bytes() == original and backup.stat().st_uid == os.getuid()
+        assert "Exec=/usr/bin/codex-auto-resume\n" in (Path("/usr/share/applications") / DESKTOP_NAME).read_text()
+
+    try:
+        yield verify
+    finally:
+        if not entry.is_symlink() and entry.is_file() and entry.read_bytes() == original:
+            entry.unlink()
+        for backup in backups():
+            if not backup.is_symlink() and backup.read_bytes() == original:
+                backup.unlink()
+
+
 def upgrade_deb(previous, package, folder, report):
     old_binary = Path('/opt/codex-auto-resume/codex-auto-resume')
     new_binary = Path('/usr/bin/codex-auto-resume')
@@ -96,7 +133,9 @@ def upgrade_deb(previous, package, folder, report):
                             raise RuntimeError('Previous controller did not start')
                         time.sleep(0.1)
                 start = time.monotonic()
-                install_deb_update(package)
+                with legacy_shortcut() as verify_shortcut:
+                    install_deb_update(package)
+                    verify_shortcut()
                 upgrade_seconds = round(time.monotonic() - start, 3)
                 assert controller.poll() is None, 'Upgrade interrupted the previous controller'
                 installed = run('dpkg-query', '-W', '-f=${Version}', 'codex-auto-resume',
@@ -111,7 +150,8 @@ def upgrade_deb(previous, package, folder, report):
                 if controller.poll() is None:
                     controller.terminate()
                     controller.wait(timeout=10)
-        result.update(upgraded_from=old_version, apt_upgrade_seconds=upgrade_seconds, existing_state_preserved=True)
+        result.update(upgraded_from=old_version, apt_upgrade_seconds=upgrade_seconds, existing_state_preserved=True,
+                      legacy_shortcut_migrated=True)
         return result
     finally:
         run('sudo', 'dpkg', '-r', 'codex-auto-resume')
@@ -135,11 +175,14 @@ def main():
             if args.upgrade_from:
                 result = upgrade_deb(args.upgrade_from.resolve(), package, folder, report)
             elif args.install:
-                apt_install(package)
-                try:
-                    result = smoke(Path('/usr/bin/codex-auto-resume'), report)
-                finally:
-                    run('sudo', 'dpkg', '-r', 'codex-auto-resume')
+                with legacy_shortcut() as verify_shortcut:
+                    apt_install(package)
+                    try:
+                        verify_shortcut()
+                        result = smoke(Path('/usr/bin/codex-auto-resume'), report)
+                        result['legacy_shortcut_migrated'] = True
+                    finally:
+                        run('sudo', 'dpkg', '-r', 'codex-auto-resume')
             else:
                 run('dpkg-deb', '-x', package, folder)
                 result = smoke(folder / 'opt/codex-auto-resume/codex-auto-resume', report)

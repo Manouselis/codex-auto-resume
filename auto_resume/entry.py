@@ -55,6 +55,13 @@ def main():
         except Exception as exc:
             Path(sys.argv[2]).write_text(json.dumps({"package_smoke": "FAIL", "error_type": type(exc).__name__}) + "\n", encoding="utf-8")
             return 1
+    if sys.platform.startswith("linux"):
+        from .linux_shortcuts import SYSTEM_LAUNCHER, migrate_shortcut
+        if sys.argv[1:] == ["--migrate-shortcuts"]:
+            migrate_shortcut()
+            return 0
+        if not sys.argv[1:] and getattr(sys, "frozen", False) and Path(sys.executable).resolve() == SYSTEM_LAUNCHER.resolve():
+            migrate_shortcut()
     from .cli import main as cli_main
     from .update import RELAUNCH, relaunch
     try:

@@ -53,6 +53,9 @@ jobs:
             https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.2/codex-auto-resume-0.8.2-linux-x64.deb \
             --output codex-auto-resume-0.8.2-linux-x64.deb
           echo 'cf0a1b77e9efc9c73c66a1680e58e9387ade3afb4559758655fc77509994e29d  codex-auto-resume-0.8.2-linux-x64.deb' | sha256sum --check --strict
+      - name: Install from a source shortcut and launch bundled GUI (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python scripts/smoke_native.py dist/release/*-linux-x64.deb --install --report dist/smoke-linux-source-migration.json
       - name: Upgrade, launch bundled GUI, uninstall (Linux)
         if: runner.os == 'Linux'
         run: xvfb-run -a python scripts/smoke_native.py dist/release/*-linux-x64.deb --install --upgrade-from codex-auto-resume-0.8.2-linux-x64.deb --report dist/smoke-${{ matrix.target }}.json

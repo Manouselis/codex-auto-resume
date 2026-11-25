@@ -86,6 +86,9 @@ VarFileInfo([VarStruct('Translation',[1033,1200])])])
         launcher.parent.mkdir(parents=True)
         launcher.symlink_to('/opt/codex-auto-resume/codex-auto-resume')
         (package / 'DEBIAN').mkdir()
+        postinst = package / 'DEBIAN/postinst'
+        shutil.copyfile(ROOT / 'packaging/deb-postinst.sh', postinst)
+        postinst.chmod(0o755)
         size = sum(p.stat().st_size for p in application.rglob('*') if p.is_file()) // 1024
         (package / 'DEBIAN/control').write_text(f'''Package: codex-auto-resume
 Version: {VERSION}

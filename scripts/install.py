@@ -7,19 +7,16 @@ import sys
 import tempfile
 from pathlib import Path
 
-from build import build_app
+from build import ROOT, build_app
+
+sys.path.insert(0, str(ROOT))
+from auto_resume.linux_shortcuts import source_entry
 
 
 def default_prefix():
     if os.name == "nt":
         return Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local")) / "Programs/CodexAutoResume"
     return Path.home() / ".local"
-
-
-def quote_desktop(value):
-    if any(c in value for c in "\n\r\0"):
-        raise ValueError("Unsupported installation path")
-    return '"' + value.replace("\\", "\\\\").replace('"', '\\"').replace("`", "\\`").replace("$", "\\$").replace("%", "%%") + '"'
 
 
 def atomic_write(path, data, mode=0o644):
@@ -70,28 +67,7 @@ def main(argv=None):
     else:
         import shlex
         script = '#!/bin/sh\nexec ' + shlex.quote(sys.executable) + ' ' + shlex.quote(str(app)) + ' "$@"\n'
-    desktop_text = ""
-    if os.name != "nt":
-        cmd = quote_desktop(sys.executable) + " " + quote_desktop(str(app))
-        desktop_text = f"""[Desktop Entry]
-Type=Application
-Name=Codex Auto-Resume
-Comment=Continue armed Codex tasks after included-usage reset
-Exec={cmd} ui
-Icon={icon}
-StartupWMClass=CodexAutoResume
-Terminal=false
-Categories=Development;Utility;
-Actions=Toggle;Simulation;
-
-[Desktop Action Toggle]
-Name=Toggle Auto-Resume
-Exec={cmd} toggle
-
-[Desktop Action Simulation]
-Name=Open safe simulation
-Exec={cmd} --simulation ui
-"""
+    desktop_text = source_entry(sys.executable, prefix) if os.name != "nt" else ""
     atomic_write(app, build_app())
     atomic_write(launcher, script.encode(), 0o755)
     atomic_write(icon, (Path(__file__).resolve().parent.parent / "auto_resume/assets/icon.png").read_bytes())
