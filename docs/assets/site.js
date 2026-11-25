@@ -7,8 +7,8 @@ if (preview && themeButtons.length) {
   for (const button of themeButtons) {
     button.addEventListener("click", () => {
       const theme = button.dataset.theme;
-      preview.src = `screenshots/${theme}.png?v=0.8.8`;
-      preview.alt = `Auto-Resume 0.8.8 in ${theme} mode showing remaining allowance and the armed queue alongside recovery details for the selected chat.`;
+      preview.src = `screenshots/${theme}.png?v=0.8.9`;
+      preview.alt = `Auto-Resume 0.8.9 in ${theme} mode showing remaining allowance and the armed queue alongside recovery details for the selected chat.`;
       for (const item of themeButtons) {
         item.setAttribute("aria-pressed", String(item === button));
       }
@@ -28,11 +28,11 @@ async function updateDownloads() {
 
   // Keep bundled links available offline or when GitHub rate-limits the feed.
   const versionLabel = document.querySelector("#release-version");
-  const currentTag = versionLabel.textContent.split(" ")[0];
   const newestFirst = (a, b) => b.localeCompare(a, "en", { numeric: true });
   const published = releases
     .filter(release => !release.draft && /^v\d+\.\d+\.\d+$/.test(release.tag_name)
-      && newestFirst(release.tag_name, currentTag) <= 0 && Array.isArray(release.assets))
+      && Array.isArray(release.assets)
+      && release.assets.some(asset => asset.name === "SHA256SUMS" && asset.state === "uploaded"))
     .sort((a, b) => newestFirst(a.tag_name, b.tag_name));
 
   for (const release of published) {

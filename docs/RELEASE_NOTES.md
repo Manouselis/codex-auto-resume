@@ -1,6 +1,5 @@
-- The dashboard puts the armed queue next to the selected conversation’s recovery details, including why it is waiting, its next check, and its message setting.
-- Use **Open in Codex** to navigate to the original conversation or **Timeline** to see its recent recovery events.
-- Windows setup explains what it installs, shows progress details, and points to the next step after installation.
+- Slate and blue replace the green dashboard colors in light and dark mode. The project website and screenshots use the same palette.
+- Download cards use the newest published version that has all four installers and checksums. Working fallback links remain available while a new release is building.
 
 Python and Tk are bundled. Install Codex separately and sign in to ChatGPT Plus. On Ubuntu, open the DEB with Software Install for a fresh install and use APT for an existing install. On Windows, run the per-user setup wizard. On macOS, open the DMG for your processor and drag the app to Applications.
 

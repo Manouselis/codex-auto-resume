@@ -13,6 +13,8 @@ Artifacts are written to `dist/release`. Linux binaries are built on Ubuntu 22.0
 
 ## Verification and publishing
 
+Follow the [release checklist](RELEASING.md) when publishing a change.
+
 [Desktop installers workflow](../.github/workflows/desktop.yml) runs the core and real Tk GUI tests, builds native bundles, installs/copies the final packages, launches the packaged GUI, checks default settings/icon/SQLite/recovery simulation, and uninstalls/removes the app. The Windows x64 installer is additionally installed and run on the `windows-11-arm` runner under x64 emulation. Each job uploads a JSON report with its OS and measured smoke-test duration.
 
 ```sh

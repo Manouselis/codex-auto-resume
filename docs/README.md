@@ -2,7 +2,7 @@
 
 Start with the [project website](https://manouselis.github.io/codex-auto-resume/) and [installation guide](INSTALL.md). Native packages include Python and Tk for Ubuntu, Windows and macOS. Open the separately installed Codex desktop app and sign in with ChatGPT Plus.
 
-In 0.8.5, use **Add conversation** to [arm chats ahead of the five-hour limit](RECOVERY.md#arming-ahead). Chats stay in the queue as you work in Codex. Installed copies check for updates at launch through GitHub’s public release feed and verify published checksums before installing.
+Use **Add conversation** to [arm chats ahead of the five-hour limit](RECOVERY.md#arming-ahead). Chats stay in the queue as you work in Codex. Installed copies check for updates at launch through GitHub’s public release feed and verify published checksums before installing.
 
 | Guide | Purpose |
 | --- | --- |
@@ -10,6 +10,7 @@ In 0.8.5, use **Add conversation** to [arm chats ahead of the five-hour limit](R
 | [Installation](INSTALL.md) | Graphical setup, updates, screen locking, uninstall |
 | [Testing](TESTING.md) | Exact platform/installer checks and live-integration limits |
 | [Building](BUILDING.md) | Native bundles, CI release pipeline, signing status |
+| [Release checklist](RELEASING.md) | Tags, docs, website updates, and download verification |
 | [Troubleshooting](TROUBLESHOOTING.md) | Connection, allowance, arming and delivery errors |
 | [Recovery](RECOVERY.md) | Usage resets, context checkpoints and native schedules |
 | [Safety](SAFETY.md) | Included usage, cancellation and duplicate prevention |

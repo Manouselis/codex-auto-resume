@@ -1,6 +1,6 @@
 # Install Codex Auto-Resume
 
-Download your installer from the [v0.8.8 release](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.8). Python and Tk are bundled. Open the official Codex desktop app and sign in to ChatGPT Plus before adding conversations.
+Download your installer from the [project downloads](https://manouselis.github.io/codex-auto-resume/#downloads). Python and Tk are bundled. Open the official Codex desktop app and sign in to ChatGPT Plus before adding conversations.
 
 ## Ubuntu
 
@@ -14,10 +14,10 @@ The application lives in `/opt/codex-auto-resume` and is available at `/usr/bin/
 
 ### Upgrade an existing Ubuntu installation
 
-Close Software Install if it is stalled. From the folder containing the new package, install it over the old version with APT. This also works if App Center only shows **Installed**.
+Close Software Install if it is stalled. From the folder containing the new package, install it over the old version with APT. This also works if App Center only shows **Installed**. Replace `VERSION` with the number in your downloaded filename.
 
 ```sh
-sudo apt install ./codex-auto-resume-0.8.8-linux-x64.deb
+sudo apt install ./codex-auto-resume-VERSION-linux-x64.deb
 dpkg-query -W codex-auto-resume
 ```
 
@@ -61,7 +61,7 @@ Starting with 0.8.4, the footer shows the installed version. The Windows install
 
 Ubuntu uses APT and prompts for administrator authorization. If its background controller was active, select the chats you want to monitor again after the upgrade. macOS updates the installed app bundle and may request administrator authorization for a protected Applications folder. Copy the app from its disk image to Applications before opening it.
 
-If the update check in 0.8.4 or earlier fails, close the app and download 0.8.8 from the [project website](https://manouselis.github.io/codex-auto-resume/#downloads). Run the Windows installer, use the [APT upgrade steps](#upgrade-an-existing-ubuntu-installation) on Ubuntu, or replace the macOS app in Applications.
+If the update check in 0.8.4 or earlier fails, close the app and download the current installer from the [project website](https://manouselis.github.io/codex-auto-resume/#downloads). Run the Windows installer, use the [APT upgrade steps](#upgrade-an-existing-ubuntu-installation) on Ubuntu, or replace the macOS app in Applications.
 
 The local state database retains recovery metadata and any custom recovery messages across upgrades and uninstall. It stores chat/account/project identifiers and guard state. Auto-Resume does not copy conversation transcripts or credentials into it. Defaults:
 

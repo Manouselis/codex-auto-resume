@@ -1,5 +1,7 @@
 # Contributing
 
+Every delivery follows the [release checklist](docs/RELEASING.md), including documentation, website, download checks, and Git tags.
+
 Use Python 3.10+. Run `python3 -m unittest discover -s tests -v` and `python3 scripts/build.py`. If installed, `python3 -m pyflakes auto_resume scripts tests` checks imports and undefined names. Runtime code has no third-party dependencies.
 
 Keep fixtures invented and deterministic. Do not add real account IDs, token files, conversation text, project paths, private logs, or quota response captures to the repository. Report environment/version metadata using `doctor`.

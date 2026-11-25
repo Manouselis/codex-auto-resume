@@ -299,11 +299,11 @@ class ControlWindow:
 
     def theme(self):
         if self.dark.get():
-            bg, fg, muted, panel, border, accent = "#101816", "#eef8f4", "#a5b8b0", "#192522", "#344944", "#9be0c2"
-            selection, success, status_bg, hover, on_accent = "#2a423a", "#91e4be", "#22352e", "#b7efd6", "#152920"
+            bg, fg, muted, panel, border, accent = "#11141b", "#f3f5fa", "#b0bdd2", "#1b212d", "#384357", "#9bb8ff"
+            selection, status_ink, status_bg, hover, on_accent = "#293a59", "#a9c3ff", "#222e44", "#bdd0ff", "#142140"
         else:
-            bg, fg, muted, panel, border, accent = "#edf3f0", "#1b2d25", "#536961", "#ffffff", "#d1dfd8", "#176951"
-            selection, success, status_bg, hover, on_accent = "#dcefe5", "#126248", "#dcece3", "#14523f", "#ffffff"
+            bg, fg, muted, panel, border, accent = "#eff3f8", "#172033", "#52617a", "#ffffff", "#d5deeb", "#244fbd"
+            selection, status_ink, status_bg, hover, on_accent = "#e1ebff", "#264b9d", "#e8effb", "#1b3f98", "#ffffff"
         self.root.configure(background=bg)
         self.style.configure(".", background=bg, foreground=fg, fieldbackground=panel, font=(self.font_family, 10))
         self.style.configure("TFrame", background=bg)
@@ -314,12 +314,12 @@ class ControlWindow:
         self.style.configure("Section.TLabel", font=(self.font_family, 11, "bold"))
         self.style.configure("Muted.TLabel", foreground=muted, font=(self.font_family, 9))
         self.style.configure("CardHeading.TLabel", background=panel, font=(self.font_family, 11, "bold"))
-        self.style.configure("CardAccent.TLabel", background=panel, foreground=success, font=(self.font_family, 9, "bold"))
+        self.style.configure("CardAccent.TLabel", background=panel, foreground=status_ink, font=(self.font_family, 9, "bold"))
         self.style.configure("CardTitle.TLabel", background=panel, font=(self.font_family, 10, "bold"))
         self.style.configure("CardMuted.TLabel", background=panel, foreground=muted, font=(self.font_family, 9))
         self.style.configure("Metric.TLabel", background=panel, font=(self.font_family, 19, "bold"))
         self.style.configure("Paused.TLabel", background=status_bg, foreground=muted, font=(self.font_family, 9, "bold"))
-        self.style.configure("Status.TLabel", background=status_bg, foreground=success, font=(self.font_family, 9, "bold"))
+        self.style.configure("Status.TLabel", background=status_bg, foreground=status_ink, font=(self.font_family, 9, "bold"))
         self.style.configure("TButton", background=panel, foreground=fg, bordercolor=border, lightcolor=panel,
                              darkcolor=panel, borderwidth=1, padding=(11, 6), focuscolor=accent)
         self.style.map("TButton", background=[("active", border)], foreground=[("active", fg)])
@@ -342,7 +342,7 @@ class ControlWindow:
                              borderwidth=0, font=(self.font_family, 9, "bold"), padding=(9, 9))
         self.style.map("Treeview", background=[("selected", selection)], foreground=[("selected", fg)])
         self.style.map("Treeview.Heading", background=[("active", panel)])
-        self.bar_colors = (border, accent, success)
+        self.bar_colors = (border, accent, status_ink)
         self.draw_quotas()
 
     def draw_quotas(self):

@@ -2,6 +2,12 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
+## 0.8.9
+
+- Replace the green dashboard palette with slate and blue in both themes. The website and screenshots use the same palette.
+- Keep platform downloads working during release builds. The website selects the newest complete release and retains working fallback links.
+- Document the required update, tag, push, and verification steps in the [release checklist](RELEASING.md).
+
 ## 0.8.8
 
 - Reworked the dashboard with a split queue and recovery details, a more compact status and allowance area, and refreshed dark and light themes.

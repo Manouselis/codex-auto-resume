@@ -7,7 +7,7 @@ A desktop companion that resumes explicitly armed Codex conversations in the sam
 [Project website](https://manouselis.github.io/codex-auto-resume/)
 
 [![Checks](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml)
-[![Desktop installers](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml) · **v0.8.8 beta** · MIT
+[![Desktop installers](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml) · MIT
 
 ## Download and open
 
@@ -15,12 +15,12 @@ Python and Tk are bundled. Install the official Codex desktop app and sign in to
 
 | Your computer | Download | Install |
 | --- | --- | --- |
-| Ubuntu 22.04+ · x64 | [Ubuntu installer](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.8/codex-auto-resume-0.8.8-linux-x64.deb) | Open with Software Install for a fresh install. Use [APT for upgrades](docs/INSTALL.md#upgrade-an-existing-ubuntu-installation). |
-| Windows 11 · x64 / ARM with x64 emulation | [Windows installer](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.8/codex-auto-resume-0.8.8-windows-x64-setup.exe) | Open the installer, then launch from Start. |
-| macOS · Apple silicon, 14+ | [Apple silicon app](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.8/codex-auto-resume-0.8.8-macos-arm64.dmg) | Open the disk image and drag the app to Applications. |
-| macOS · Intel, 15+ | [Intel app](https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.8/codex-auto-resume-0.8.8-macos-x64.dmg) | Open the disk image and drag the app to Applications. |
+| Ubuntu 22.04+ · x64 | [Ubuntu installer](https://manouselis.github.io/codex-auto-resume/#download-ubuntu) | Open with Software Install for a fresh install. Use [APT for upgrades](docs/INSTALL.md#upgrade-an-existing-ubuntu-installation). |
+| Windows 11 · x64 / ARM with x64 emulation | [Windows installer](https://manouselis.github.io/codex-auto-resume/#download-windows) | Open the installer, then launch from Start. |
+| macOS · Apple silicon, 14+ | [Apple silicon app](https://manouselis.github.io/codex-auto-resume/#download-macos-arm64) | Open the disk image and drag the app to Applications. |
+| macOS · Intel, 15+ | [Intel app](https://manouselis.github.io/codex-auto-resume/#download-macos-x64) | Open the disk image and drag the app to Applications. |
 
-These community beta installers are unsigned, so Windows and macOS may ask for confirmation. See [installation help](docs/INSTALL.md), [checksums and release files](https://github.com/Manouselis/codex-auto-resume/releases/tag/v0.8.8), and the [compatibility test scope](docs/TESTING.md).
+These community beta installers are unsigned, so Windows and macOS may ask for confirmation. See [installation help](docs/INSTALL.md), [checksums and release files](https://github.com/Manouselis/codex-auto-resume/releases), and the [compatibility test scope](docs/TESTING.md).
 
 Installed copies check GitHub for updates and verify the installer checksum. On Ubuntu, installing or updating the DEB also migrates the standard app-menu shortcut from an older source install. If the update check fails, download the installer for your platform above.
 
@@ -46,4 +46,4 @@ The screenshot uses example conversations. [View the light theme](docs/screensho
 
 Live continuation has been verified on Ubuntu with Codex runtime **0.166**. Packaged GUI/install checks use isolated test data; they do **not** establish live Codex integration on every OS or repeated unattended quota-reset cycles. [Evidence and limitations](docs/TESTING.md).
 
-[Installation](docs/INSTALL.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Recovery](docs/RECOVERY.md) · [Building](docs/BUILDING.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
+[Installation](docs/INSTALL.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Recovery](docs/RECOVERY.md) · [Building](docs/BUILDING.md) · [Release checklist](docs/RELEASING.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
