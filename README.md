@@ -1,6 +1,6 @@
 # <img src="auto_resume/assets/icon.png" width="42" alt=""> Codex Auto-Resume
 
-**Keep your Codex chats moving when included usage resets.**
+**Automatically resume Codex chats after the five-hour usage limit resets.**
 
 A desktop companion that resumes explicitly armed Codex conversations in the same chat, with the same project and model. Add multiple conversations to the queue before your five-hour allowance runs out.
 

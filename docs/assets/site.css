@@ -51,7 +51,7 @@ nav a:hover { text-decoration: underline; }
 .hero-layout { display: grid; grid-template-columns: minmax(0, .88fr) minmax(0, 1.12fr); align-items: center; gap: clamp(28px, 5vw, 72px); padding-block: clamp(48px, 6vw, 86px); }
 .eyebrow { margin-bottom: 17px; color: var(--hero-accent); font-size: .875rem; letter-spacing: .085em; text-transform: uppercase; font-weight: 720; }
 h1, h2, h3 { line-height: 1.08; text-wrap: balance; }
-h1 { font-size: clamp(3.05rem, 6.4vw, 6.05rem); font-weight: 750; letter-spacing: -.075em; text-wrap: wrap; }
+h1 { font-size: clamp(2.375rem, 6vw, 5rem); font-weight: 750; letter-spacing: -.075em; text-wrap: wrap; }
 h1 span { display: block; color: var(--hero-accent); }
 .lede { color: var(--hero-muted); margin-top: 23px; font-size: clamp(1.04rem, 1.65vw, 1.24rem); max-width: 38ch; }
 .hero-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 21px; margin-top: 27px; }
@@ -120,7 +120,6 @@ footer { background: var(--soft-blue); border-top: 1px solid var(--line); }
 }
 @media (max-width: 730px) {
   .hero-layout, .workflow-layout, .safeguards, .upgrade-panel { grid-template-columns: 1fr; gap: 26px; }
-  h1 { max-width: 11ch; }
   .hero-layout { padding-block: 35px; }
   .preview { max-width: 550px; }
   .packages { grid-template-columns: 1fr; }
