@@ -1,5 +1,9 @@
 # Testing
 
+## Version 0.8.10
+
+Startup regressions exercise the no-argument desktop entry point with a blocked state path, an inaccessible database, and an unrelated database. They check that the dialog identifies the failure without exposing private details, that the unrelated database is preserved, and that an empty environment variable uses the per-user state path.
+
 ## Version 0.8.8
 
 The GUI regression suite exercises the split dashboard at minimum size, recovery message editing, per-chat timeline filtering, and opening the exact selected Codex chat without submitting a message or changing its recovery state. The README screenshots use isolated demo data.

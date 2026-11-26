@@ -1,13 +1,67 @@
 import io
+import os
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+from auto_resume import __version__, entry
+from auto_resume.cli import state_path
 from auto_resume.desktop import ensure_background, open_conversation
 from auto_resume.power import AwakeLease
 from auto_resume.store import Store
+
+
+class StartupTests(unittest.TestCase):
+    def test_empty_state_environment_uses_home_instead_of_working_directory(self):
+        with tempfile.TemporaryDirectory() as home, patch.object(Path, "home", return_value=Path(home)):
+            with patch.dict(os.environ, {"LOCALAPPDATA": "", "XDG_STATE_HOME": ""}):
+                expected = "AppData/Local" if os.name == "nt" else ".local/state"
+                self.assertEqual(state_path(), Path(home) / expected / "codex-auto-resume/state.sqlite3")
+
+    def test_blocked_state_path_has_actionable_startup_message(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "codex-auto-resume"
+            path.write_text("existing file", encoding="utf-8")
+            with patch("auto_resume.cli.state_path", return_value=path / "state.sqlite3"):
+                message = self.launch_error()
+            self.assertIn("blocking the saved recovery data location", message)
+            self.assertEqual(path.read_text(encoding="utf-8"), "existing file")
+
+    def test_unrelated_database_is_preserved(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "state.sqlite3"
+            database = sqlite3.connect(path)
+            database.execute("CREATE TABLE marker (id INT)")
+            database.close()
+            original = path.read_bytes()
+            with patch("auto_resume.cli.state_path", return_value=path):
+                self.assertIn("could not read the saved recovery database", self.launch_error())
+            self.assertEqual(path.read_bytes(), original)
+
+    def test_busy_database_is_reported_as_unavailable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "state.sqlite3"
+            path.write_text("state fixture", encoding="utf-8")
+            with (patch("auto_resume.cli.state_path", return_value=path),
+                  patch("auto_resume.store.sqlite3.connect",
+                        side_effect=sqlite3.OperationalError("private details"))):
+                message = self.launch_error()
+            self.assertIn("could not access its saved recovery data", message)
+            self.assertNotIn("private details", message)
+
+    def launch_error(self):
+        dialog = Mock()
+        tk = SimpleNamespace(TclError=RuntimeError, messagebox=SimpleNamespace(showerror=dialog))
+        with (patch("sys.argv", ["codex-auto-resume"]), patch("sys.stderr", new_callable=io.StringIO),
+              patch.dict("sys.modules", {"tkinter": tk})):
+            self.assertEqual(entry.main(), 2)
+        title, message = dialog.call_args.args
+        self.assertEqual(title, "Codex Auto-Resume")
+        self.assertIn(f"Version {__version__}", message)
+        return message
 
 
 class DesktopTests(unittest.TestCase):

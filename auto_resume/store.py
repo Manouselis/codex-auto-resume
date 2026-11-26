@@ -24,6 +24,9 @@ class Store:
                     owned = check.execute("PRAGMA application_id").fetchone()[0] == application_id
                 finally:
                     check.close()
+            except sqlite3.OperationalError:
+                # Lock and access errors are distinct from an invalid database.
+                raise
             except sqlite3.DatabaseError as exc:
                 raise ValueError("State destination is not an Auto-Resume database") from exc
             if not owned:

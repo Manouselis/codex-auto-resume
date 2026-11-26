@@ -1,5 +1,13 @@
 # Troubleshooting
 
+## Auto-Resume cannot start
+
+Open the [downloads page](https://manouselis.github.io/codex-auto-resume/#downloads) in your browser if the app cannot open to check for updates. Version 0.8.10 shows the installed version and distinguishes startup problems with saved recovery data from failures opening the window.
+
+- **A file or folder is blocking the saved recovery data location.** On Windows, open `%LOCALAPPDATA%` in File Explorer and check that `codex-auto-resume` is a folder and `state.sqlite3` inside it is a file. If an unrelated file or folder occupies the expected location, move it to a backup location and reopen Auto-Resume.
+- **Auto-Resume could not access its saved recovery data.** Close any other Auto-Resume window, confirm your account has write access to the state directory, and try again. See [the default state paths](INSTALL.md#updates-and-data).
+- **This version could not read the saved recovery database.** Update to the latest release and keep a copy of the database for recovery. If the error persists, include the dialog text and version in the GitHub issue. The database contains private recovery data.
+
 ## The active queue is empty or a conversation disappeared
 
 In 0.6.0 the queue shows only armed conversations. Click **Add conversation** and select an eligible chat; selection arms it immediately. **Disarm**, global OFF, completion or a safety stop removes a chat from the active list. Open **Activity log** to read past events and stop reasons. Removing a row preserves saved recovery settings and uncertain reservations.

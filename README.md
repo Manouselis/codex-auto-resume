@@ -4,7 +4,7 @@
 
 A desktop companion that resumes explicitly armed Codex conversations in the same chat, with the same project and model. Add multiple conversations to the queue before your five-hour allowance runs out.
 
-[Project website](https://manouselis.github.io/codex-auto-resume/)
+[Codex Auto-Resume website](https://manouselis.github.io/codex-auto-resume/)
 
 [![Checks](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/ci.yml)
 [![Desktop installers](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml/badge.svg)](https://github.com/Manouselis/codex-auto-resume/actions/workflows/desktop.yml) · MIT
@@ -23,6 +23,8 @@ Python and Tk are bundled. Install the official Codex desktop app and sign in to
 These community beta installers are unsigned, so Windows and macOS may ask for confirmation. See [installation help](docs/INSTALL.md), [checksums and release files](https://github.com/Manouselis/codex-auto-resume/releases), and the [compatibility test scope](docs/TESTING.md).
 
 Installed copies check GitHub for updates and verify the installer checksum. On Ubuntu, installing or updating the DEB also migrates the standard app-menu shortcut from an older source install. If the update check fails, download the installer for your platform above.
+
+If Auto-Resume closes or shows a startup error, follow the [startup troubleshooting guide](docs/TROUBLESHOOTING.md#auto-resume-cannot-start). Version 0.8.10 adds the app version and a specific message for saved-data failures.
 
 1. Open Auto-Resume. **Continue automatically when the 5h limit resets** starts checked.
 2. Click **Add conversation**, search by title or ID, and select an idle or running chat. The chat opens in Codex and shows **Armed ahead** in the queue. Start or keep working in Codex. Repeat to queue more chats.

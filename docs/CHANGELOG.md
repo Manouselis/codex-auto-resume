@@ -2,6 +2,11 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
+## 0.8.10
+
+- Use the normal per-user state directory when the desktop launcher supplies an empty state-location environment variable.
+- Show the installed version and a specific startup message when the saved recovery location is blocked, inaccessible, or unreadable. See [issue #4](https://github.com/Manouselis/codex-auto-resume/issues/4).
+
 ## 0.8.9
 
 - Replace the green dashboard palette with slate and blue in both themes. The website and screenshots use the same palette.

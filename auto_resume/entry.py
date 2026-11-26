@@ -62,18 +62,33 @@ def main():
             return 0
         if not sys.argv[1:] and getattr(sys, "frozen", False) and Path(sys.executable).resolve() == SYSTEM_LAUNCHER.resolve():
             migrate_shortcut()
-    from .cli import main as cli_main
+    from .cli import DesktopStartupError, main as cli_main
     from .update import RELAUNCH, relaunch
+    desktop = not sys.argv[1:]
     try:
-        result = cli_main(sys.argv[1:] or ["ui"])
+        result = cli_main(sys.argv[1:] or ["ui"], desktop=desktop)
         if result == RELAUNCH:
             relaunch()
         return result
-    except Exception:
-        # Display a useful failure even when there is no terminal. Do not expose
-        # raw protocol payloads, account identifiers or conversation contents.
-        if not sys.argv[1:]:
-            from tkinter import messagebox
-            messagebox.showerror("Codex Auto-Resume", "Auto-Resume could not start. Close another copy, check your installation and reopen the app. See the Troubleshooting page in the README.")
+    except Exception as exc:
+        if not desktop:
+            raise
+        from . import __version__
+        detail = str(exc) if isinstance(exc, DesktopStartupError) else (
+            f"Auto-Resume could not open its window ({type(exc).__name__})."
+        )
+        message = (
+            f"{detail}\n\n"
+            f"See Troubleshooting in the project README for steps to reopen Auto-Resume.\n"
+            f"Version {__version__}"
+        )
+        print(message, file=sys.stderr)
+        try:
+            from tkinter import TclError, messagebox
+        except ImportError:
             return 2
-        raise
+        try:
+            messagebox.showerror("Codex Auto-Resume", message)
+        except TclError:
+            pass
+        return 2

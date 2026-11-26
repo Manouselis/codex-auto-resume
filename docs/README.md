@@ -11,7 +11,7 @@ Use **Add conversation** to [arm chats ahead of the five-hour limit](RECOVERY.md
 | [Testing](TESTING.md) | Exact platform/installer checks and live-integration limits |
 | [Building](BUILDING.md) | Native bundles, CI release pipeline, signing status |
 | [Release checklist](RELEASING.md) | Tags, docs, website updates, and download verification |
-| [Troubleshooting](TROUBLESHOOTING.md) | Connection, allowance, arming and delivery errors |
+| [Troubleshooting](TROUBLESHOOTING.md) | Startup, connection, allowance, arming and delivery errors |
 | [Recovery](RECOVERY.md) | Usage resets, context checkpoints and native schedules |
 | [Safety](SAFETY.md) | Included usage, cancellation and duplicate prevention |
 | [Limitations](LIMITATIONS.md) | Unverified behavior and integration boundaries |

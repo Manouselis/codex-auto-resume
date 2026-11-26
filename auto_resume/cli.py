@@ -3,6 +3,7 @@ import argparse
 import json
 import os
 import signal
+import sqlite3
 import subprocess
 import tempfile
 import threading
@@ -19,11 +20,15 @@ from .store import Store
 from .live import LiveAdapter
 
 
+class DesktopStartupError(RuntimeError):
+    """A startup failure with a message safe to display in the window."""
+
+
 def state_path(simulation=False):
     if os.name == "nt":
-        root = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local"))
+        root = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData/Local")
     else:
-        root = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state"))
+        root = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state")
     return root / "codex-auto-resume" / ("simulation.sqlite3" if simulation else "state.sqlite3")
 
 
@@ -82,7 +87,7 @@ def demo(folder):
         store.close()
 
 
-def main(argv=None):
+def main(argv=None, *, desktop=False):
     parser = argparse.ArgumentParser(description="Codex Auto-Resume: continue armed tasks after included-usage reset")
     parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument("--state", type=Path, help="Private application state file (never a Codex file)")
@@ -132,7 +137,18 @@ def main(argv=None):
         with tempfile.TemporaryDirectory(prefix="auto-resume-demo-") as folder:
             print(json.dumps(demo(folder), indent=2))
         return 0
-    store = Store(args.state or state_path(args.simulation))
+    try:
+        store = Store(args.state or state_path(args.simulation))
+    except (OSError, sqlite3.DatabaseError, ValueError) as exc:
+        if not desktop:
+            raise
+        if isinstance(exc, (FileExistsError, NotADirectoryError, IsADirectoryError)):
+            detail = "A file or folder is blocking the saved recovery data location."
+        elif isinstance(exc, ValueError):
+            detail = "This version could not read the saved recovery database."
+        else:
+            detail = "Auto-Resume could not access its saved recovery data."
+        raise DesktopStartupError(detail) from exc
     adapter = SimulationAdapter() if args.simulation else LiveAdapter()
     engine = Engine(store, adapter)
     try:
@@ -187,6 +203,8 @@ def main(argv=None):
                                     for t in store.tasks()]}, indent=2))
         return 0
     except (UnsafeError, TransientError, ValueError) as exc:
+        if desktop:
+            raise
         print(str(exc))
         return 2
     finally:
