@@ -1,5 +1,11 @@
 # Testing
 
+## Version 0.8.11
+
+The startup regression interrupts a SQLite write in a subprocess and checks that reopening the app restores the committed settings. It checks that an interrupted unrelated database and its journal remain byte-for-byte intact.
+
+The Windows installer jobs upgrade the published 0.8.10 from a custom folder without a destination override. They launch the installed dashboard with no arguments against an isolated Windows profile path containing accented characters and spaces. The jobs verify that the dashboard opens and the committed settings survive. The [desktop workflow](../.github/workflows/desktop.yml) records the results for Windows Server x64 and Windows 11 ARM with x64 emulation.
+
 ## Version 0.8.10
 
 Startup regressions exercise the no-argument desktop entry point with a blocked state path, an inaccessible database, and an unrelated database. They check that the dialog identifies the failure without exposing private details, that the unrelated database is preserved, and that an empty environment variable uses the per-user state path.

@@ -37,7 +37,7 @@ Uninstall using **Settings → Apps → Installed apps → Codex Auto-Resume →
 
 If an older Auto-Resume release asks for the standalone runtime even though the Store app is installed, upgrade Auto-Resume. Starting in 0.8.4 it can use the bundled runtime to list conversations and access the desktop queue.
 
-If the dashboard fails to open, see [startup troubleshooting](TROUBLESHOOTING.md#auto-resume-cannot-start).
+Close Auto-Resume before running a downloaded update. Starting with 0.8.11, the installer defaults to your current install folder, including a custom folder. Open the updated copy from Start. If the dashboard fails to open, see [startup troubleshooting](TROUBLESHOOTING.md#auto-resume-cannot-start).
 
 ## macOS
 

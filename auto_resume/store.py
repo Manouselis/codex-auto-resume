@@ -3,11 +3,42 @@ import json
 import os
 import sqlite3
 import threading
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from pathlib import Path
 from urllib.parse import quote
 
 from .domain import Observation, State, transition_allowed
+
+
+APPLICATION_ID = 0x43524152
+
+
+def _owns_database(uri, mode):
+    with closing(sqlite3.connect(uri + mode, uri=True)) as check:
+        return check.execute("PRAGMA application_id").fetchone()[0] == APPLICATION_ID
+
+
+def _check_database(path):
+    uri = "file:" + quote(str(path.resolve())) + "?mode="
+    try:
+        try:
+            owned = _owns_database(uri, "ro")
+        except sqlite3.OperationalError as exc:
+            code = getattr(exc, "sqlite_errorname", None)
+            # Python 3.10 lacks extended error names.
+            legacy_rollback = (code is None and str(exc) == "attempt to write a readonly database"
+                               and path.with_name(path.name + "-journal").is_file())
+            if code != "SQLITE_READONLY_ROLLBACK" and not legacy_rollback:
+                raise
+            # Identify the file without replaying an unrelated journal. Then
+            # let SQLite roll back under its normal locks and recheck ownership.
+            owned = _owns_database(uri, "ro&immutable=1") and _owns_database(uri, "rw")
+    except sqlite3.OperationalError:
+        raise
+    except sqlite3.DatabaseError as exc:
+        raise ValueError("State destination is not an Auto-Resume database") from exc
+    if not owned:
+        raise ValueError("Refusing an unrelated database; choose a new Auto-Resume state file")
 
 
 class Store:
@@ -16,31 +47,26 @@ class Store:
         path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         if path.is_symlink():
             raise ValueError("State file must not be a symlink")
-        application_id = 0x43524152
         if path.exists() and path.stat().st_size:
-            try:
-                check = sqlite3.connect("file:" + quote(str(path.resolve())) + "?mode=ro", uri=True)
-                try:
-                    owned = check.execute("PRAGMA application_id").fetchone()[0] == application_id
-                finally:
-                    check.close()
-            except sqlite3.OperationalError:
-                # Lock and access errors are distinct from an invalid database.
-                raise
-            except sqlite3.DatabaseError as exc:
-                raise ValueError("State destination is not an Auto-Resume database") from exc
-            if not owned:
-                raise ValueError("Refusing an unrelated database; choose a new Auto-Resume state file")
+            _check_database(path)
         fd = os.open(path, os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0), 0o600)
         os.close(fd)
-        os.chmod(path, 0o600)
+        if os.name != "nt":
+            os.chmod(path, 0o600)
         self.path = path
         self.db = sqlite3.connect(path, timeout=5, check_same_thread=False, isolation_level=None)
         self.db.row_factory = sqlite3.Row
         self.lock = threading.RLock()
+        try:
+            self._initialize()
+        except BaseException:
+            self.close()
+            raise
+
+    def _initialize(self):
         self.db.execute("PRAGMA journal_mode=DELETE")
         self.db.execute("PRAGMA synchronous=FULL")
-        self.db.execute(f"PRAGMA application_id={application_id}")
+        self.db.execute(f"PRAGMA application_id={APPLICATION_ID}")
         self.db.executescript("""
             CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
             INSERT OR IGNORE INTO meta VALUES('schema_version','1');
@@ -67,7 +93,6 @@ class Store:
                 state TEXT NOT NULL, reason TEXT NOT NULL);
         """)
         if self.value("schema_version") != "1":
-            self.close()
             raise ValueError("Unsupported state schema; preserve this file and upgrade the application")
 
     @contextmanager

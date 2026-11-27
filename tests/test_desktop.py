@@ -1,6 +1,8 @@
 import io
 import os
 import sqlite3
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -51,6 +53,50 @@ class StartupTests(unittest.TestCase):
                 message = self.launch_error()
             self.assertIn("could not access its saved recovery data", message)
             self.assertNotIn("private details", message)
+
+    def test_busy_database_dialog_identifies_lock_without_private_details(self):
+        busy = sqlite3.OperationalError("private details")
+        busy.sqlite_errorname = "SQLITE_BUSY"
+        with patch("auto_resume.cli.Store", side_effect=busy):
+            message = self.launch_error()
+        self.assertIn("recovery data is in use", message)
+        self.assertIn("SQLITE_BUSY", message)
+        self.assertNotIn("private details", message)
+
+    def test_interrupted_owned_database_rolls_back_and_preserves_committed_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "state.sqlite3"
+            store = Store(path)
+            store.set_enabled(False, 0)
+            store.close()
+            journal = self.interrupt_database(path)
+            store = Store(path)
+            try:
+                self.assertFalse(store.enabled)
+                self.assertEqual(store.generation, 1)
+                self.assertFalse(journal.exists())
+            finally:
+                store.close()
+
+    def test_interrupted_unrelated_database_and_journal_are_preserved(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "state.sqlite3"
+            database = sqlite3.connect(path)
+            database.executescript("CREATE TABLE meta(key TEXT, value TEXT); INSERT INTO meta VALUES ('enabled', '1');")
+            database.close()
+            journal = self.interrupt_database(path)
+            original = (path.read_bytes(), journal.read_bytes())
+            with self.assertRaises(ValueError):
+                Store(path)
+            self.assertEqual((path.read_bytes(), journal.read_bytes()), original)
+
+    def interrupt_database(self, path):
+        subprocess.run([sys.executable, Path(__file__).with_name("fixtures") / "interrupt_database.py", path],
+                       check=True, timeout=10)
+        journal = path.with_name(path.name + "-journal")
+        with journal.open("rb") as stream:
+            self.assertEqual(stream.read(8), bytes.fromhex("d9d505f920a163d7"))
+        return journal
 
     def launch_error(self):
         dialog = Mock()

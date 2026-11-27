@@ -147,7 +147,19 @@ def main(argv=None, *, desktop=False):
         elif isinstance(exc, ValueError):
             detail = "This version could not read the saved recovery database."
         else:
-            detail = "Auto-Resume could not access its saved recovery data."
+            code = getattr(exc, "sqlite_errorname", None)
+            if code and code.startswith(("SQLITE_BUSY", "SQLITE_LOCKED")):
+                detail = "Saved recovery data is in use. Close other Auto-Resume windows and try again."
+            elif isinstance(exc, PermissionError) or (code and code.startswith("SQLITE_READONLY")):
+                detail = "Auto-Resume could not write to its saved recovery data. Check write access and try again."
+            else:
+                detail = "Auto-Resume could not access its saved recovery data."
+            if code:
+                detail += f"\nDiagnostic code {code}"
+            elif getattr(exc, "winerror", None) is not None:
+                detail += f"\nDiagnostic code WINERROR_{exc.winerror}"
+            elif isinstance(exc, OSError) and exc.errno is not None:
+                detail += f"\nDiagnostic code ERRNO_{exc.errno}"
         raise DesktopStartupError(detail) from exc
     adapter = SimulationAdapter() if args.simulation else LiveAdapter()
     engine = Engine(store, adapter)

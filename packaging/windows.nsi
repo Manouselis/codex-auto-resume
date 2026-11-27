@@ -13,6 +13,7 @@ Unicode true
 Name "Codex Auto-Resume"
 OutFile "${OUTPUT}"
 InstallDir "$LOCALAPPDATA\Programs\Codex Auto-Resume"
+InstallDirRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\CodexAutoResume" "DisplayIcon"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
 !define MUI_ABORTWARNING

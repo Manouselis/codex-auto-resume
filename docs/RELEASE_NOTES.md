@@ -1,5 +1,6 @@
-- Auto-Resume now uses its normal per-user data directory when the launcher passes an empty state-location environment variable.
-- Startup dialogs identify blocked or inaccessible recovery data and include the installed version. See the [startup troubleshooting guide](https://github.com/Manouselis/codex-auto-resume/blob/main/docs/TROUBLESHOOTING.md#auto-resume-cannot-start).
+- Recover the last committed recovery data after an interrupted database write.
+- Report a diagnostic code on startup access failures when available. [Startup troubleshooting](https://github.com/Manouselis/codex-auto-resume/blob/main/docs/TROUBLESHOOTING.md#auto-resume-cannot-start)
+- Keep the existing Windows install folder when running the downloaded updater. The Windows checks upgrade a custom 0.8.10 installation and open the dashboard normally with an interrupted database write.
 
 Python and Tk are bundled. Install Codex separately and sign in to ChatGPT Plus. On Ubuntu, open the DEB with Software Install for a fresh install and use APT for an existing install. On Windows, run the per-user setup wizard. On macOS, open the DMG for your processor and drag the app to Applications.
 

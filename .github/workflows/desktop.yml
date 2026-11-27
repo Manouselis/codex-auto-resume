@@ -59,9 +59,20 @@ jobs:
       - name: Upgrade, launch bundled GUI, uninstall (Linux)
         if: runner.os == 'Linux'
         run: xvfb-run -a python scripts/smoke_native.py dist/release/*-linux-x64.deb --install --upgrade-from codex-auto-resume-0.8.2-linux-x64.deb --report dist/smoke-${{ matrix.target }}.json
-      - name: Install, launch bundled GUI, uninstall (Windows)
+      - &previous-windows
+        name: Download and verify the published 0.8.10 Windows installer
         if: runner.os == 'Windows'
-        run: python scripts/smoke_native.py (Get-Item dist/release/*-windows-x64-setup.exe).FullName --install --report dist/smoke-${{ matrix.target }}.json
+        shell: pwsh
+        run: |
+          $asset = 'codex-auto-resume-0.8.10-windows-x64-setup.exe'
+          curl.exe --fail --silent --show-error --location --retry 2 --max-time 60 "https://github.com/Manouselis/codex-auto-resume/releases/download/v0.8.10/$asset" --output $asset
+          if ($LASTEXITCODE -ne 0) { throw 'Previous installer download failed' }
+          if ((Get-FileHash -Algorithm SHA256 $asset).Hash -ne '7e9980ec276fec95b35992c47906d061a8826e60f0e95aefa13cad2eea698ba7') {
+            throw 'Previous installer checksum differs'
+          }
+      - name: Upgrade, reopen saved state, and uninstall (Windows)
+        if: runner.os == 'Windows'
+        run: python scripts/smoke_native.py (Get-Item dist/release/*-windows-x64-setup.exe).FullName --install --upgrade-from codex-auto-resume-0.8.10-windows-x64-setup.exe --report dist/smoke-${{ matrix.target }}.json
       - name: Download the published 0.8.3 macOS app
         if: runner.os == 'macOS'
         shell: bash
@@ -126,7 +137,9 @@ jobs:
         with:
           name: installer-windows-x64
           path: downloads
-      - run: python scripts/smoke_native.py (Get-Item downloads/release/*-windows-x64-setup.exe).FullName --install --report dist/smoke-windows-11-arm.json
+      - *previous-windows
+      - name: Upgrade and reopen saved state on Windows 11
+        run: python scripts/smoke_native.py (Get-Item downloads/release/*-windows-x64-setup.exe).FullName --install --upgrade-from codex-auto-resume-0.8.10-windows-x64-setup.exe --report dist/smoke-windows-11-arm.json
       - run: python -m unittest discover -s tests -v
       - uses: actions/upload-artifact@v4
         with:

@@ -24,7 +24,7 @@ These community beta installers are unsigned, so Windows and macOS may ask for c
 
 Installed copies check GitHub for updates and verify the installer checksum. On Ubuntu, installing or updating the DEB also migrates the standard app-menu shortcut from an older source install. If the update check fails, download the installer for your platform above.
 
-If Auto-Resume closes or shows a startup error, follow the [startup troubleshooting guide](docs/TROUBLESHOOTING.md#auto-resume-cannot-start). Version 0.8.10 adds the app version and a specific message for saved-data failures.
+If Auto-Resume closes or shows a startup error, follow the [startup troubleshooting guide](docs/TROUBLESHOOTING.md#auto-resume-cannot-start). Version 0.8.11 can reopen saved recovery data after an interrupted write. If startup still fails, share the version and diagnostic code shown in the dialog.
 
 1. Open Auto-Resume. **Continue automatically when the 5h limit resets** starts checked.
 2. Click **Add conversation**, search by title or ID, and select an idle or running chat. The chat opens in Codex and shows **Armed ahead** in the queue. Start or keep working in Codex. Repeat to queue more chats.

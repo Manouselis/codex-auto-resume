@@ -2,6 +2,12 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
+## 0.8.11
+
+- Reopen the saved recovery database after an interrupted write by letting SQLite roll back its own journal. Startup dialogs distinguish lock and write failures and show a diagnostic code when available. [Issue #4](https://github.com/Manouselis/codex-auto-resume/issues/4)
+- Reuse the previous Windows install folder when running a downloaded update.
+- Start the installed Windows dashboard normally in CI after upgrading a custom install from 0.8.10. Check that the old recovery state survives an interrupted write.
+
 ## 0.8.10
 
 - Use the normal per-user state directory when the desktop launcher supplies an empty state-location environment variable.
