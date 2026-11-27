@@ -82,7 +82,7 @@ class StartupTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "state.sqlite3"
             database = sqlite3.connect(path)
-            database.executescript("CREATE TABLE meta(key TEXT, value TEXT); INSERT INTO meta VALUES ('enabled', '1');")
+            database.executescript("CREATE TABLE meta(key TEXT, value TEXT); INSERT INTO meta VALUES ('schema_version', '1');")
             database.close()
             journal = self.interrupt_database(path)
             original = (path.read_bytes(), journal.read_bytes())

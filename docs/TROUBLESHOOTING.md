@@ -2,12 +2,12 @@
 
 ## Auto-Resume cannot start
 
-Open the [downloads page](https://manouselis.github.io/codex-auto-resume/#downloads) in your browser if the app cannot open to check for updates. Version 0.8.11 can reopen a recovery database after an interrupted write. Install over your existing copy and open Auto-Resume from Start on Windows. Keep the saved database and any files beside it so SQLite can recover the last committed state.
+Open the [downloads page](https://manouselis.github.io/codex-auto-resume/#downloads) in your browser if the app cannot open to check for updates. Version 0.8.12 can reopen a recovery database after an interrupted write. Install over your existing copy and open Auto-Resume from Start on Windows. Keep the saved database and any files beside it so SQLite can recover the last committed state.
 
 - **A file or folder is blocking the saved recovery data location.** On Windows, open `%LOCALAPPDATA%` in File Explorer and check that `codex-auto-resume` is a folder and `state.sqlite3` inside it is a file. If an unrelated file or folder occupies the expected location, move it to a backup location and reopen Auto-Resume.
 - **Saved recovery data is in use.** Close other Auto-Resume windows, then try again.
 - **Auto-Resume could not write to its saved recovery data.** Check that your account can write to the database and its folder. See [the default state paths](INSTALL.md#updates-and-data).
-- **Auto-Resume could not access its saved recovery data.** If this persists on 0.8.11 or later, share the dialog text, version and diagnostic code in [issue #4](https://github.com/Manouselis/codex-auto-resume/issues/4). Keep the database and journal private.
+- **Auto-Resume could not access its saved recovery data.** If this persists on 0.8.12 or later, share the dialog text, version and diagnostic code in [issue #4](https://github.com/Manouselis/codex-auto-resume/issues/4). Keep the database and journal private.
 - **This version could not read the saved recovery database.** Update to the latest release and keep a copy of the database for recovery. If the error persists, include the dialog text and version in the GitHub issue. The database contains private recovery data.
 
 ## The active queue is empty or a conversation disappeared

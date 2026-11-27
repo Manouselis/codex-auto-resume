@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) · [Verification report](TESTING.md)
 
-## 0.8.11
+## 0.8.12
 
 - Reopen the saved recovery database after an interrupted write by letting SQLite roll back its own journal. Startup dialogs distinguish lock and write failures and show a diagnostic code when available. [Issue #4](https://github.com/Manouselis/codex-auto-resume/issues/4)
 - Reuse the previous Windows install folder when running a downloaded update.

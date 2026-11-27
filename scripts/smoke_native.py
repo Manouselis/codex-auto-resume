@@ -168,7 +168,7 @@ def launch_windows_dashboard(binary, folder):
     profile_state = folder / 'Local données # user'
     state = profile_state / 'codex-auto-resume/state.sqlite3'
     with closing(Store(state)) as store:
-        store.set_enabled(False, 0)
+        store.db.execute("INSERT INTO recovery_messages VALUES (?, ?)", ('fixture-chat', 'Keep this message'))
     run(sys.executable, ROOT / 'tests/fixtures/interrupt_database.py', state)
     journal = state.with_name(state.name + '-journal')
     with journal.open('rb') as stream:
@@ -208,8 +208,9 @@ def launch_windows_dashboard(binary, folder):
                 if 'TkTopLevel' in windows:
                     assert not journal.exists(), 'The normal launch did not roll back the interrupted write'
                     with closing(sqlite3.connect(state)) as database:
-                        assert database.execute("SELECT value FROM meta WHERE key='enabled'").fetchone() == ('0',)
-                        assert database.execute("SELECT value FROM meta WHERE key='generation'").fetchone() == ('1',)
+                        assert database.execute(
+                            "SELECT message FROM recovery_messages WHERE thread_id='fixture-chat'"
+                        ).fetchone() == ('Keep this message',), 'The saved recovery message was lost'
                     assert user32.PostMessageW(windows['TkTopLevel'], 0x0010, 0, 0), 'Could not close the dashboard'
                     assert app.wait(timeout=15) == 0, 'Windows dashboard did not exit cleanly'
                     break
